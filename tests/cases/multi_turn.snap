@@ -2,37 +2,37 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 4afdb463-a8d5-4a8a-a09c-abd65a331176 (claude-opus-4-6)
+Session 5f28e5b7-e3ff-4986-a138-5fe0bb6d862c (claude-opus-4-6)
 
-Rust is a systems programming language focused on safety, speed, and concurrency. Key characteristics:
+Rust is a systems programming language focused on safety, speed, and concurrency. Key highlights:
 
-- **Memory safety** without garbage collection, enforced through its ownership and borrowing system
+- **Memory safety** without garbage collection, using an ownership system with borrowing and lifetimes
 - **Zero-cost abstractions** — high-level features compile down to efficient low-level code
 - **Fearless concurrency** — the type system prevents data races at compile time
 - **No null or dangling pointers** — uses `Option<T>` and `Result<T, E>` instead
-- **Cargo** — built-in package manager and build system
+- **Cargo** — a built-in package manager and build system
+- **Strong ecosystem** via crates.io
 
-It was created at Mozilla Research and first released in 2015. It's commonly used for systems programming, WebAssembly, CLI tools, embedded systems, and increasingly in areas traditionally dominated by C/C++.
+It's commonly used for systems programming, CLI tools, WebAssembly, embedded systems, and performance-critical applications. Created by Graydon Hoare at Mozilla, with its first stable release (1.0) in 2015.
 
 
-Done  $0.01 · 5.1s · 1 turns
-Session 4afdb463-a8d5-4a8a-a09c-abd65a331176 (claude-opus-4-6)
+Done  $0.04 · 5.3s · 1 turns
+Session 5f28e5b7-e3ff-4986-a138-5fe0bb6d862c (claude-opus-4-6)
 
-Rust's ownership system is a set of compile-time rules that manage memory without a garbage collector:
+Rust's ownership system is its core mechanism for memory safety without a garbage collector. It has three rules:
 
-**Three core rules:**
-1. Each value has exactly one **owner** (a variable)
-2. There can only be **one owner at a time**
-3. When the owner goes out of scope, the value is **dropped** (freed)
+1. **Each value has exactly one owner** (a variable)
+2. **There can only be one owner at a time**
+3. **When the owner goes out of scope, the value is dropped** (freed)
 
-**Move semantics:**
+**Move semantics** — assigning a value transfers ownership:
 ```rust
 let s1 = String::from("hello");
-let s2 = s1;        // s1 is "moved" to s2
-// println!("{s1}"); // compile error — s1 is no longer valid
+let s2 = s1;  // s1 is moved to s2
+// println!("{s1}"); // ERROR: s1 is no longer valid
 ```
 
-**Borrowing** lets you reference a value without taking ownership:
+**Borrowing** — references let you use a value without taking ownership:
 ```rust
 let s = String::from("hello");
 let len = calculate_length(&s); // borrows s, doesn't take ownership
@@ -40,16 +40,24 @@ let len = calculate_length(&s); // borrows s, doesn't take ownership
 ```
 
 **Borrowing rules:**
-- You can have **either** one mutable reference (`&mut T`) **or** any number of immutable references (`&T`) — never both at the same time
+- You can have **either** many immutable references (`&T`) **or** one mutable reference (`&mut T`) — never both
 - References must always be valid (no dangling references)
 
-**Clone** for explicit deep copies:
 ```rust
-let s1 = String::from("hello");
-let s2 = s1.clone(); // both s1 and s2 are valid
+let mut s = String::from("hello");
+let r1 = &s;     // ok
+let r2 = &s;     // ok — multiple immutable borrows
+// let r3 = &mut s; // ERROR: can't borrow mutably while immutable borrows exist
 ```
 
-Simple types like integers implement `Copy`, so they're copied automatically rather than moved. The compiler enforces all of this at build time with no runtime cost.
+**Lifetimes** ensure references don't outlive the data they point to. The compiler infers them most of the time, but sometimes you need explicit annotations:
+```rust
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() { x } else { y }
+}
+```
+
+This system eliminates entire classes of bugs (use-after-free, double-free, data races) at compile time with no runtime cost.
 
 
-Done  $0.03 · 7.5s · 1 turns
+Done  $0.06 · 9.6s · 1 turns

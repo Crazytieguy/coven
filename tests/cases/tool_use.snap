@@ -2,10 +2,10 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session b30bc9eb-551c-4669-9b3c-eed8768210fa (claude-opus-4-6)
+Session de9f287a-f4b6-4054-9c9c-88ae1658cbe8 (claude-opus-4-6)
 
 [1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...  ✓
-The directory is essentially empty — it only contains a `.claude` directory (hidden). No other files or subdirectories are present.
+The directory is essentially empty — it only contains a `.claude` directory (hidden). There are no regular files here.
 
 
-Done  $0.05 · 5.5s · 2 turns  (:N to view)
+Done  $0.05 · 6.9s · 2 turns  (:N to view)

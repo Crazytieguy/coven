@@ -2,9 +2,9 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 2265468f-5a0b-473b-9111-6da6e17e15e8 (claude-opus-4-6)
+Session 732c6a84-932e-4fbd-b863-6ca5a3b37c94 (claude-opus-4-6)
 
 4
 
 
-Done  $0.01 · 1.3s · 1 turns
+Done  $0.04 · 2.1s · 1 turns

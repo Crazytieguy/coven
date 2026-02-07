@@ -43,6 +43,10 @@ impl SessionRunner {
             .arg("stream-json")
             .arg("--include-partial-messages");
 
+        if !has_permission_mode(&config.extra_args) {
+            cmd.arg("--permission-mode").arg("acceptEdits");
+        }
+
         if let Some(ref system_prompt) = config.append_system_prompt {
             cmd.arg("--append-system-prompt").arg(system_prompt);
         }
@@ -94,6 +98,11 @@ impl SessionRunner {
             "stream-json".to_string(),
             "--include-partial-messages".to_string(),
         ];
+
+        if !has_permission_mode(&config.extra_args) {
+            args.push("--permission-mode".to_string());
+            args.push("acceptEdits".to_string());
+        }
 
         if let Some(ref system_prompt) = config.append_system_prompt {
             args.push("--append-system-prompt".to_string());
@@ -180,4 +189,9 @@ impl SessionRunner {
             let _ = event_tx.send(AppEvent::ProcessExit(None));
         });
     }
+}
+
+/// Check whether `--permission-mode` is already present in the extra args.
+fn has_permission_mode(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--permission-mode")
 }

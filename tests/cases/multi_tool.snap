@@ -2,14 +2,15 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session bb6c5d1b-285f-43d1-ac7f-e2c912fda2ec (claude-sonnet-4-5-20250929)
+Session cedc3940-8107-4e3f-9f26-b0f46dafaba7 (claude-sonnet-4-5-20250929)
 
-I'll create a hello world script and then change the greeting to "hi".
+I'll create a hello.py file with a "Hello, World!" message and then change it to "Hi, World!".
 
 [1] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py (1 lines)  ✓
-[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py  ✓
-[3] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py  ✓
-Done! I've created `hello.py` with a hello world script and changed the greeting from "Hello" to "Hi".
+Now I'll change "Hello" to "Hi".
+
+[2] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py  ✓
+Done! I've created hello.py and changed the greeting from "Hello, World!" to "Hi, World!".
 
 
-Done  $0.17 · 10.9s · 4 turns  (:N to view)
+Done  $0.16 · 9.8s · 3 turns  (:N to view)

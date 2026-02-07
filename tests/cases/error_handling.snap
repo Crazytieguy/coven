@@ -2,17 +2,17 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session d6ba23ea-f04e-4488-9916-5c860769b6c1 (claude-opus-4-6)
+Session e7ed0320-08b3-4430-983a-13a07df87b57 (claude-opus-4-6)
 
 [1] ▶ Bash  ls /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...  ✓
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh  ✓
 [3] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/...
     ✗ Error: Exit code 1
-The script prints "Running tests..." and then exits with code 1 (failure). The issue is the hardcoded `exit 1`. Fixing it to exit with success:
+The script exits with code 1 (failure). The issue is `exit 1` — it unconditionally signals failure. Fixing it to exit with 0 (success):
 
 [4] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh  ✓
 [5] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/...  ✓
-Fixed. The script had a hardcoded `exit 1` causing it to always fail. Changed it to `exit 0` and it now passes successfully.
+Fixed. The script was unconditionally exiting with code 1 (failure). Changed it to `exit 0` — it now runs successfully.
 
 
-Done  $0.11 · 18.3s · 6 turns  (:N to view)
+Done  $0.21 · 19.7s · 6 turns  (:N to view)
