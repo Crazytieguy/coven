@@ -83,14 +83,17 @@ impl<W: Write> Renderer<W> {
 
     pub fn render_result(&mut self, subtype: &str, cost: f64, duration_ms: u64, num_turns: u32) {
         self.finish_current_block();
-        let secs = duration_ms as f64 / 1000.0;
+        // Round to tenths of a second (add 50ms to round instead of truncate)
+        let rounded = duration_ms + 50;
+        let whole_secs = rounded / 1000;
+        let tenths = (rounded % 1000) / 100;
 
         let label = if subtype == "success" {
             "Done"
         } else {
             "Error"
         };
-        let stats = format!("  ${cost:.2} · {secs:.1}s · {num_turns} turns");
+        let stats = format!("  ${cost:.2} · {whole_secs}.{tenths}s · {num_turns} turns");
         let hint = if self.messages.is_empty() {
             ""
         } else {

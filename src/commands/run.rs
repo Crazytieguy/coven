@@ -1,7 +1,7 @@
 use std::process::Command as StdCommand;
 
 use anyhow::Result;
-use crossterm::event::{Event, EventStream};
+use crossterm::event::{Event, EventStream, KeyEvent};
 use crossterm::terminal;
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -12,6 +12,12 @@ use crate::event::{AppEvent, InputMode};
 use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
+
+/// Flow control signals returned by key event handlers.
+enum LoopAction {
+    Continue,
+    Break,
+}
 
 /// Run a single interactive session.
 pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> {
@@ -29,46 +35,31 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
     let mut runner: Option<SessionRunner> = None;
-
-    // Events buffered while user is typing mid-stream
     let mut event_buffer: Vec<AppEvent> = Vec::new();
+    let mut pending_followup: Option<String> = None;
 
-    // If no prompt, show prompt first for user to type
-    if !has_prompt {
+    if has_prompt {
+        terminal::enable_raw_mode()?;
+        runner = Some(SessionRunner::spawn(config, event_tx.clone()).await?);
+    } else {
         terminal::enable_raw_mode()?;
         renderer.show_prompt();
         input.activate();
     }
 
-    // Spawn claude if we have a prompt
-    if has_prompt {
-        terminal::enable_raw_mode()?;
-        runner = Some(SessionRunner::spawn(config, event_tx.clone()).await?);
-    }
-
-    // Terminal event reader
     let mut term_events = EventStream::new();
-
-    // Deferred follow-up message
-    let mut pending_followup: Option<String> = None;
 
     loop {
         tokio::select! {
-            // Claude process events
             event = event_rx.recv() => {
                 match event {
                     Some(app_event) => {
                         if input.is_active() && state.status == SessionStatus::Running {
-                            // Buffer events while user is typing mid-stream
                             event_buffer.push(app_event);
                         } else {
                             process_claude_event(
-                                app_event,
-                                &mut state,
-                                &mut renderer,
-                                &mut runner,
-                                &mut input,
-                                &mut pending_followup,
+                                app_event, &mut state, &mut renderer,
+                                &mut runner, &mut input, &mut pending_followup,
                             ).await?;
                             if state.status == SessionStatus::Ended {
                                 break;
@@ -79,108 +70,32 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                 }
             }
 
-            // Terminal key events
             term_event = term_events.next() => {
                 match term_event {
                     Some(Ok(Event::Key(key_event))) => {
-                        // If no session yet (no-prompt mode), handle initial input
-                        if runner.is_none() {
-                            let action = input.handle_key(&key_event);
-                            match action {
-                                InputAction::Submit(text, _) => {
-                                    // Start session with this prompt
-                                    let config = SessionConfig {
-                                        prompt: Some(text),
-                                        extra_args: vec![],
-                                        append_system_prompt: None,
-                                    };
-                                    runner = Some(
-                                        SessionRunner::spawn(config, event_tx.clone()).await?
-                                    );
-                                    state.status = SessionStatus::Running;
-                                }
-                                InputAction::Interrupt | InputAction::EndSession => break,
-                                InputAction::Cancel => {
-                                    renderer.show_prompt();
-                                    input.activate();
-                                }
-                                _ => {}
-                            }
-                            continue;
-                        }
-
-                        let action = input.handle_key(&key_event);
-                        match action {
-                            InputAction::Submit(text, mode) => {
-                                // Flush buffered events before handling input
-                                flush_event_buffer(
-                                    &mut event_buffer,
-                                    &mut state,
-                                    &mut renderer,
-                                );
-
-                                match mode {
-                                    InputMode::Steering => {
-                                        // Send immediately
-                                        if let Some(ref mut r) = runner {
-                                            r.send_message(&text).await?;
-                                        }
-                                    }
-                                    InputMode::FollowUp => {
-                                        if state.status == SessionStatus::WaitingForInput {
-                                            // Send now (session is idle)
-                                            if let Some(ref mut r) = runner {
-                                                r.send_message(&text).await?;
-                                                state.status = SessionStatus::Running;
-                                            }
-                                        } else {
-                                            // Buffer for later
-                                            pending_followup = Some(text);
-                                        }
-                                    }
-                                }
-                            }
-                            InputAction::ViewMessage(n) => {
-                                view_message(&mut renderer, n);
-                                // Re-show prompt
-                                renderer.show_prompt();
-                                input.activate();
-                            }
-                            InputAction::Interrupt => {
-                                if let Some(ref mut r) = runner {
-                                    r.kill().await?;
-                                }
-                                break;
-                            }
-                            InputAction::EndSession => {
-                                if let Some(ref mut r) = runner {
-                                    r.close_input();
-                                }
-                            }
-                            InputAction::Cancel => {
-                                // Flush buffered events on cancel
-                                flush_event_buffer(
-                                    &mut event_buffer,
-                                    &mut state,
-                                    &mut renderer,
-                                );
-
-                                if state.status == SessionStatus::WaitingForInput {
-                                    renderer.show_prompt();
-                                    input.activate();
-                                }
-                            }
-                            InputAction::None => {}
+                        let action = if runner.is_none() {
+                            handle_initial_key_event(
+                                &key_event, &mut input, &mut renderer,
+                                &mut runner, &mut state, &event_tx,
+                            ).await?
+                        } else {
+                            handle_session_key_event(
+                                &key_event, &mut input, &mut renderer,
+                                &mut runner, &mut state,
+                                &mut event_buffer, &mut pending_followup,
+                            ).await?
+                        };
+                        if matches!(action, LoopAction::Break) {
+                            break;
                         }
                     }
-                    Some(Ok(_)) => {} // mouse, resize, etc
+                    Some(Ok(_)) => {}
                     Some(Err(_)) | None => break,
                 }
             }
         }
     }
 
-    // Cleanup
     terminal::disable_raw_mode()?;
 
     if let Some(ref mut r) = runner {
@@ -189,6 +104,96 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
     }
 
     Ok(())
+}
+
+/// Handle a key event before any session has started (no-prompt mode).
+async fn handle_initial_key_event(
+    key_event: &KeyEvent,
+    input: &mut InputHandler,
+    renderer: &mut Renderer,
+    runner: &mut Option<SessionRunner>,
+    state: &mut SessionState,
+    event_tx: &mpsc::UnboundedSender<AppEvent>,
+) -> Result<LoopAction> {
+    let action = input.handle_key(key_event);
+    match action {
+        InputAction::Submit(text, _) => {
+            let config = SessionConfig {
+                prompt: Some(text),
+                extra_args: vec![],
+                append_system_prompt: None,
+            };
+            *runner = Some(SessionRunner::spawn(config, event_tx.clone()).await?);
+            state.status = SessionStatus::Running;
+        }
+        InputAction::Interrupt | InputAction::EndSession => return Ok(LoopAction::Break),
+        InputAction::Cancel => {
+            renderer.show_prompt();
+            input.activate();
+        }
+        _ => {}
+    }
+    Ok(LoopAction::Continue)
+}
+
+/// Handle a key event during an active session.
+async fn handle_session_key_event(
+    key_event: &KeyEvent,
+    input: &mut InputHandler,
+    renderer: &mut Renderer,
+    runner: &mut Option<SessionRunner>,
+    state: &mut SessionState,
+    event_buffer: &mut Vec<AppEvent>,
+    pending_followup: &mut Option<String>,
+) -> Result<LoopAction> {
+    let action = input.handle_key(key_event);
+    match action {
+        InputAction::Submit(text, mode) => {
+            flush_event_buffer(event_buffer, state, renderer);
+            match mode {
+                InputMode::Steering => {
+                    if let Some(r) = runner {
+                        r.send_message(&text).await?;
+                    }
+                }
+                InputMode::FollowUp => {
+                    if state.status == SessionStatus::WaitingForInput {
+                        if let Some(r) = runner {
+                            r.send_message(&text).await?;
+                            state.status = SessionStatus::Running;
+                        }
+                    } else {
+                        *pending_followup = Some(text);
+                    }
+                }
+            }
+        }
+        InputAction::ViewMessage(n) => {
+            view_message(renderer, n);
+            renderer.show_prompt();
+            input.activate();
+        }
+        InputAction::Interrupt => {
+            if let Some(r) = runner {
+                r.kill().await?;
+            }
+            return Ok(LoopAction::Break);
+        }
+        InputAction::EndSession => {
+            if let Some(r) = runner {
+                r.close_input();
+            }
+        }
+        InputAction::Cancel => {
+            flush_event_buffer(event_buffer, state, renderer);
+            if state.status == SessionStatus::WaitingForInput {
+                renderer.show_prompt();
+                input.activate();
+            }
+        }
+        InputAction::None => {}
+    }
+    Ok(LoopAction::Continue)
 }
 
 /// Process a single claude event (not buffered).
