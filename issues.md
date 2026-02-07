@@ -5,7 +5,6 @@
 - Parallel tool calls: only the last call displays a checkmark. Not sure what to do about this (blocked on questions/parallel-tool-checkmarks.md)
 - When entering prompt mode there should be some indication, and also it should always happen on a new line (i.e. if there's a tool call or assistant message in progress). When the prompt is sent the text should be cleared so that buffered text can be printed in the correct location, and the prompt text should be reprinted when its sent to claude via stdin (but only after the current streaming message completes, if there is one)
 - :N for a tool should also show the result if available
-- :N currently shows the content near the bottom of the terminal rather than the top
 - After :N exits, the input should be cleared and everything should continue as normal. Currently seems to just get stuck in buffering mode
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too)
 - Should display the session id every time a new claude session starts, so that it can be easily resumed by the user if needed (may already work — was invisible due to DarkGrey color)
