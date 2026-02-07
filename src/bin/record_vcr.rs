@@ -8,6 +8,7 @@ use tokio::process::Command;
 use coven::protocol::emit::format_user_message;
 use coven::protocol::parse::parse_line;
 use coven::protocol::types::InboundEvent;
+use coven::session::runner::SessionRunner;
 use coven::vcr::{TestCase, Trigger, VcrHeader};
 
 #[tokio::main]
@@ -250,9 +251,7 @@ async fn record_ralph(
         child.wait().await?;
 
         // Check for break tag
-        let open = format!("<{break_tag}>");
-        let close = format!("</{break_tag}>");
-        if result_text.contains(&open) && result_text.contains(&close) {
+        if SessionRunner::scan_break_tag(&result_text, break_tag).is_some() {
             eprintln!("  Break tag detected at iteration {}", iteration + 1);
             break;
         }

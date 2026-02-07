@@ -124,7 +124,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
 
         // Check for break tag
         if !config.no_break
-            && let Some(reason) = scan_break_tag(&result_text, &config.break_tag)
+            && let Some(reason) = SessionRunner::scan_break_tag(&result_text, &config.break_tag)
         {
             renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
             break;
@@ -135,27 +135,15 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
     Ok(())
 }
 
-/// Scan response text for `<tag>reason</tag>` and return the reason if found.
-fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
-    let open = format!("<{tag}>");
-    let close = format!("</{tag}>");
-
-    let start = text.find(&open)?;
-    let after_open = start + open.len();
-    let end = text[after_open..].find(&close)?;
-    let reason = text[after_open..after_open + end].trim().to_string();
-    Some(reason)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use coven::session::runner::SessionRunner;
 
     #[test]
     fn scan_break_tag_found() {
         let text = "I've completed the task. <break>All bugs are fixed.</break> Done.";
         assert_eq!(
-            scan_break_tag(text, "break"),
+            SessionRunner::scan_break_tag(text, "break"),
             Some("All bugs are fixed.".to_string())
         );
     }
@@ -164,7 +152,7 @@ mod tests {
     fn scan_break_tag_custom() {
         let text = "Done! <done>Everything works</done>";
         assert_eq!(
-            scan_break_tag(text, "done"),
+            SessionRunner::scan_break_tag(text, "done"),
             Some("Everything works".to_string())
         );
     }
@@ -172,12 +160,12 @@ mod tests {
     #[test]
     fn scan_break_tag_not_found() {
         let text = "Still working on the bugs.";
-        assert_eq!(scan_break_tag(text, "break"), None);
+        assert_eq!(SessionRunner::scan_break_tag(text, "break"), None);
     }
 
     #[test]
     fn scan_break_tag_partial() {
         let text = "Found <break> but no closing tag";
-        assert_eq!(scan_break_tag(text, "break"), None);
+        assert_eq!(SessionRunner::scan_break_tag(text, "break"), None);
     }
 }

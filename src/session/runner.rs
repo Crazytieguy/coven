@@ -131,6 +131,18 @@ impl SessionRunner {
         Ok(())
     }
 
+    /// Scan response text for `<tag>reason</tag>` and return the reason if found.
+    pub fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
+        let open = format!("<{tag}>");
+        let close = format!("</{tag}>");
+
+        let start = text.find(&open)?;
+        let after_open = start + open.len();
+        let end = text[after_open..].find(&close)?;
+        let reason = text[after_open..after_open + end].trim().to_string();
+        Some(reason)
+    }
+
     /// Build the ralph system prompt for the given break tag.
     pub fn ralph_system_prompt(break_tag: &str) -> String {
         format!(
