@@ -127,8 +127,11 @@ async fn handle_session_key_event(
         }
         InputAction::ViewMessage(n) => {
             view_message(renderer, n);
-            renderer.show_prompt();
-            input.activate();
+            flush_event_buffer(locals, state, renderer);
+            if state.status == SessionStatus::WaitingForInput {
+                renderer.show_prompt();
+                input.activate();
+            }
         }
         InputAction::Interrupt => {
             runner.kill().await?;
