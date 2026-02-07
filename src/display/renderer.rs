@@ -408,33 +408,13 @@ fn first_line_truncated(s: &str, max: usize) -> String {
 /// Extract displayable text from a tool result value.
 /// Handles: objects with "content" (regular tools), arrays of content blocks (MCP tools),
 /// and plain strings (permission errors).
-fn extract_result_text(result: &Value) -> String {
-    match result {
+fn extract_result_text(value: &Value) -> String {
+    match value {
         Value::String(s) => s.clone(),
-        Value::Object(_) => {
-            if let Some(content) = result.get("content") {
-                extract_content_text(content)
-            } else {
-                String::new()
-            }
-        }
-        Value::Array(arr) => {
-            for item in arr {
-                if item.get("type").and_then(Value::as_str) == Some("text")
-                    && let Some(text) = item.get("text").and_then(Value::as_str)
-                {
-                    return text.to_string();
-                }
-            }
-            String::new()
-        }
-        _ => String::new(),
-    }
-}
-
-fn extract_content_text(content: &Value) -> String {
-    match content {
-        Value::String(s) => s.clone(),
+        Value::Object(_) => value
+            .get("content")
+            .map(extract_result_text)
+            .unwrap_or_default(),
         Value::Array(arr) => {
             for item in arr {
                 if item.get("type").and_then(Value::as_str) == Some("text")
