@@ -15,4 +15,4 @@ The script exits with code 1 (failure). The issue is `exit 1` — it uncondition
 Fixed. The script was unconditionally exiting with code 1 (failure). Changed it to `exit 0` — it now runs successfully.
 
 
-Done  $0.21 · 19.7s · 6 turns  (:N to view)
+Done  $0.21 · 19.7s · 6 turns · 127k tokens  (:N to view)

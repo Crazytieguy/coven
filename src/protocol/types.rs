@@ -164,8 +164,24 @@ pub struct SessionResult {
     pub duration_ms: u64,
     #[serde(default)]
     pub result: String,
+    #[serde(default)]
+    pub usage: Option<SessionUsage>,
     #[serde(default, rename = "session_id")]
     _session_id: String,
+    #[serde(flatten)]
+    _extra: Value,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SessionUsage {
+    #[serde(default)]
+    pub input_tokens: u64,
+    #[serde(default)]
+    pub output_tokens: u64,
+    #[serde(default)]
+    pub cache_read_input_tokens: u64,
+    #[serde(default)]
+    pub cache_creation_input_tokens: u64,
     #[serde(flatten)]
     _extra: Value,
 }

@@ -89,7 +89,14 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
-    pub fn render_result(&mut self, subtype: &str, cost: f64, duration_ms: u64, num_turns: u32) {
+    pub fn render_result(
+        &mut self,
+        subtype: &str,
+        cost: f64,
+        duration_ms: u64,
+        num_turns: u32,
+        total_tokens: Option<u64>,
+    ) {
         self.close_tool_line();
         self.finish_current_block();
         // Round to tenths of a second (add 50ms to round instead of truncate)
@@ -102,7 +109,12 @@ impl<W: Write> Renderer<W> {
         } else {
             "Error"
         };
-        let stats = format!("  ${cost:.2} · {whole_secs}.{tenths}s · {num_turns} turns");
+        let tokens_str = match total_tokens {
+            Some(t) => format!(" · {}k tokens", t / 1000),
+            None => String::new(),
+        };
+        let stats =
+            format!("  ${cost:.2} · {whole_secs}.{tenths}s · {num_turns} turns{tokens_str}");
         let hint = if self.messages.is_empty() {
             ""
         } else {

@@ -16,7 +16,7 @@ The first unchecked task is to create `hello.py` that prints 'hi'. Let me do tha
 Done. Created `hello.py` that prints `'hi'` and marked the task complete in TODO.md.
 
 
-Done  $0.08 · 12.4s · 4 turns  (:N to view)
+Done  $0.08 · 12.4s · 4 turns · 84k tokens  (:N to view)
 Session c0b9a65a-42cc-44ba-ae84-56a41ac4c910 (claude-opus-4-6)
 
 
@@ -36,4 +36,4 @@ Done. Created `README.md` with the project name and marked the task as complete.
 <break>All tasks in TODO.md are now checked off.</break>
 
 
-Done  $0.07 · 15.7s · 5 turns  (:N to view)
+Done  $0.07 · 15.7s · 5 turns · 86k tokens  (:N to view)

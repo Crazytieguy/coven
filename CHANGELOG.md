@@ -6,3 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Added
+- Display total token count in session result line (e.g. `· 20k tokens`)

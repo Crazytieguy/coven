@@ -16,7 +16,7 @@ Rust is a systems programming language focused on safety, speed, and concurrency
 It's commonly used for systems programming, CLI tools, WebAssembly, embedded systems, and performance-critical applications. Created by Graydon Hoare at Mozilla, with its first stable release (1.0) in 2015.
 
 
-Done  $0.04 · 5.3s · 1 turns
+Done  $0.04 · 5.3s · 1 turns · 20k tokens
 Session 5f28e5b7-e3ff-4986-a138-5fe0bb6d862c (claude-opus-4-6)
 
 Rust's ownership system is its core mechanism for memory safety without a garbage collector. It has three rules:
@@ -60,4 +60,4 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
 This system eliminates entire classes of bugs (use-after-free, double-free, data races) at compile time with no runtime cost.
 
 
-Done  $0.06 · 9.6s · 1 turns
+Done  $0.06 · 9.6s · 1 turns · 21k tokens

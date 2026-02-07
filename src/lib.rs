@@ -50,11 +50,18 @@ pub fn handle_inbound<W: Write>(
             state.num_turns = result.num_turns;
             state.duration_ms = result.duration_ms;
             state.status = SessionStatus::WaitingForInput;
+            let total_tokens = result.usage.as_ref().map(|u| {
+                u.input_tokens
+                    + u.output_tokens
+                    + u.cache_read_input_tokens
+                    + u.cache_creation_input_tokens
+            });
             renderer.render_result(
                 &result.subtype,
                 result.total_cost_usd,
                 result.duration_ms,
                 result.num_turns,
+                total_tokens,
             );
         }
     }
