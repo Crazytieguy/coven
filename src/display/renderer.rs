@@ -28,6 +28,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     current_tool: Option<(String, Value)>,
     /// Whether a tool call line is still open (no \r\n yet), awaiting its result.
     tool_line_open: bool,
+    /// Whether the last tool call was a subagent (indented).
+    last_tool_is_subagent: bool,
     /// Writer for output.
     out: W,
 }
@@ -48,6 +50,7 @@ impl Default for Renderer<io::Stdout> {
             tool_counter: 0,
             current_tool: None,
             tool_line_open: false,
+            last_tool_is_subagent: false,
             out: io::stdout(),
         }
     }
@@ -68,6 +71,7 @@ impl<W: Write> Renderer<W> {
             tool_counter: 0,
             current_tool: None,
             tool_line_open: false,
+            last_tool_is_subagent: false,
             out: writer,
         }
     }
@@ -193,7 +197,8 @@ impl<W: Write> Renderer<W> {
 
         if is_error {
             self.close_tool_line();
-            queue!(self.out, Print("    "), Print(theme::error().apply("✗")),).ok();
+            let indent = self.tool_indent();
+            queue!(self.out, Print(indent), Print(theme::error().apply("✗")),).ok();
             let text = extract_result_text(result);
             if !text.is_empty() {
                 let brief = first_line_truncated(&text, 60);
@@ -220,6 +225,7 @@ impl<W: Write> Renderer<W> {
         self.close_tool_line();
         self.finish_current_block();
         self.tool_counter += 1;
+        self.last_tool_is_subagent = true;
         let n = self.tool_counter;
         let detail = format_tool_detail(name, input);
         let label = format!("  [{n}] ▶ {name}  {detail}");
@@ -247,9 +253,10 @@ impl<W: Write> Renderer<W> {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             if is_error {
+                let indent = self.tool_indent();
                 queue!(
                     self.out,
-                    Print("      "),
+                    Print(indent),
                     Print(theme::error().apply("✗")),
                     Print("\r\n"),
                 )
@@ -268,6 +275,16 @@ impl<W: Write> Renderer<W> {
     }
 
     // --- Internal ---
+
+    /// Compute the indent string that aligns content under a `[N] ▶` prefix.
+    /// For subagent calls, includes the extra 2-space indent.
+    fn tool_indent(&self) -> String {
+        // Width of "[N] " is: 1 + digit_count + 2
+        let digits = digit_count(self.tool_counter);
+        let base = digits + 3; // "[" + digits + "] "
+        let extra = if self.last_tool_is_subagent { 2 } else { 0 };
+        " ".repeat(base + extra)
+    }
 
     /// Close an open tool call line if one is pending.
     fn close_tool_line(&mut self) {
@@ -300,6 +317,7 @@ impl<W: Write> Renderer<W> {
                 self.close_tool_line();
                 if let Some((name, raw_input)) = self.current_tool.take() {
                     self.tool_counter += 1;
+                    self.last_tool_is_subagent = false;
                     let n = self.tool_counter;
 
                     // Parse accumulated JSON
@@ -405,6 +423,19 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
 
 fn get_str<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
+}
+
+fn digit_count(n: usize) -> usize {
+    if n == 0 {
+        return 1;
+    }
+    let mut count = 0;
+    let mut v = n;
+    while v > 0 {
+        count += 1;
+        v /= 10;
+    }
+    count
 }
 
 fn first_line_truncated(s: &str, max: usize) -> String {
