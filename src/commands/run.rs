@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
 use crate::event::{AppEvent, InputMode};
-use crate::protocol::types::{InboundEvent, SystemEvent};
+use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 
@@ -267,11 +267,22 @@ fn handle_inbound(event: &InboundEvent, state: &mut SessionState, renderer: &mut
         InboundEvent::StreamEvent(se) => {
             renderer.handle_stream_event(se);
         }
-        InboundEvent::Assistant(_) => {
-            // Complete assistant message — we already rendered via stream events
+        InboundEvent::Assistant(msg) => {
+            if msg.parent_tool_use_id.is_some() {
+                // Subagent tool call — render indented
+                for block in &msg.message.content {
+                    if let AssistantContentBlock::ToolUse { name, input, .. } = block {
+                        renderer.render_subagent_tool_call(name, input);
+                    }
+                }
+            }
         }
         InboundEvent::User(u) => {
-            if let Some(ref result) = u.tool_use_result {
+            if u.parent_tool_use_id.is_some() {
+                if let Some(ref message) = u.message {
+                    renderer.render_subagent_tool_result(message);
+                }
+            } else if let Some(ref result) = u.tool_use_result {
                 renderer.render_tool_result(result);
             }
         }

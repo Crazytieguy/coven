@@ -4,7 +4,7 @@ use std::path::Path;
 use coven::display::renderer::Renderer;
 use coven::protocol::emit::format_user_message;
 use coven::protocol::parse::parse_line;
-use coven::protocol::types::{InboundEvent, SystemEvent};
+use coven::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
 use coven::session::state::{SessionState, SessionStatus};
 use coven::vcr::{TestCase, VcrHeader};
 
@@ -123,9 +123,21 @@ fn handle_event<W: Write>(
         InboundEvent::StreamEvent(se) => {
             renderer.handle_stream_event(se);
         }
-        InboundEvent::Assistant(_) => {}
+        InboundEvent::Assistant(msg) => {
+            if msg.parent_tool_use_id.is_some() {
+                for block in &msg.message.content {
+                    if let AssistantContentBlock::ToolUse { name, input, .. } = block {
+                        renderer.render_subagent_tool_call(name, input);
+                    }
+                }
+            }
+        }
         InboundEvent::User(u) => {
-            if let Some(ref result) = u.tool_use_result {
+            if u.parent_tool_use_id.is_some() {
+                if let Some(ref message) = u.message {
+                    renderer.render_subagent_tool_result(message);
+                }
+            } else if let Some(ref result) = u.tool_use_result {
                 renderer.render_tool_result(result);
             }
         }
@@ -207,3 +219,4 @@ vcr_test!(error_handling);
 vcr_test!(multi_turn);
 vcr_test!(ralph_break);
 vcr_test!(steering);
+vcr_test!(subagent);

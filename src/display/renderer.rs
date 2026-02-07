@@ -207,6 +207,58 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    // --- Subagent tool calls (indented) ---
+
+    pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
+        self.finish_current_block();
+        self.tool_counter += 1;
+        let n = self.tool_counter;
+        let detail = format_tool_detail(name, input);
+        let label = format!("  [{n}] ▶ {name}  {detail}");
+        queue!(self.out, Print(theme::dim().apply(&label)), Print("\r\n"),).ok();
+
+        // Store for :N viewing
+        let content = serde_json::to_string_pretty(input).unwrap_or_default();
+        self.messages.push(StoredMessage {
+            label: format!("[{n}] {name}"),
+            content,
+        });
+        self.out.flush().ok();
+    }
+
+    pub fn render_subagent_tool_result(&mut self, message: &Value) {
+        let Some(content) = message.get("content").and_then(Value::as_array) else {
+            return;
+        };
+        for item in content {
+            if item.get("type").and_then(Value::as_str) != Some("tool_result") {
+                continue;
+            }
+            let is_error = item
+                .get("is_error")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if is_error {
+                queue!(
+                    self.out,
+                    Print("      "),
+                    Print(theme::error().apply("✗")),
+                    Print("\r\n"),
+                )
+                .ok();
+            } else {
+                queue!(
+                    self.out,
+                    Print("      "),
+                    Print(theme::success().apply("✓")),
+                    Print("\r\n"),
+                )
+                .ok();
+            }
+        }
+        self.out.flush().ok();
+    }
+
     // --- Prompt ---
 
     pub fn show_prompt(&mut self) {

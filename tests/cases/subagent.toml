@@ -1,0 +1,5 @@
+[run]
+prompt = "Use the Task tool to spawn a subagent that reads README.md and summarizes it in one sentence. Do not use any other tools."
+
+[files]
+"README.md" = "# Test Project\n\nA minimal project for testing subagent display in coven."

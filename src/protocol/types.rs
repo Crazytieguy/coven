@@ -98,6 +98,8 @@ pub struct Delta {
 #[derive(Debug, Clone, Deserialize)]
 pub struct AssistantMessage {
     pub message: AssistantMessageBody,
+    #[serde(default)]
+    pub parent_tool_use_id: Option<String>,
     #[serde(flatten)]
     pub extra: Value,
 }
@@ -137,6 +139,11 @@ pub struct UserToolResult {
     /// Tool result — can be an object (regular tools), array (MCP tools), or string (errors).
     #[serde(default)]
     pub tool_use_result: Option<Value>,
+    #[serde(default)]
+    pub parent_tool_use_id: Option<String>,
+    /// Raw message (used for subagent tool results).
+    #[serde(default)]
+    pub message: Option<Value>,
     #[serde(flatten)]
     pub extra: Value,
 }

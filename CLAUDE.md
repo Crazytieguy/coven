@@ -27,6 +27,7 @@ See @IDEAS.md for design ideas and use cases.
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
 - Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
+- Never write `.vcr` files directly — they must only be created by `cargo run --bin record_vcr`
 
 ## Publishing
 

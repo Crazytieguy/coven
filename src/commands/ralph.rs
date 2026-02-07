@@ -1,10 +1,12 @@
 use anyhow::Result;
+use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
 use crossterm::terminal;
+use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use crate::display::renderer::Renderer;
 use crate::event::AppEvent;
-use crate::protocol::types::{InboundEvent, SystemEvent};
+use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 
@@ -24,6 +26,8 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
     let mut renderer = Renderer::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;
+
+    let mut term_events = EventStream::new();
 
     let system_prompt = if config.no_break {
         "You are running in a loop where each iteration starts a fresh session but the filesystem \
@@ -61,32 +65,54 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
         let mut result_text = String::new();
 
         // Process events for this iteration
-        while let Some(event) = event_rx.recv().await {
-            match event {
-                AppEvent::Claude(inbound) => {
-                    handle_inbound(&inbound, &mut state, &mut renderer);
+        let mut interrupted = false;
+        loop {
+            tokio::select! {
+                event = event_rx.recv() => {
+                    match event {
+                        Some(AppEvent::Claude(inbound)) => {
+                            handle_inbound(&inbound, &mut state, &mut renderer);
 
-                    // Capture result text for break tag scanning
-                    if let InboundEvent::Result(ref result) = *inbound {
-                        result_text = result.result.clone();
-                        total_cost += result.total_cost_usd;
+                            // Capture result text for break tag scanning
+                            if let InboundEvent::Result(ref result) = *inbound {
+                                result_text = result.result.clone();
+                                total_cost += result.total_cost_usd;
+                            }
+
+                            if matches!(*inbound, InboundEvent::Result(_) | InboundEvent::User(_))
+                                && state.status == SessionStatus::WaitingForInput
+                            {
+                                break;
+                            }
+                        }
+                        Some(AppEvent::ParseWarning(warning)) => {
+                            renderer.render_warning(&warning);
+                        }
+                        Some(AppEvent::ProcessExit(code)) => {
+                            renderer.render_exit(code);
+                            break;
+                        }
+                        Some(_) => {}
+                        None => break,
                     }
-
-                    if matches!(*inbound, InboundEvent::Result(_) | InboundEvent::User(_))
-                        && state.status == SessionStatus::WaitingForInput
+                }
+                term_event = term_events.next() => {
+                    if let Some(Ok(Event::Key(key_event))) = term_event
+                        && matches!(key_event.code,
+                            KeyCode::Char('c' | 'd')
+                            if key_event.modifiers.contains(KeyModifiers::CONTROL)
+                        )
                     {
+                        runner.kill().await?;
+                        interrupted = true;
                         break;
                     }
                 }
-                AppEvent::ParseWarning(warning) => {
-                    renderer.render_warning(&warning);
-                }
-                AppEvent::ProcessExit(code) => {
-                    renderer.render_exit(code);
-                    break;
-                }
-                _ => {}
             }
+        }
+
+        if interrupted {
+            break;
         }
 
         runner.close_input().await;
@@ -132,9 +158,21 @@ fn handle_inbound(event: &InboundEvent, state: &mut SessionState, renderer: &mut
         InboundEvent::StreamEvent(se) => {
             renderer.handle_stream_event(se);
         }
-        InboundEvent::Assistant(_) => {}
+        InboundEvent::Assistant(msg) => {
+            if msg.parent_tool_use_id.is_some() {
+                for block in &msg.message.content {
+                    if let AssistantContentBlock::ToolUse { name, input, .. } = block {
+                        renderer.render_subagent_tool_call(name, input);
+                    }
+                }
+            }
+        }
         InboundEvent::User(u) => {
-            if let Some(ref result) = u.tool_use_result {
+            if u.parent_tool_use_id.is_some() {
+                if let Some(ref message) = u.message {
+                    renderer.render_subagent_tool_result(message);
+                }
+            } else if let Some(ref result) = u.tool_use_result {
                 renderer.render_tool_result(result);
             }
         }
