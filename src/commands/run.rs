@@ -13,10 +13,15 @@ use coven::session::state::{SessionState, SessionStatus};
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
 /// Run a single interactive session.
-pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> {
+pub async fn run(
+    prompt: Option<String>,
+    extra_args: Vec<String>,
+    show_thinking: bool,
+) -> Result<()> {
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
 
     let mut renderer = Renderer::new();
+    renderer.set_show_thinking(show_thinking);
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
     let mut term_events = EventStream::new();

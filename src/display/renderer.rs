@@ -16,6 +16,13 @@ pub struct StoredMessage {
     pub result: Option<String>,
 }
 
+/// Display configuration for the renderer.
+#[derive(Default)]
+pub struct RendererConfig {
+    /// Whether to stream thinking text inline instead of collapsing.
+    pub show_thinking: bool,
+}
+
 /// Tracks rendering state and produces colored terminal output.
 pub struct Renderer<W: Write = io::Stdout> {
     /// Current content block type being streamed.
@@ -34,6 +41,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     tool_line_open: bool,
     /// Whether the last tool call was a subagent (indented).
     last_tool_is_subagent: bool,
+    /// Display configuration.
+    config: RendererConfig,
     /// Writer for output.
     out: W,
 }
@@ -56,6 +65,7 @@ impl Default for Renderer<io::Stdout> {
             current_thinking: None,
             tool_line_open: false,
             last_tool_is_subagent: false,
+            config: RendererConfig::default(),
             out: io::stdout(),
         }
     }
@@ -78,8 +88,13 @@ impl<W: Write> Renderer<W> {
             current_thinking: None,
             tool_line_open: false,
             last_tool_is_subagent: false,
+            config: RendererConfig::default(),
             out: writer,
         }
+    }
+
+    pub fn set_show_thinking(&mut self, show: bool) {
+        self.config.show_thinking = show;
     }
 
     pub fn messages(&self) -> &[StoredMessage] {
@@ -207,6 +222,11 @@ impl<W: Write> Renderer<W> {
                                 && let Some(ref mut buf) = self.current_thinking
                             {
                                 buf.push_str(text);
+                                if self.config.show_thinking {
+                                    let text = text.replace('\n', "\r\n");
+                                    queue!(self.out, Print(theme::dim_italic().apply(&text)),).ok();
+                                    self.out.flush().ok();
+                                }
                             }
                         }
                         _ => {}
@@ -424,6 +444,9 @@ impl<W: Write> Renderer<W> {
                 self.close_tool_line();
                 let content = self.current_thinking.take().unwrap_or_default();
                 let n = self.tool_counter;
+                if self.config.show_thinking && !content.is_empty() {
+                    queue!(self.out, Print("\r\n\r\n")).ok();
+                }
                 self.messages.push(StoredMessage {
                     label: format!("[{n}] Thinking"),
                     content,

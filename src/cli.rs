@@ -18,6 +18,10 @@ pub struct Cli {
     #[arg(long)]
     pub no_stream: bool,
 
+    /// Stream thinking text inline in dim italic instead of collapsing.
+    #[arg(long)]
+    pub show_thinking: bool,
+
     /// Extra arguments to pass through to claude (after --).
     #[arg(last = true)]
     pub claude_args: Vec<String>,
@@ -42,6 +46,10 @@ pub enum Command {
         /// Disable break tag detection (requires --iterations to prevent infinite loop).
         #[arg(long)]
         no_break: bool,
+
+        /// Stream thinking text inline in dim italic instead of collapsing.
+        #[arg(long)]
+        show_thinking: bool,
 
         /// Extra arguments to pass through to claude (after --).
         #[arg(last = true)]

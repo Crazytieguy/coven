@@ -7,7 +7,7 @@ use coven::handle_inbound;
 use coven::protocol::emit::format_user_message;
 use coven::protocol::parse::parse_line;
 use coven::session::state::SessionState;
-use coven::vcr::{TestCase, VcrHeader};
+use coven::vcr::{DisplayConfig, TestCase, VcrHeader};
 
 // --- VCR validation ---
 
@@ -74,9 +74,10 @@ fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
 // --- VCR replay ---
 
 /// Replay VCR stdout lines through the renderer, capturing output.
-fn replay_stdout(vcr_lines: &[&str]) -> String {
+fn replay_stdout(vcr_lines: &[&str], display: &DisplayConfig) -> String {
     let mut output = Vec::new();
     let mut renderer = Renderer::with_writer(&mut output);
+    renderer.set_show_thinking(display.show_thinking);
     let mut state = SessionState::default();
 
     for line in &vcr_lines[1..] {
@@ -154,7 +155,7 @@ macro_rules! vcr_test {
             validate_vcr(&case, &vcr_lines);
 
             // Replay and snapshot
-            let output = replay_stdout(&vcr_lines);
+            let output = replay_stdout(&vcr_lines, &case.display);
             let clean = strip_ansi(&output);
 
             insta::with_settings!({
@@ -177,3 +178,27 @@ vcr_test!(multi_turn);
 vcr_test!(ralph_break);
 vcr_test!(steering);
 vcr_test!(subagent);
+
+/// Test that --show-thinking streams thinking text inline.
+/// Replays multi_tool.vcr (which contains thinking blocks) with show_thinking enabled.
+#[test]
+fn show_thinking() {
+    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
+    let vcr_path = base.join("multi_tool.vcr");
+
+    let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read VCR file");
+    let vcr_lines: Vec<&str> = vcr_content.lines().collect();
+
+    let display = DisplayConfig {
+        show_thinking: true,
+    };
+    let output = replay_stdout(&vcr_lines, &display);
+    let clean = strip_ansi(&output);
+
+    insta::with_settings!({
+        snapshot_path => "../tests/cases",
+        prepend_module_to_snapshot => false,
+    }, {
+        insta::assert_snapshot!("show_thinking", clean);
+    });
+}

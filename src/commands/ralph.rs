@@ -16,6 +16,7 @@ pub struct RalphConfig {
     pub iterations: u32,
     pub break_tag: String,
     pub no_break: bool,
+    pub show_thinking: bool,
     pub extra_args: Vec<String>,
 }
 
@@ -24,6 +25,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
     terminal::enable_raw_mode()?;
 
     let mut renderer = Renderer::new();
+    renderer.set_show_thinking(config.show_thinking);
     let mut input = InputHandler::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;

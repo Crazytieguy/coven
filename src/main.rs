@@ -23,6 +23,7 @@ async fn main() -> Result<()> {
             iterations,
             break_tag,
             no_break,
+            show_thinking,
             claude_args,
         }) => {
             if no_break && iterations == 0 {
@@ -33,12 +34,13 @@ async fn main() -> Result<()> {
                 iterations,
                 break_tag,
                 no_break,
+                show_thinking,
                 extra_args: claude_args,
             })
             .await?;
         }
         None => {
-            commands::run::run(cli.prompt, cli.claude_args).await?;
+            commands::run::run(cli.prompt, cli.claude_args, cli.show_thinking).await?;
         }
     }
 

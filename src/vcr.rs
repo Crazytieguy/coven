@@ -12,12 +12,23 @@ pub struct TestCase {
     pub run: Option<RunConfig>,
     /// Configuration for ralph loop mode.
     pub ralph: Option<RalphConfig>,
+    /// Display/renderer configuration for test replay.
+    #[serde(default)]
+    pub display: DisplayConfig,
     /// Files to create in the working directory before recording.
     #[serde(default)]
     pub files: HashMap<String, String>,
     /// Additional messages to send during the session (follow-ups, steering).
     #[serde(default)]
     pub messages: Vec<TestMessage>,
+}
+
+/// Display configuration for test replay (not used during recording).
+#[derive(Deserialize, Default)]
+pub struct DisplayConfig {
+    /// Whether to stream thinking text inline.
+    #[serde(default)]
+    pub show_thinking: bool,
 }
 
 /// CLI configuration for a standard run (mirrors coven's CLI args).
