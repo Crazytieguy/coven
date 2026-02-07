@@ -26,6 +26,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
 
     let mut renderer = Renderer::new();
     renderer.set_show_thinking(config.show_thinking);
+    renderer.render_help();
     let mut input = InputHandler::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;
