@@ -2,20 +2,9 @@
 
 An oven for claude - a minimal streaming display and workflow runner for Claude Code's `-p` mode.
 
-## Build & Run
-
-```
-cargo build
-cargo run
-cargo test
-cargo clippy
-cargo fmt -- --check
-```
-
 ## Project Overview
 
 See @README.md for user-facing documentation.
-See @IDEAS.md for design ideas and use cases.
 
 ## Conventions
 
@@ -27,8 +16,9 @@ See @IDEAS.md for design ideas and use cases.
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
 - Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
-- Never write `.vcr` files directly — they must only be created by `cargo run --bin record_vcr`
+- Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record_vcr`
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
+- Whenever you encounter an issue that's unrelated to what you're currently doing, make sure to record it in issues.md so it can be fixed later. This includes if you knowingly add technical debt or skip a requirement.
 
 ## Publishing
 

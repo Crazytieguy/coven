@@ -1,0 +1,8 @@
+We recently finished the initial implementation of this project. I want to work through improving the project, one small session at a time. This is a non-interactive session, only stop if you're either genuinely blocked or done. Here are some options to consider (in order):
+
+- Please run clippy, and first ensure there are no warnings (should be clean).
+- Look at issues.md, and choose an issue to try to tackle. If necessary re-record relevant vcr tests and regenerate snapshots, and verify that the snapshot looks  as expected.
+- If there are no more issues in issues.md, Look at the test cases (case definition, vcr file, snapshot) and see if everything is excellent about them (tests the correct thing, vcr recording reflects intended behavior, snapshot looks correct and is very readable for a human user). If you find something wrong or sub-optimal, improve it and verify by re-recording the vcr if needed, re-generating the snapshot, and looking at it to see that it's better.
+- If all the test cases look excellent, look at the code for refactoring opportunities: there are likely opportunities to make the code cleaner and more dry, and there are potentially cut corners hiding inside the code.
+
+Whether you choose a task from issues.md, a testing-based task, or a refactoring task, finish by verifying that linting is no worse than it was when you started and all tests pass, then commit (autonomously). If you accidentally created new issues, just revert your changes and stop. End result should be 0-1 atomic changes to the codebase, with state at least as clean as when you started. Good luck!
