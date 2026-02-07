@@ -22,6 +22,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
     let mut term_events = EventStream::new();
 
     terminal::enable_raw_mode()?;
+    renderer.render_help();
 
     // Get initial runner: either from prompt or by waiting for user input
     let mut runner = if let Some(prompt) = prompt {

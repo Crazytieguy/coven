@@ -6,5 +6,4 @@
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too)
 - Should display the session id every time a new claude session starts, so that it can be easily resumed by the user if needed (may already work — was invisible due to DarkGrey color)
 - Meta issue: claude consistently checks for answered questions at the start of a session instead of the end. This means task.md should be clarified better
-- When coven starts it should print some help text for interacting with it, including :N.
 - When there are queued messages, we should display them somehow bellow the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (blocked on questions/queued-messages-display.md)

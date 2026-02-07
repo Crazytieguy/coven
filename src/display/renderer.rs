@@ -88,6 +88,12 @@ impl<W: Write> Renderer<W> {
 
     // --- Session lifecycle ---
 
+    pub fn render_help(&mut self) {
+        let help = ":N view message · type to steer · Alt+Enter follow up · Ctrl+D exit";
+        queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
     pub fn render_session_header(&mut self, session_id: &str, model: &str) {
         let header = format!("Session {session_id} ({model})");
         queue!(self.out, Print(theme::dim().apply(header)), Print("\r\n")).ok();
