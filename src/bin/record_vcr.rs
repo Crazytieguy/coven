@@ -30,13 +30,11 @@ async fn main() -> Result<()> {
         entries.sort_by_key(std::fs::DirEntry::path);
 
         for entry in entries {
-            let name = entry
-                .path()
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
+            let path = entry.path();
+            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let name = name.to_string();
             eprintln!("Recording: {name}");
             record_case(&cases_dir, &name).await?;
             eprintln!("  Done: {name}.vcr");
@@ -79,7 +77,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     )?;
 
     // Build VCR header
-    let expected_command = case.expected_command();
+    let expected_command = case.expected_command()?;
     let header = VcrHeader {
         vcr: "header".to_string(),
         command: expected_command.clone(),
@@ -121,11 +119,11 @@ async fn record_run(
         .spawn()
         .context("Failed to spawn claude")?;
 
-    let mut stdin = child.stdin.take().unwrap();
-    let stdout = child.stdout.take().unwrap();
+    let mut stdin = child.stdin.take().context("stdin should be piped")?;
+    let stdout = child.stdout.take().context("stdout should be piped")?;
 
     // Send initial prompt
-    let prompt_msg = format_user_message(case.prompt());
+    let prompt_msg = format_user_message(case.prompt()?)?;
     stdin.write_all(prompt_msg.as_bytes()).await?;
     stdin.write_all(b"\n").await?;
     stdin.flush().await?;
@@ -169,7 +167,7 @@ async fn record_run(
             // Check if any pending message should fire
             for (i, (trigger, content)) in pending_messages.iter().enumerate() {
                 if !sent[i] && trigger.fires(tool_count, message_count, got_result) {
-                    let msg = format_user_message(content);
+                    let msg = format_user_message(content)?;
                     stdin.write_all(msg.as_bytes()).await?;
                     stdin.write_all(b"\n").await?;
                     stdin.flush().await?;
@@ -223,11 +221,11 @@ async fn record_ralph(
             .spawn()
             .context("Failed to spawn claude")?;
 
-        let mut stdin = child.stdin.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
+        let mut stdin = child.stdin.take().context("stdin should be piped")?;
+        let stdout = child.stdout.take().context("stdout should be piped")?;
 
         // Send prompt
-        let prompt_msg = format_user_message(case.prompt());
+        let prompt_msg = format_user_message(case.prompt()?)?;
         stdin.write_all(prompt_msg.as_bytes()).await?;
         stdin.write_all(b"\n").await?;
         stdin.flush().await?;

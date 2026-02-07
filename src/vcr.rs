@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::session::runner::{SessionConfig, SessionRunner};
@@ -72,40 +73,52 @@ pub enum Trigger {
 
 impl TestCase {
     /// Build a `SessionConfig` from this test case.
-    pub fn session_config(&self) -> SessionConfig {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
+    pub fn session_config(&self) -> Result<SessionConfig> {
         if let Some(ref ralph) = self.ralph {
-            SessionConfig {
+            Ok(SessionConfig {
                 prompt: Some(ralph.prompt.clone()),
                 extra_args: ralph.claude_args.clone(),
                 append_system_prompt: Some(SessionRunner::ralph_system_prompt(&ralph.break_tag)),
-            }
+            })
         } else if let Some(ref run) = self.run {
-            SessionConfig {
+            Ok(SessionConfig {
                 prompt: Some(run.prompt.clone()),
                 extra_args: run.claude_args.clone(),
                 append_system_prompt: None,
-            }
+            })
         } else {
-            panic!("Test case must have either [run] or [ralph] section");
+            bail!("Test case must have either [run] or [ralph] section");
         }
     }
 
     /// Build the expected CLI command (including "claude" prefix).
-    pub fn expected_command(&self) -> Vec<String> {
-        let config = self.session_config();
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
+    pub fn expected_command(&self) -> Result<Vec<String>> {
+        let config = self.session_config()?;
         let mut cmd = vec!["claude".to_string()];
         cmd.extend(SessionRunner::build_args(&config));
-        cmd
+        Ok(cmd)
     }
 
     /// Get the initial prompt.
-    pub fn prompt(&self) -> &str {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
+    pub fn prompt(&self) -> Result<&str> {
         if let Some(ref ralph) = self.ralph {
-            &ralph.prompt
+            Ok(&ralph.prompt)
         } else if let Some(ref run) = self.run {
-            &run.prompt
+            Ok(&run.prompt)
         } else {
-            panic!("Test case must have either [run] or [ralph] section");
+            bail!("Test case must have either [run] or [ralph] section");
         }
     }
 

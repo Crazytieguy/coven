@@ -17,7 +17,9 @@ fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
         serde_json::from_str(vcr_lines[0]).expect("First line should be valid VCR header JSON");
     assert_eq!(header.vcr, "header");
 
-    let expected_command = case.expected_command();
+    let expected_command = case
+        .expected_command()
+        .expect("Test case should have [run] or [ralph]");
     assert_eq!(
         header.command, expected_command,
         "VCR header CLI args mismatch"
@@ -37,7 +39,8 @@ fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
             iterations,
             "Ralph VCR should have one stdin line per iteration"
         );
-        let expected_msg = format_user_message(case.prompt());
+        let expected_msg = format_user_message(case.prompt().expect("should have prompt"))
+            .expect("serialization should succeed");
         for (i, stdin_line) in stdin_lines.iter().enumerate() {
             assert_eq!(
                 *stdin_line, expected_msg,
@@ -46,9 +49,12 @@ fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
         }
     } else {
         // Build expected stdin messages: initial prompt + follow-up messages
-        let mut expected: Vec<String> = vec![format_user_message(case.prompt())];
+        let mut expected: Vec<String> = vec![
+            format_user_message(case.prompt().expect("should have prompt"))
+                .expect("serialization should succeed"),
+        ];
         for msg in &case.messages {
-            expected.push(format_user_message(&msg.content));
+            expected.push(format_user_message(&msg.content).expect("serialization should succeed"));
         }
 
         assert_eq!(

@@ -57,12 +57,12 @@ impl SessionRunner {
 
         let mut child = cmd.spawn().context("Failed to spawn claude process")?;
 
-        let stdout = child.stdout.take().expect("stdout should be piped");
-        let mut stdin = child.stdin.take().expect("stdin should be piped");
+        let stdout = child.stdout.take().context("stdout should be piped")?;
+        let mut stdin = child.stdin.take().context("stdin should be piped")?;
 
         // Send initial prompt if provided
         if let Some(prompt) = config.prompt {
-            let msg = format_user_message(&prompt);
+            let msg = format_user_message(&prompt)?;
             stdin
                 .write_all(msg.as_bytes())
                 .await
@@ -107,7 +107,7 @@ impl SessionRunner {
     /// Send a user message to claude's stdin.
     pub async fn send_message(&mut self, text: &str) -> Result<()> {
         let stdin = self.stdin.as_mut().context("stdin already closed")?;
-        let msg = format_user_message(text);
+        let msg = format_user_message(text)?;
         stdin.write_all(msg.as_bytes()).await?;
         stdin.write_all(b"\n").await?;
         stdin.flush().await?;
