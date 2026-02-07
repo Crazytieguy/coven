@@ -2,11 +2,11 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 36fd6d72-4168-4bb1-b859-41dcf91ae00c (claude-opus-4-6)
+Session da3ff42a-b962-4748-a9ac-24c36fb8f204 (claude-opus-4-6)
 
 [1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/hello.py
     ✓
-This is a simple two-line Python script that prints `hello world` followed by `goodbye` to the console.
+The script prints two lines to the console: "hello world" followed by "goodbye".
 
 
-Done  $0.05 · 4.8s · 2 turns  (:N to view)
+Done  $0.02 · 4.9s · 2 turns  (:N to view)
