@@ -34,26 +34,9 @@ impl SessionRunner {
         config: SessionConfig,
         event_tx: mpsc::UnboundedSender<AppEvent>,
     ) -> Result<Self> {
+        let args = Self::build_args(&config);
         let mut cmd = tokio::process::Command::new("claude");
-        cmd.arg("-p")
-            .arg("--output-format")
-            .arg("stream-json")
-            .arg("--verbose")
-            .arg("--input-format")
-            .arg("stream-json")
-            .arg("--include-partial-messages");
-
-        if !has_permission_mode(&config.extra_args) {
-            cmd.arg("--permission-mode").arg("acceptEdits");
-        }
-
-        if let Some(ref system_prompt) = config.append_system_prompt {
-            cmd.arg("--append-system-prompt").arg(system_prompt);
-        }
-
-        for arg in &config.extra_args {
-            cmd.arg(arg);
-        }
+        cmd.args(&args);
 
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
