@@ -229,9 +229,7 @@ impl<W: Write> Renderer<W> {
             .and_then(|m| m.get("content"))
             .and_then(Value::as_array)
             .and_then(|arr| arr.first());
-        if !is_error
-            && let Some(block) = msg_content_block
-        {
+        if !is_error && let Some(block) = msg_content_block {
             is_error = block
                 .get("is_error")
                 .and_then(Value::as_bool)
