@@ -29,13 +29,6 @@ pub fn tool_name_dim() -> ContentStyle {
     }
 }
 
-pub fn success() -> ContentStyle {
-    ContentStyle {
-        foreground_color: Some(Color::Green),
-        ..Default::default()
-    }
-}
-
 pub fn error() -> ContentStyle {
     ContentStyle {
         foreground_color: Some(Color::Red),

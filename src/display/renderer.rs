@@ -231,16 +231,8 @@ impl<W: Write> Renderer<W> {
                 queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
             }
             queue!(self.out, Print("\r\n")).ok();
-        } else if self.tool_line_open {
-            // Append ✓ on the same line as the tool call
-            queue!(
-                self.out,
-                Print("  "),
-                Print(theme::success().apply("✓")),
-                Print("\r\n"),
-            )
-            .ok();
-            self.tool_line_open = false;
+        } else {
+            self.close_tool_line();
         }
         self.out.flush().ok();
     }
@@ -264,7 +256,7 @@ impl<W: Write> Renderer<W> {
             content,
         });
 
-        // Leave line open — subagent result will append ✓ or ✗
+        // Leave line open — subagent result will close or print ✗
         self.tool_line_open = true;
         self.out.flush().ok();
     }
@@ -291,16 +283,8 @@ impl<W: Write> Renderer<W> {
                     Print("\r\n"),
                 )
                 .ok();
-            } else if self.tool_line_open {
-                // Append ✓ on the same line as the subagent tool call
-                queue!(
-                    self.out,
-                    Print("  "),
-                    Print(theme::success().apply("✓")),
-                    Print("\r\n"),
-                )
-                .ok();
-                self.tool_line_open = false;
+            } else {
+                self.close_tool_line();
             }
         }
         self.out.flush().ok();
@@ -387,7 +371,7 @@ impl<W: Write> Renderer<W> {
                         content,
                     });
 
-                    // Leave line open — result will append ✓ or close and print ✗
+                    // Leave line open — result will close or print ✗
                     self.tool_line_open = true;
                 }
             }

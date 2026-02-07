@@ -4,14 +4,14 @@ expression: clean
 ---
 Session e7ed0320-08b3-4430-983a-13a07df87b57 (claude-opus-4-6)
 
-[1] ▶ Bash  ls /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...  ✓
-[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh  ✓
+[1] ▶ Bash  ls /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh
 [3] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/...
     ✗ Error: Exit code 1
 The script exits with code 1 (failure). The issue is `exit 1` — it unconditionally signals failure. Fixing it to exit with 0 (success):
 
-[4] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh  ✓
-[5] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/...  ✓
+[4] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh
+[5] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/...
 Fixed. The script was unconditionally exiting with code 1 (failure). Changed it to `exit 0` — it now runs successfully.
 
 
