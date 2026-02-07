@@ -12,7 +12,7 @@ The issue says "user can display the same way they'd display a tool call" — th
 
 If so, thinking would need to be stored in the message list. The `:N` display would show the full thinking text.
 
-Answer:
+Answer: Correct, that's what I want. Don't discard the thinking. But I notice I'm surprised by the current state: I'm clearly seeing streaming tokens that look like thinking tokens, and I never see "Thinking...". There could be a couple possible hypotheses for this: either these really are thinking tokens and our code currently parses both thinking and non thinking tokens the same (perhaps due to a quirk of claude -p with streaming), or for some reason thinking is disabled and the model (opus 4.6) is using regular tokens as if they were thinking tokens (also due to a quirk of claude -p). Either way: we should investigate the behavior of claude -p and ensure we're parsing correctly and calling claude -p correctly. If there's a claude code bug we should document it somewhere
 
 ## What should the CLI flag for showing thinking do?
 
@@ -27,4 +27,4 @@ Wait for the full thinking text, then display it all at once (non-streaming). Si
 **C) Both — `--show-thinking` with optional `--no-stream` interaction**
 `--show-thinking` streams by default, `--show-thinking --no-stream` shows it as a completed block.
 
-Answer:
+Answer: Option A
