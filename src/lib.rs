@@ -42,7 +42,7 @@ pub fn handle_inbound<W: Write>(
                     renderer.render_subagent_tool_result(message);
                 }
             } else if let Some(ref result) = u.tool_use_result {
-                renderer.render_tool_result(result);
+                renderer.render_tool_result(result, u.message.as_ref());
             }
         }
         InboundEvent::Result(result) => {

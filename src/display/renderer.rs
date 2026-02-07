@@ -216,15 +216,37 @@ impl<W: Write> Renderer<W> {
 
     // --- Tool results ---
 
-    pub fn render_tool_result(&mut self, result: &Value) {
-        let is_error = result
+    pub fn render_tool_result(&mut self, result: &Value, message: Option<&Value>) {
+        let mut is_error = result
             .get("is_error")
             .and_then(Value::as_bool)
             .unwrap_or(false)
             || matches!(result, Value::String(s) if s.starts_with("Error"));
 
+        // Also check message.content for is_error (the tool_use_result value
+        // often lacks this field — it lives in the inner tool_result block).
+        let msg_content_block = message
+            .and_then(|m| m.get("content"))
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.first());
+        if !is_error
+            && let Some(block) = msg_content_block
+        {
+            is_error = block
+                .get("is_error")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+        }
+
+        // Extract text from tool_use_result, falling back to message.content
+        let mut text = extract_result_text(result);
+        if text.is_empty()
+            && let Some(block) = msg_content_block
+        {
+            text = extract_result_text(block);
+        }
+
         // Store result text on the most recent tool message
-        let text = extract_result_text(result);
         if !text.is_empty()
             && let Some(msg) = self.messages.last_mut()
         {
@@ -285,7 +307,7 @@ impl<W: Write> Renderer<W> {
             if !text.is_empty()
                 && let Some(msg) = self.messages.last_mut()
             {
-                msg.result = Some(text);
+                msg.result = Some(text.clone());
             }
 
             let is_error = item
@@ -295,13 +317,12 @@ impl<W: Write> Renderer<W> {
             if is_error {
                 self.close_tool_line();
                 let indent = self.tool_indent();
-                queue!(
-                    self.out,
-                    Print(indent),
-                    Print(theme::error().apply("✗")),
-                    Print("\r\n"),
-                )
-                .ok();
+                queue!(self.out, Print(indent), Print(theme::error().apply("✗")),).ok();
+                if !text.is_empty() {
+                    let brief = first_line_truncated(&text, 60);
+                    queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
+                }
+                queue!(self.out, Print("\r\n")).ok();
             } else {
                 self.close_tool_line();
             }

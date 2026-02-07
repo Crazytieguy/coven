@@ -7,5 +7,4 @@
 - After :N exits, the input should be cleared and everything should continue as normal. Currently seems to just get stuck in buffering mode
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too)
 - Should display the session id every time a new claude session starts, so that it can be easily resumed by the user if needed (may already work — was invisible due to DarkGrey color)
-- When tool calls fail, they often don't display the failure reason. Probably there's a field that could be useful for this that we're not showing
 - Meta issue: claude consistently checks for answered questions at the start of a session instead of the end. This means task.md should be clarified better
