@@ -1,7 +1,7 @@
 We recently finished the initial implementation of this project. I want to work through improving the project, one small session at a time. This is a non-interactive session. Pick one task from the list below (in priority order), do it, and stop. Stopping means outputting a final assistant message with no tool calls — the session ends but the ralph loop continues.
 
 1. Run clippy and ensure there are no warnings (should be clean).
-2. Choose an ambiguous issue from issues.md to ask about (see Design questions).
+2. Choose an ambiguous issue from issues.md to ask about (see Design questions). When evaluating issues for task 3, if you find yourself unsure how to proceed, unsure what the desired behavior is, or deciding to skip an issue because it's unclear — that's a signal to write a questions file instead. Don't silently skip ambiguous issues; surface the ambiguity.
 3. Choose a non-blocked issue from issues.md to tackle. If the issue has a `(see questions/X.md)` reference, read the answered questions first. If necessary re-record relevant vcr tests and regenerate snapshots, and verify that the snapshot looks as expected. When an issue is resolved, remove it from the list and delete any associated question file.
 4. Review the test cases (case definition, vcr file, snapshot) for issues: does each test cover the right thing? Does the vcr recording reflect intended behavior? Is the snapshot correct, readable, and showing good UI? This is also an opportunity to spot UI improvements — if the output could look better, that's an issue. If you find a problem, add it to issues.md and stop.
 5. If you notice a feature that has no test coverage, add a test case for it.
