@@ -9,7 +9,9 @@ We recently finished the initial implementation of this project. I want to work 
 
 Whichever task you pick, finish by verifying that linting is no worse than it was when you started and all tests pass, then commit (autonomously). Always commit changes to issues.md, question files, and other non-code artifacts too. If your changes introduced new problems, just revert and stop. End result should be 0-1 atomic changes to the codebase, with state at least as clean as when you started.
 
-At the end of each session, check `questions/` for answered questions — files where every `Answer:` line has a response. For each fully-answered file: update the issue in issues.md from `(blocked on questions/X.md)` to `(see questions/X.md)` to indicate it's now actionable, and commit.
+## End-of-session cleanup
+
+After your task is complete and committed, check `questions/` for answered questions — files where every `Answer:` line has a response. For each fully-answered file: update the issue in issues.md from `(blocked on questions/X.md)` to `(see questions/X.md)` to indicate it's now actionable, and commit. Do not do this check at the start of a session — it's a cleanup step that runs after the main task.
 
 ## Design questions
 
