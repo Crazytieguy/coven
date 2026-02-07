@@ -17,6 +17,7 @@ pub fn format_user_message(text: &str) -> serde_json::Result<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

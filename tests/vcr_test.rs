@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+
 use std::path::Path;
 
 use coven::display::renderer::Renderer;

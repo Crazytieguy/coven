@@ -16,6 +16,7 @@ pub fn parse_line(line: &str) -> Result<Option<InboundEvent>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 
