@@ -241,7 +241,7 @@ impl<W: Write> Renderer<W> {
         let n = self.tool_counter;
         let detail = format_tool_detail(name, input);
         let label = format!("  [{n}] ▶ {name}  {detail}");
-        queue!(self.out, Print(theme::dim().apply(&label)),).ok();
+        queue!(self.out, Print(theme::tool_name_dim().apply(&label)),).ok();
 
         // Store for :N viewing
         let content = serde_json::to_string_pretty(input).unwrap_or_default();

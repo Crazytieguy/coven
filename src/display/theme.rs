@@ -1,16 +1,15 @@
-use crossterm::style::{Attribute, Color, ContentStyle};
+use crossterm::style::{Attribute, Attributes, Color, ContentStyle};
 
 pub fn dim() -> ContentStyle {
     ContentStyle {
-        foreground_color: Some(Color::DarkGrey),
+        attributes: Attribute::Dim.into(),
         ..Default::default()
     }
 }
 
 pub fn dim_italic() -> ContentStyle {
     ContentStyle {
-        foreground_color: Some(Color::DarkGrey),
-        attributes: Attribute::Italic.into(),
+        attributes: Attributes::from(Attribute::Dim) | Attribute::Italic,
         ..Default::default()
     }
 }
@@ -18,6 +17,14 @@ pub fn dim_italic() -> ContentStyle {
 pub fn tool_name() -> ContentStyle {
     ContentStyle {
         foreground_color: Some(Color::Yellow),
+        ..Default::default()
+    }
+}
+
+pub fn tool_name_dim() -> ContentStyle {
+    ContentStyle {
+        foreground_color: Some(Color::Yellow),
+        attributes: Attribute::Dim.into(),
         ..Default::default()
     }
 }
