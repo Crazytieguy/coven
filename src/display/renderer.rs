@@ -319,10 +319,18 @@ impl<W: Write> Renderer<W> {
         }
     }
 
-
     fn stream_text(&mut self, text: &str) {
-        if !self.text_streaming {
+        let text = if self.text_streaming {
+            text
+        } else {
             self.text_streaming = true;
+            // Strip leading newlines from the first delta in a text block.
+            // Claude's API often prefixes responses with \n\n which creates
+            // unwanted blank lines.
+            text.trim_start_matches('\n')
+        };
+        if text.is_empty() {
+            return;
         }
         // Replace \n with \r\n for raw mode
         let text = text.replace('\n', "\r\n");
