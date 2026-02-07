@@ -234,7 +234,7 @@ impl<W: Write> Renderer<W> {
     // --- Subagent tool calls (indented) ---
 
     pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
-        self.close_tool_line_with_check();
+        self.close_tool_line();
         self.finish_current_block();
         self.tool_counter += 1;
         self.last_tool_is_subagent = true;
@@ -319,20 +319,6 @@ impl<W: Write> Renderer<W> {
         }
     }
 
-    /// Close an open tool call line with a ✓, used when a subagent tool call
-    /// arrives (meaning the parent tool is executing successfully).
-    fn close_tool_line_with_check(&mut self) {
-        if self.tool_line_open {
-            queue!(
-                self.out,
-                Print("  "),
-                Print(theme::success().apply("✓")),
-                Print("\r\n"),
-            )
-            .ok();
-            self.tool_line_open = false;
-        }
-    }
 
     fn stream_text(&mut self, text: &str) {
         if !self.text_streaming {
