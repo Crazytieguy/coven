@@ -162,9 +162,7 @@ impl<W: Write> Renderer<W> {
                                 }
                             }
                         }
-                        "thinking_delta" => {
-                            // Thinking content hidden — just show "Thinking..."
-                        }
+                        // thinking_delta: content hidden, just show "Thinking..."
                         _ => {}
                     }
                 }
@@ -350,7 +348,7 @@ impl<W: Write> Renderer<W> {
 /// Format tool detail based on tool name and input.
 fn format_tool_detail(name: &str, input: &Value) -> String {
     match name {
-        "Read" => get_str(input, "file_path").unwrap_or_default().to_string(),
+        "Read" | "Edit" => get_str(input, "file_path").unwrap_or_default().to_string(),
         "Write" => {
             let path = get_str(input, "file_path").unwrap_or_default();
             let lines = get_str(input, "content")
@@ -358,7 +356,6 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
                 .unwrap_or_default();
             format!("{path} {lines}").trim().to_string()
         }
-        "Edit" => get_str(input, "file_path").unwrap_or_default().to_string(),
         "Glob" => get_str(input, "pattern").unwrap_or_default().to_string(),
         "Grep" => {
             let pattern = get_str(input, "pattern").unwrap_or_default();

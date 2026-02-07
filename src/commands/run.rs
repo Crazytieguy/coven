@@ -99,8 +99,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                                     );
                                     state.status = SessionStatus::Running;
                                 }
-                                InputAction::Interrupt => break,
-                                InputAction::EndSession => break,
+                                InputAction::Interrupt | InputAction::EndSession => break,
                                 InputAction::Cancel => {
                                     renderer.show_prompt();
                                     input.activate();
@@ -175,8 +174,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                         }
                     }
                     Some(Ok(_)) => {} // mouse, resize, etc
-                    Some(Err(_)) => break,
-                    None => break,
+                    Some(Err(_)) | None => break,
                 }
             }
         }
