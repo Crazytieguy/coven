@@ -1,4 +1,4 @@
-- Probably want a way to interrupt a session before prompting (requires restarting it with --resume, same as if the session ends organically)
+- Probably want a way to interrupt a session before prompting (requires restarting it with --resume, same as if the session ends organically) (blocked on questions/session-interrupt.md)
 - Add --show-thinking CLI flag to stream thinking text inline in dim italic (add a VCR test for thinking display)
 - (unclear if real issue): the VCR replay should fail the test if input isn't being sent correctly to claude
 - It seems that our original research on claude -p mid-session stdin might have been wrong: it doesn't seem to actually send the message to the model. This needs to be checked, and if it's not possible to send messages to claude -p mid session we need to re-design the steering approach to interrupt the session and then resume it. We need to be careful not to kill while a tool is executing though, we should probably interrupt right as an assistant message starts. (All of this is just if claude -p in fact ignores stdin mid session). Another hypothesis is that I was using ralph mode before steering messages were functional in ralph mode
@@ -7,3 +7,4 @@
 - Should display the session id every time a new claude session starts, so that it can be easily resumed by the user if needed (may already work — was invisible due to DarkGrey color)
 - Meta issue: claude consistently checks for answered questions at the start of a session instead of the end. This means task.md should be clarified better
 - When coven starts it should print some help text for interacting with it, including :N.
+- When there are queued messages, we should display them somehow bellow the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here.
