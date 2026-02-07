@@ -1,0 +1,9 @@
+[run]
+prompt = "Read hello.py and write a summary of what it does"
+
+[files]
+"hello.py" = "print('hello world')\nprint('goodbye')\n"
+
+[[messages]]
+content = "Actually, just count the lines instead"
+trigger = "after-tool:1"

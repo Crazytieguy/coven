@@ -1,3 +1,2 @@
-[[messages]]
-content = "List files in the current directory"
-trigger = "start"
+[run]
+prompt = "List files in the current directory"

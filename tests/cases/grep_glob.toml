@@ -1,0 +1,6 @@
+[run]
+prompt = "Find all Rust files containing 'fn main'"
+
+[files]
+"src/main.rs" = "fn main() {\n    println!(\"Hello, world!\");\n}\n"
+"src/lib.rs" = "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n"

@@ -26,12 +26,17 @@ async fn main() -> Result<()> {
             prompt,
             iterations,
             break_tag,
+            no_break,
             claude_args,
         }) => {
+            if no_break && iterations == 0 {
+                anyhow::bail!("--no-break requires --iterations to prevent infinite looping");
+            }
             commands::ralph::ralph(commands::ralph::RalphConfig {
                 prompt,
                 iterations,
                 break_tag,
+                no_break,
                 extra_args: claude_args,
             })
             .await?;

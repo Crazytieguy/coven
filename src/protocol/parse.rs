@@ -54,12 +54,12 @@ mod tests {
 
     #[test]
     fn parse_stream_event() {
-        let line = r#"{"type":"stream_event","event":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}"#;
+        let line = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}}"#;
         let event = parse_line(line).unwrap().unwrap();
         match event {
             InboundEvent::StreamEvent(se) => {
-                assert_eq!(se.event, "content_block_delta");
-                let delta = se.delta.unwrap();
+                assert_eq!(se.event.event_type, "content_block_delta");
+                let delta = se.event.delta.unwrap();
                 assert_eq!(delta.r#type, "text_delta");
                 assert_eq!(delta.text.unwrap(), "hello");
             }
@@ -86,8 +86,8 @@ mod tests {
         match event {
             InboundEvent::User(u) => {
                 let result = u.tool_use_result.unwrap();
-                assert_eq!(result.name, "Bash");
-                assert!(!result.is_error);
+                assert_eq!(result.get("name").unwrap().as_str().unwrap(), "Bash");
+                assert!(!result.get("is_error").unwrap().as_bool().unwrap());
             }
             other => panic!("Expected User, got {other:?}"),
         }

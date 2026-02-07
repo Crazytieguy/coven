@@ -1,3 +1,2 @@
-[[messages]]
-content = "What is 2+2?"
-trigger = "start"
+[run]
+prompt = "What is 2+2?"

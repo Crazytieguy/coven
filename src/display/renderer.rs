@@ -5,7 +5,7 @@ use crossterm::style::Print;
 use serde_json::Value;
 
 use super::theme;
-use crate::protocol::types::{StreamEvent, ToolUseResult};
+use crate::protocol::types::StreamEvent;
 
 /// Stores a completed message for later viewing via `:N`.
 #[derive(Debug)]
@@ -112,9 +112,9 @@ impl<W: Write> Renderer<W> {
     // --- Stream events ---
 
     pub fn handle_stream_event(&mut self, se: &StreamEvent) {
-        match se.event.as_str() {
+        match se.event.event_type.as_str() {
             "content_block_start" => {
-                if let Some(ref cb) = se.content_block {
+                if let Some(ref cb) = se.event.content_block {
                     match cb.r#type.as_str() {
                         "text" => {
                             self.finish_current_block();
@@ -143,7 +143,7 @@ impl<W: Write> Renderer<W> {
                 }
             }
             "content_block_delta" => {
-                if let Some(ref delta) = se.delta {
+                if let Some(ref delta) = se.event.delta {
                     match delta.r#type.as_str() {
                         "text_delta" => {
                             if let Some(ref text) = delta.text {
@@ -178,28 +178,28 @@ impl<W: Write> Renderer<W> {
 
     // --- Tool results ---
 
-    pub fn render_tool_result(&mut self, result: &ToolUseResult) {
-        if result.is_error {
+    pub fn render_tool_result(&mut self, result: &Value) {
+        let is_error = result
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || matches!(result, Value::String(s) if s.starts_with("Error"));
+
+        if is_error {
             queue!(self.out, Print("    "), Print(theme::error().apply("✗")),).ok();
-            // Try to extract error text from extra
-            if let Some(content) = result.extra.get("content") {
-                let text = extract_text_content(content);
-                if !text.is_empty() {
-                    let brief = first_line_truncated(&text, 60);
-                    queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
-                }
+            let text = extract_result_text(result);
+            if !text.is_empty() {
+                let brief = first_line_truncated(&text, 60);
+                queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
             }
             queue!(self.out, Print("\r\n")).ok();
         } else {
             queue!(self.out, Print("    "), Print(theme::success().apply("✓")),).ok();
-            // For Bash, show exit code
-            if let Some(content) = result.extra.get("content") {
-                let text = extract_text_content(content);
-                if !text.is_empty() {
-                    let brief = first_line_truncated(&text, 60);
-                    if !brief.is_empty() {
-                        queue!(self.out, Print(" "), Print(theme::dim().apply(brief)),).ok();
-                    }
+            let text = extract_result_text(result);
+            if !text.is_empty() {
+                let brief = first_line_truncated(&text, 60);
+                if !brief.is_empty() {
+                    queue!(self.out, Print(" "), Print(theme::dim().apply(brief)),).ok();
                 }
             }
             queue!(self.out, Print("\r\n")).ok();
@@ -353,7 +353,34 @@ fn first_line_truncated(s: &str, max: usize) -> String {
     }
 }
 
-fn extract_text_content(content: &Value) -> String {
+/// Extract displayable text from a tool result value.
+/// Handles: objects with "content" (regular tools), arrays of content blocks (MCP tools),
+/// and plain strings (permission errors).
+fn extract_result_text(result: &Value) -> String {
+    match result {
+        Value::String(s) => s.clone(),
+        Value::Object(_) => {
+            if let Some(content) = result.get("content") {
+                extract_content_text(content)
+            } else {
+                String::new()
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                if item.get("type").and_then(Value::as_str) == Some("text")
+                    && let Some(text) = item.get("text").and_then(Value::as_str)
+                {
+                    return text.to_string();
+                }
+            }
+            String::new()
+        }
+        _ => String::new(),
+    }
+}
+
+fn extract_content_text(content: &Value) -> String {
     match content {
         Value::String(s) => s.clone(),
         Value::Array(arr) => {

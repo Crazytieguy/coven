@@ -42,15 +42,23 @@ pub struct InitEvent {
 
 // --- Stream events (raw API streaming) ---
 
+/// Wrapper for a stream event. The `event` field contains the actual API event payload.
 #[derive(Debug, Clone, Deserialize)]
 pub struct StreamEvent {
-    #[serde(default)]
-    pub event: String,
+    pub event: StreamEventPayload,
+    #[serde(flatten)]
+    pub extra: Value,
+}
+
+/// The inner payload of a stream event (the raw Claude API SSE event).
+#[derive(Debug, Clone, Deserialize)]
+pub struct StreamEventPayload {
+    #[serde(default, rename = "type")]
+    pub event_type: String,
     #[serde(default)]
     pub content_block: Option<ContentBlock>,
     #[serde(default)]
     pub delta: Option<Delta>,
-    /// Catch-all for fields we don't explicitly model.
     #[serde(flatten)]
     pub extra: Value,
 }
@@ -126,20 +134,9 @@ pub enum AssistantContentBlock {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct UserToolResult {
+    /// Tool result — can be an object (regular tools), array (MCP tools), or string (errors).
     #[serde(default)]
-    pub tool_use_result: Option<ToolUseResult>,
-    #[serde(flatten)]
-    pub extra: Value,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ToolUseResult {
-    #[serde(default)]
-    pub tool_use_id: String,
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub is_error: bool,
+    pub tool_use_result: Option<Value>,
     #[serde(flatten)]
     pub extra: Value,
 }

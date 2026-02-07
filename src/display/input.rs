@@ -144,20 +144,6 @@ impl InputHandler {
             _ => InputAction::None,
         }
     }
-
-    /// Render the prompt and any current buffer content.
-    pub fn render_prompt_with_buffer(&self) {
-        let mut out = io::stdout();
-        queue!(
-            out,
-            crossterm::style::Print(super::theme::prompt_style().apply("> ")),
-        )
-        .ok();
-        if !self.buffer.is_empty() {
-            queue!(out, crossterm::style::Print(&self.buffer)).ok();
-        }
-        out.flush().ok();
-    }
 }
 
 fn parse_view_command(text: &str) -> Option<usize> {

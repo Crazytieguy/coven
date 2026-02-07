@@ -144,7 +144,9 @@
       "Bash(cargo --version)",
       "Bash(cargo doc-md)",
       "Bash(cargo doc-md *)",
+      "Bash(cargo insta *)",
       "Bash(bash /tmp/claude-execution-allowed/coven/*)",
+      "Bash(python3 /tmp/claude-execution-allowed/coven/*)",
       "Bash(xargs bash /tmp/claude-execution-allowed/coven/*)",
       "Bash(xargs -I{} bash /tmp/claude-execution-allowed/coven/*)",
       "WebFetch",
@@ -173,7 +175,8 @@
       "Bash(xargs -I{} bash *)",
       "Bash(cat)",
       "Bash(rustc *)",
-      "Bash(git -C *)"
+      "Bash(git -C *)",
+      "Edit(**/*.vcr)"
     ]
   }
 }

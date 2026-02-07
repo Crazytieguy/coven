@@ -2,9 +2,9 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session test-session-001 (claude-sonnet-4-20250514)
+Session 2265468f-5a0b-473b-9111-6da6e17e15e8 (claude-opus-4-6)
 
-2 + 2 = 4
+4
 
 
-Done  $0.00 · 1.2s · 1 turns
+Done  $0.01 · 1.3s · 1 turns

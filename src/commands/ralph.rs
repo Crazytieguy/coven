@@ -12,6 +12,7 @@ pub struct RalphConfig {
     pub prompt: String,
     pub iterations: u32,
     pub break_tag: String,
+    pub no_break: bool,
     pub extra_args: Vec<String>,
 }
 
@@ -24,12 +25,13 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
     let mut total_cost = 0.0;
     let mut iteration = 0;
 
-    let system_prompt = format!(
+    let system_prompt = if config.no_break {
         "You are running in a loop where each iteration starts a fresh session but the filesystem \
-         persists. When the task is fully complete, include `<{tag}>reason</{tag}>` in your \
-         response.",
-        tag = config.break_tag
-    );
+         persists."
+            .to_string()
+    } else {
+        SessionRunner::ralph_system_prompt(&config.break_tag)
+    };
 
     loop {
         iteration += 1;
@@ -94,7 +96,9 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
         renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
         // Check for break tag
-        if let Some(reason) = scan_break_tag(&result_text, &config.break_tag) {
+        if !config.no_break
+            && let Some(reason) = scan_break_tag(&result_text, &config.break_tag)
+        {
             renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
             break;
         }

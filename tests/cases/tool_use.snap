@@ -2,14 +2,11 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session test-session-002 (claude-sonnet-4-20250514)
+Session b30bc9eb-551c-4669-9b3c-eed8768210fa (claude-opus-4-6)
 
-Thinking...
-I'll list the files for you.
-
-[1] ▶ Bash  ls -la
-    ✓ total 32
-Here are the files in your directory.
+[1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...
+    ✓
+The directory is essentially empty — it only contains a `.claude` directory (hidden). No other files or subdirectories are present.
 
 
-Done  $0.01 · 3.4s · 2 turns  (:N to view)
+Done  $0.05 · 5.5s · 2 turns  (:N to view)

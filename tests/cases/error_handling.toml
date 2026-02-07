@@ -1,0 +1,5 @@
+[run]
+prompt = "Run test.sh and fix any issues"
+
+[files]
+"test.sh" = "#!/bin/bash\necho 'Running tests...'\nexit 1\n"

@@ -1,0 +1,6 @@
+[run]
+prompt = "What is Rust?"
+
+[[messages]]
+content = "How does ownership work?"
+trigger = "after-result"

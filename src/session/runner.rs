@@ -42,7 +42,8 @@ impl SessionRunner {
             .arg("stream-json")
             .arg("--verbose")
             .arg("--input-format")
-            .arg("stream-json");
+            .arg("stream-json")
+            .arg("--include-partial-messages");
 
         if let Some(ref system_prompt) = config.append_system_prompt {
             cmd.arg("--append-system-prompt").arg(system_prompt);
@@ -93,6 +94,7 @@ impl SessionRunner {
             "--verbose".to_string(),
             "--input-format".to_string(),
             "stream-json".to_string(),
+            "--include-partial-messages".to_string(),
         ];
 
         if let Some(ref system_prompt) = config.append_system_prompt {
@@ -129,6 +131,17 @@ impl SessionRunner {
     pub async fn kill(&mut self) -> Result<()> {
         self.child.kill().await?;
         Ok(())
+    }
+
+    /// Build the ralph system prompt for the given break tag.
+    pub fn ralph_system_prompt(break_tag: &str) -> String {
+        format!(
+            "You are running in a loop where each iteration starts a fresh session but the \
+             filesystem persists. After completing your work for this iteration, consider \
+             whether another iteration would be useful. Only include \
+             `<{break_tag}>reason</{break_tag}>` in your response when you are confident \
+             that all tasks are done and another iteration would not accomplish anything new."
+        )
     }
 
     fn spawn_reader(stdout: ChildStdout, event_tx: mpsc::UnboundedSender<AppEvent>) {

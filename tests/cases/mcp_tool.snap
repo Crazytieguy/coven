@@ -1,0 +1,30 @@
+---
+source: tests/vcr_test.rs
+expression: clean
+---
+Session 46c371bd-52fa-4431-8ba7-8936b254da84 (claude-opus-4-6)
+
+[1] ▶ mcp__plugin_llms-fetch-mcp_llms-fetch__fetch  https://docs.rs/tokio
+    ✓ ## https://docs.rs/tokio
+The Tokio docs have been fetched and saved. Here's what's covered in the documentation:
+
+**A Tour of Tokio** — Overview of the runtime, including:
+- Basic example of using Tokio
+- Authoring libraries with Tokio
+
+**Working With Tasks** — How to spawn and manage async tasks
+
+**CPU-bound tasks and blocking code** — Handling blocking operations within an async context
+
+**Asynchronous IO** — Tokio's async I/O primitives
+
+**Examples** — Code examples
+
+**Feature flags** — Available cargo feature flags, including unstable features
+
+**Supported platforms** — Platform support details including WASM support
+
+The file is saved at `.llms-fetch-mcp/docs.rs/tokio/index`. Would you like me to read the full content or fetch any specific sub-pages (e.g., `tokio::sync`, `tokio::net`, etc.)?
+
+
+Done  $0.03 · 9.1s · 2 turns  (:N to view)

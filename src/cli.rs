@@ -39,6 +39,10 @@ pub enum Command {
         #[arg(long, default_value = "break")]
         break_tag: String,
 
+        /// Disable break tag detection (requires --iterations to prevent infinite loop).
+        #[arg(long)]
+        no_break: bool,
+
         /// Extra arguments to pass through to claude (after --).
         #[arg(last = true)]
         claude_args: Vec<String>,
