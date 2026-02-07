@@ -275,7 +275,13 @@ pub fn view_message(renderer: &mut Renderer, n: usize) {
     }
 
     let msg = &messages[n - 1];
-    let content = format!("{}\n\n{}", msg.label, msg.content);
+    let content = match &msg.result {
+        Some(result) => format!(
+            "{}\n\n{}\n\n--- Result ---\n\n{}",
+            msg.label, msg.content, result
+        ),
+        None => format!("{}\n\n{}", msg.label, msg.content),
+    };
 
     // Switch to alternate screen and leave raw mode for pager
     crossterm::execute!(std::io::stdout(), terminal::EnterAlternateScreen).ok();

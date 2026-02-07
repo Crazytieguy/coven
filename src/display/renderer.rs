@@ -12,6 +12,8 @@ use crate::protocol::types::StreamEvent;
 pub struct StoredMessage {
     pub label: String,
     pub content: String,
+    /// Tool result text, attached when the result arrives.
+    pub result: Option<String>,
 }
 
 /// Tracks rendering state and produces colored terminal output.
@@ -221,11 +223,18 @@ impl<W: Write> Renderer<W> {
             .unwrap_or(false)
             || matches!(result, Value::String(s) if s.starts_with("Error"));
 
+        // Store result text on the most recent tool message
+        let text = extract_result_text(result);
+        if !text.is_empty()
+            && let Some(msg) = self.messages.last_mut()
+        {
+            msg.result = Some(text.clone());
+        }
+
         if is_error {
             self.close_tool_line();
             let indent = self.tool_indent();
             queue!(self.out, Print(indent), Print(theme::error().apply("✗")),).ok();
-            let text = extract_result_text(result);
             if !text.is_empty() {
                 let brief = first_line_truncated(&text, 60);
                 queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
@@ -254,6 +263,7 @@ impl<W: Write> Renderer<W> {
         self.messages.push(StoredMessage {
             label: format!("[{n}] {name}"),
             content,
+            result: None,
         });
 
         // Leave line open — subagent result will close or print ✗
@@ -269,6 +279,15 @@ impl<W: Write> Renderer<W> {
             if item.get("type").and_then(Value::as_str) != Some("tool_result") {
                 continue;
             }
+
+            // Store result text on the most recent tool message
+            let text = extract_result_text(item);
+            if !text.is_empty()
+                && let Some(msg) = self.messages.last_mut()
+            {
+                msg.result = Some(text);
+            }
+
             let is_error = item
                 .get("is_error")
                 .and_then(Value::as_bool)
@@ -369,6 +388,7 @@ impl<W: Write> Renderer<W> {
                     self.messages.push(StoredMessage {
                         label: format!("[{n}] {name}"),
                         content,
+                        result: None,
                     });
 
                     // Leave line open — result will close or print ✗
@@ -382,6 +402,7 @@ impl<W: Write> Renderer<W> {
                 self.messages.push(StoredMessage {
                     label: format!("[{n}] Thinking"),
                     content,
+                    result: None,
                 });
             }
             None => {}
