@@ -2,62 +2,54 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 5f28e5b7-e3ff-4986-a138-5fe0bb6d862c (claude-opus-4-6)
+Session 43fc6101-c379-4850-bf4e-c92f01aa96ee (claude-opus-4-6)
 
 Rust is a systems programming language focused on safety, speed, and concurrency. Key highlights:
 
-- **Memory safety** without garbage collection, using an ownership system with borrowing and lifetimes
+- **Memory safety without garbage collection** — uses an ownership system with borrowing and lifetimes checked at compile time
 - **Zero-cost abstractions** — high-level features compile down to efficient low-level code
 - **Fearless concurrency** — the type system prevents data races at compile time
-- **No null or dangling pointers** — uses `Option<T>` and `Result<T, E>` instead
-- **Cargo** — a built-in package manager and build system
-- **Strong ecosystem** via crates.io
+- **Modern tooling** — `cargo` (build system/package manager), `rustup` (toolchain manager), excellent compiler error messages
 
-It's commonly used for systems programming, CLI tools, WebAssembly, embedded systems, and performance-critical applications. Created by Graydon Hoare at Mozilla, with its first stable release (1.0) in 2015.
+It's commonly used for systems software, WebAssembly, CLI tools, game engines, embedded systems, and performance-critical applications. Originally developed at Mozilla, it's now governed by the Rust Foundation.
 
 
-Done  $0.04 · 5.3s · 1 turns · 20k tokens
-Session 5f28e5b7-e3ff-4986-a138-5fe0bb6d862c (claude-opus-4-6)
+Done  $0.04 · 5.1s · 1 turns · 20k tokens
+Session 43fc6101-c379-4850-bf4e-c92f01aa96ee (claude-opus-4-6)
 
-Rust's ownership system is its core mechanism for memory safety without a garbage collector. It has three rules:
+Rust's ownership system is its core mechanism for memory safety without a garbage collector. Three rules:
 
 1. **Each value has exactly one owner** (a variable)
 2. **There can only be one owner at a time**
 3. **When the owner goes out of scope, the value is dropped** (freed)
 
-**Move semantics** — assigning a value transfers ownership:
+**Move semantics** — assigning or passing a value transfers ownership:
 ```rust
 let s1 = String::from("hello");
-let s2 = s1;  // s1 is moved to s2
-// println!("{s1}"); // ERROR: s1 is no longer valid
+let s2 = s1;  // s1 is moved to s2, s1 is no longer valid
 ```
 
 **Borrowing** — references let you use a value without taking ownership:
 ```rust
+fn print_len(s: &String) {  // borrows s
+    println!("{}", s.len());
+}
 let s = String::from("hello");
-let len = calculate_length(&s); // borrows s, doesn't take ownership
-// s is still valid here
+print_len(&s);  // s is still valid here
 ```
 
 **Borrowing rules:**
 - You can have **either** many immutable references (`&T`) **or** one mutable reference (`&mut T`) — never both
-- References must always be valid (no dangling references)
+- References must always be valid (no dangling pointers)
 
-```rust
-let mut s = String::from("hello");
-let r1 = &s;     // ok
-let r2 = &s;     // ok — multiple immutable borrows
-// let r3 = &mut s; // ERROR: can't borrow mutably while immutable borrows exist
-```
-
-**Lifetimes** ensure references don't outlive the data they point to. The compiler infers them most of the time, but sometimes you need explicit annotations:
+**Lifetimes** — the compiler tracks how long references are valid to ensure they never outlive the data they point to. Usually inferred, but sometimes you annotate them explicitly:
 ```rust
 fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
     if x.len() > y.len() { x } else { y }
 }
 ```
 
-This system eliminates entire classes of bugs (use-after-free, double-free, data races) at compile time with no runtime cost.
+This all gets checked at **compile time** — no runtime overhead.
 
 
-Done  $0.06 · 9.6s · 1 turns · 21k tokens
+Done  $0.06 · 8.0s · 1 turns · 21k tokens

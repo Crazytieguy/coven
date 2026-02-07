@@ -82,9 +82,14 @@ impl SessionRunner {
             "--include-partial-messages".to_string(),
         ];
 
-        if !has_permission_mode(&config.extra_args) {
+        if !has_flag(&config.extra_args, "--permission-mode") {
             args.push("--permission-mode".to_string());
             args.push("acceptEdits".to_string());
+        }
+
+        if !has_flag(&config.extra_args, "--max-thinking-tokens") {
+            args.push("--max-thinking-tokens".to_string());
+            args.push("31999".to_string());
         }
 
         if let Some(ref system_prompt) = config.append_system_prompt {
@@ -174,7 +179,7 @@ impl SessionRunner {
     }
 }
 
-/// Check whether `--permission-mode` is already present in the extra args.
-fn has_permission_mode(args: &[String]) -> bool {
-    args.iter().any(|a| a == "--permission-mode")
+/// Check whether a flag is already present in the extra args.
+fn has_flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|a| a == flag)
 }

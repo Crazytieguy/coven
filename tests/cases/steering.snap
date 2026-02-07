@@ -2,12 +2,11 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 7f41db8a-36e5-48eb-9cf1-899023c2bfc6 (claude-opus-4-6)
+Session 2e4b50fb-3faf-4ccd-b3bb-ca6e4ec575ee (claude-opus-4-6)
 
 [1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/hello.py
-The file has 2 lines of code. It prints "hello world" and then prints "goodbye".
+[2] Thinking...
+The file prints two messages to the console: first `hello world`, then `goodbye`.
 
-The user's follow-up: the file has **2 lines** of code (excluding the trailing blank line).
 
-
-Done  $0.05 · 6.3s · 2 turns · 41k tokens  (:N to view)
+Done  $0.05 · 6.6s · 2 turns · 41k tokens  (:N to view)

@@ -2,10 +2,10 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session de9f287a-f4b6-4054-9c9c-88ae1658cbe8 (claude-opus-4-6)
+Session a3ae5e3c-6274-434f-8a04-6129c1c1da46 (claude-opus-4-6)
 
 [1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...
-The directory is essentially empty — it only contains a `.claude` directory (hidden). There are no regular files here.
+The directory is essentially empty — it only contains a `.claude` directory (which holds Claude Code configuration). No project files are present.
 
 
-Done  $0.05 · 6.9s · 2 turns · 41k tokens  (:N to view)
+Done  $0.05 · 6.3s · 2 turns · 41k tokens  (:N to view)

@@ -2,28 +2,55 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 3544f3eb-5f00-4007-9177-4aff60330ad6 (claude-opus-4-6)
-
-[1] ▶ mcp__plugin_llms-fetch-mcp_llms-fetch__fetch  https://docs.rs/tokio
-The Tokio docs have been fetched and saved. Here's a summary of what's covered:
-
-**A Tour of Tokio** — Overview of the async runtime, including:
-- Basic example of using Tokio
-- Authoring libraries with Tokio
-
-**Working With Tasks** — How to spawn and manage async tasks
-
-**CPU-bound tasks and blocking code** — Handling blocking operations in an async context
-
-**Asynchronous IO** — Async I/O primitives
-
-**Examples** — Code examples
-
-**Feature flags** — Configurable features including unstable features
-
-**Supported platforms** — Platform support details including WASM support (stable and unstable)
-
-The content is saved locally at `.llms-fetch-mcp/docs.rs/tokio/index`. Would you like me to read the full content, or drill into a specific section?
+Session 9e285ac3-47b5-4608-8d7a-4acf58dfc5fb (claude-opus-4-6)
 
 
-Done  $0.05 · 8.2s · 2 turns · 42k tokens  (:N to view)
+
+[1] Thinking...
+[2] ▶ mcp__plugin_llms-fetch-mcp_llms-fetch__fetch  https://docs.rs/tokio
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-mcp_tool/.llms-fetch-mcp/docs.rs/tokio/index
+Here's a summary of the Tokio docs from docs.rs:
+
+## Tokio - Async Runtime for Rust
+
+Tokio is an event-driven, non-blocking I/O platform for writing asynchronous applications in Rust. It provides:
+
+- **Task management** — `tokio::task` for spawning/joining async tasks, `tokio::sync` for channels and synchronization primitives, `tokio::time` for timeouts/sleeps/intervals
+- **Async I/O** — `tokio::io` (AsyncRead/AsyncWrite), `tokio::net` (TCP, UDP, Unix sockets), `tokio::fs`, `tokio::process`, `tokio::signal`
+- **Runtime** — Task scheduler, OS-backed I/O driver (epoll/kqueue/IOCP), high-performance timer
+
+### Quick Start
+
+```toml
+tokio = { version = "1", features = ["full"] }
+```
+
+### Key Modules
+
+| Module | Feature Flag | Description |
+|--------|-------------|-------------|
+| `fs` | `fs` | Async file utilities |
+| `io` | — | Async I/O traits & helpers |
+| `net` | `net` | TCP/UDP/Unix sockets |
+| `process` | `process` | Async process management |
+| `runtime` | `rt` | The Tokio runtime |
+| `signal` | `signal` | Async signal handling |
+| `sync` | `sync` | Channels, Mutex, Barrier |
+| `task` | `rt` | Async green-threads |
+| `time` | `time` | Timeouts, sleep, intervals |
+
+### Feature Flags
+
+`full`, `rt`, `rt-multi-thread`, `io-util`, `io-std`, `net`, `time`, `process`, `macros`, `sync`, `signal`, `fs`, `test-util`, `parking_lot`
+
+### Notable Details
+
+- **CPU-bound work** should use `spawn_blocking` or a dedicated thread pool (e.g., rayon)
+- **Unstable features** (like `tracing`, `RuntimeMetrics`) require `--cfg tokio_unstable`
+- **WASM** has limited support (`sync`, `macros`, `io-util`, `rt`, `time`)
+- **Supported platforms**: Linux, Windows, Android, macOS, iOS, FreeBSD
+
+The file is saved locally at `.llms-fetch-mcp/docs.rs/tokio/index` if you want to reference it again.
+
+
+Done  $0.12 · 17.8s · 3 turns · 70k tokens  (:N to view)
