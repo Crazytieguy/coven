@@ -1,0 +1,15 @@
+---
+source: tests/vcr_test.rs
+expression: clean
+---
+Session test-session-002 (claude-sonnet-4-20250514)
+
+Thinking...
+I'll list the files for you.
+
+[1] ▶ Bash  ls -la
+    ✓ total 32
+Here are the files in your directory.
+
+
+Done  $0.01 · 3.4s · 2 turns  (:N to view)

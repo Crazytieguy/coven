@@ -1,0 +1,21 @@
+#![allow(dead_code)]
+
+/// Tracks accumulated session state across events.
+#[derive(Debug, Default)]
+pub struct SessionState {
+    pub session_id: Option<String>,
+    pub model: Option<String>,
+    pub status: SessionStatus,
+    pub total_cost_usd: f64,
+    pub num_turns: u32,
+    pub duration_ms: u64,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum SessionStatus {
+    #[default]
+    Starting,
+    Running,
+    WaitingForInput,
+    Ended,
+}

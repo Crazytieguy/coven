@@ -1,0 +1,12 @@
+{"_vcr":"header","command":["claude","-p","--output-format","stream-json","--verbose","--input-format","stream-json"]}
+> {"type":"user","message":{"role":"user","content":"What is 2+2?"}}
+< {"type":"system","subtype":"init","session_id":"test-session-001","model":"claude-sonnet-4-20250514","tools":[]}
+< {"type":"stream_event","event":"message_start","message":{"id":"msg_01","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514"}}
+< {"type":"stream_event","event":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+< {"type":"stream_event","event":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"2 + 2"}}
+< {"type":"stream_event","event":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" = 4"}}
+< {"type":"stream_event","event":"content_block_stop","index":0}
+< {"type":"stream_event","event":"message_delta","delta":{"stop_reason":"end_turn"}}
+< {"type":"stream_event","event":"message_stop"}
+< {"type":"assistant","message":{"id":"msg_01","type":"message","role":"assistant","content":[{"type":"text","text":"2 + 2 = 4"}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn"}}
+< {"type":"result","subtype":"success","total_cost_usd":0.003,"num_turns":1,"duration_ms":1200,"result":"2 + 2 = 4","session_id":"test-session-001"}

@@ -1,0 +1,10 @@
+---
+source: tests/vcr_test.rs
+expression: clean
+---
+Session test-session-001 (claude-sonnet-4-20250514)
+
+2 + 2 = 4
+
+
+Done  $0.00 · 1.2s · 1 turns

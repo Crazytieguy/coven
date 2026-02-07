@@ -1,0 +1,27 @@
+{"_vcr":"header","command":["claude","-p","--output-format","stream-json","--verbose","--input-format","stream-json"]}
+> {"type":"user","message":{"role":"user","content":"List files in the current directory"}}
+< {"type":"system","subtype":"init","session_id":"test-session-002","model":"claude-sonnet-4-20250514","tools":[]}
+< {"type":"stream_event","event":"message_start","message":{"id":"msg_02","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514"}}
+< {"type":"stream_event","event":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}
+< {"type":"stream_event","event":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"The user wants to see files. I'll use Bash to run ls."}}
+< {"type":"stream_event","event":"content_block_stop","index":0}
+< {"type":"stream_event","event":"content_block_start","index":1,"content_block":{"type":"text","text":""}}
+< {"type":"stream_event","event":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"I'll list the files for you."}}
+< {"type":"stream_event","event":"content_block_stop","index":1}
+< {"type":"stream_event","event":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"tu_01","name":"Bash"}}
+< {"type":"stream_event","event":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{\"command\":"}}
+< {"type":"stream_event","event":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"\"ls -la\"}"}}
+< {"type":"stream_event","event":"content_block_stop","index":2}
+< {"type":"stream_event","event":"message_delta","delta":{"stop_reason":"tool_use"}}
+< {"type":"stream_event","event":"message_stop"}
+< {"type":"assistant","message":{"id":"msg_02","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"The user wants to see files. I'll use Bash to run ls."},{"type":"text","text":"I'll list the files for you."},{"type":"tool_use","id":"tu_01","name":"Bash","input":{"command":"ls -la"}}],"model":"claude-sonnet-4-20250514","stop_reason":"tool_use"}}
+< {"type":"user","tool_use_result":{"tool_use_id":"tu_01","name":"Bash","is_error":false,"content":[{"type":"text","text":"total 32\ndrwxr-xr-x  5 user  staff  160 Jan  1 12:00 .\n-rw-r--r--  1 user  staff  100 Jan  1 12:00 Cargo.toml\n-rw-r--r--  1 user  staff   50 Jan  1 12:00 README.md"}]}}
+< {"type":"stream_event","event":"message_start","message":{"id":"msg_03","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514"}}
+< {"type":"stream_event","event":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+< {"type":"stream_event","event":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Here are the files"}}
+< {"type":"stream_event","event":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" in your directory."}}
+< {"type":"stream_event","event":"content_block_stop","index":0}
+< {"type":"stream_event","event":"message_delta","delta":{"stop_reason":"end_turn"}}
+< {"type":"stream_event","event":"message_stop"}
+< {"type":"assistant","message":{"id":"msg_03","type":"message","role":"assistant","content":[{"type":"text","text":"Here are the files in your directory."}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn"}}
+< {"type":"result","subtype":"success","total_cost_usd":0.012,"num_turns":2,"duration_ms":3400,"result":"Here are the files in your directory.","session_id":"test-session-002"}
