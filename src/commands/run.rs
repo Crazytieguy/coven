@@ -1,292 +1,128 @@
-use std::process::Command as StdCommand;
-
 use anyhow::Result;
-use crossterm::event::{Event, EventStream, KeyEvent};
+use crossterm::event::{Event, EventStream};
 use crossterm::terminal;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
 use coven::display::input::{InputAction, InputHandler};
 use coven::display::renderer::Renderer;
-use coven::event::{AppEvent, InputMode};
-use coven::protocol::types::InboundEvent;
+use coven::event::AppEvent;
 use coven::session::runner::{SessionConfig, SessionRunner};
 use coven::session::state::{SessionState, SessionStatus};
 
-use super::handle_inbound;
-
-/// Flow control signals returned by key event handlers.
-enum LoopAction {
-    Continue,
-    Break,
-}
+use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
 /// Run a single interactive session.
 pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> {
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
 
-    let has_prompt = prompt.is_some();
-
-    let config = SessionConfig {
-        prompt,
-        extra_args,
-        append_system_prompt: None,
-    };
-
     let mut renderer = Renderer::new();
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
-    let mut runner: Option<SessionRunner> = None;
-    let mut event_buffer: Vec<AppEvent> = Vec::new();
-    let mut pending_followup: Option<String> = None;
-
-    if has_prompt {
-        terminal::enable_raw_mode()?;
-        runner = Some(SessionRunner::spawn(config, event_tx.clone()).await?);
-    } else {
-        terminal::enable_raw_mode()?;
-        renderer.show_prompt();
-        input.activate();
-    }
-
     let mut term_events = EventStream::new();
 
-    loop {
-        tokio::select! {
-            event = event_rx.recv() => {
-                match event {
-                    Some(app_event) => {
-                        if input.is_active() && state.status == SessionStatus::Running {
-                            event_buffer.push(app_event);
-                        } else {
-                            process_claude_event(
-                                app_event, &mut state, &mut renderer,
-                                &mut runner, &mut input, &mut pending_followup,
-                            ).await?;
-                            if state.status == SessionStatus::Ended {
-                                break;
-                            }
-                        }
-                    }
-                    None => break,
-                }
-            }
+    terminal::enable_raw_mode()?;
 
-            term_event = term_events.next() => {
-                match term_event {
-                    Some(Ok(Event::Key(key_event))) => {
-                        let action = if runner.is_none() {
-                            handle_initial_key_event(
-                                &key_event, &mut input, &mut renderer,
-                                &mut runner, &mut state, &event_tx,
-                            ).await?
-                        } else {
-                            handle_session_key_event(
-                                &key_event, &mut input, &mut renderer,
-                                &mut runner, &mut state,
-                                &mut event_buffer, &mut pending_followup,
-                            ).await?
-                        };
-                        if matches!(action, LoopAction::Break) {
-                            break;
-                        }
-                    }
-                    Some(Ok(_)) => {}
-                    Some(Err(_)) | None => break,
+    // Get initial runner: either from prompt or by waiting for user input
+    let mut runner = if let Some(prompt) = prompt {
+        let config = SessionConfig {
+            prompt: Some(prompt),
+            extra_args,
+            append_system_prompt: None,
+        };
+        SessionRunner::spawn(config, event_tx).await?
+    } else {
+        renderer.show_prompt();
+        input.activate();
+        if let Some(runner) = wait_for_initial_prompt(
+            &mut input,
+            &mut renderer,
+            &mut state,
+            &event_tx,
+            &extra_args,
+            &mut term_events,
+        )
+        .await?
+        {
+            runner
+        } else {
+            terminal::disable_raw_mode()?;
+            return Ok(());
+        }
+    };
+
+    // Main session loop — run sessions with follow-up support
+    loop {
+        let outcome = session_loop::run_session(
+            &mut runner,
+            &mut state,
+            &mut renderer,
+            &mut input,
+            &mut event_rx,
+            &mut term_events,
+        )
+        .await?;
+
+        match outcome {
+            SessionOutcome::Completed { .. } => {
+                match session_loop::wait_for_followup(
+                    &mut input,
+                    &mut renderer,
+                    &mut runner,
+                    &mut state,
+                    &mut term_events,
+                )
+                .await?
+                {
+                    FollowUpAction::Sent => {}
+                    FollowUpAction::Exit => break,
                 }
             }
+            SessionOutcome::Interrupted | SessionOutcome::ProcessExited => break,
         }
     }
 
     terminal::disable_raw_mode()?;
-
-    if let Some(ref mut r) = runner {
-        r.close_input();
-        let _ = r.wait().await;
-    }
+    runner.close_input();
+    let _ = runner.wait().await;
 
     Ok(())
 }
 
-/// Handle a key event before any session has started (no-prompt mode).
-async fn handle_initial_key_event(
-    key_event: &KeyEvent,
+/// Wait for the user to type an initial prompt. Returns the spawned runner, or None to exit.
+async fn wait_for_initial_prompt(
     input: &mut InputHandler,
     renderer: &mut Renderer,
-    runner: &mut Option<SessionRunner>,
     state: &mut SessionState,
     event_tx: &mpsc::UnboundedSender<AppEvent>,
-) -> Result<LoopAction> {
-    let action = input.handle_key(key_event);
-    match action {
-        InputAction::Submit(text, _) => {
-            let config = SessionConfig {
-                prompt: Some(text),
-                extra_args: vec![],
-                append_system_prompt: None,
-            };
-            *runner = Some(SessionRunner::spawn(config, event_tx.clone()).await?);
-            state.status = SessionStatus::Running;
-        }
-        InputAction::Interrupt | InputAction::EndSession => return Ok(LoopAction::Break),
-        InputAction::Cancel => {
-            renderer.show_prompt();
-            input.activate();
-        }
-        _ => {}
-    }
-    Ok(LoopAction::Continue)
-}
-
-/// Handle a key event during an active session.
-async fn handle_session_key_event(
-    key_event: &KeyEvent,
-    input: &mut InputHandler,
-    renderer: &mut Renderer,
-    runner: &mut Option<SessionRunner>,
-    state: &mut SessionState,
-    event_buffer: &mut Vec<AppEvent>,
-    pending_followup: &mut Option<String>,
-) -> Result<LoopAction> {
-    let action = input.handle_key(key_event);
-    match action {
-        InputAction::Submit(text, mode) => {
-            flush_event_buffer(event_buffer, state, renderer);
-            match mode {
-                InputMode::Steering => {
-                    if let Some(r) = runner {
-                        r.send_message(&text).await?;
-                    }
-                }
-                InputMode::FollowUp => {
-                    if state.status == SessionStatus::WaitingForInput {
-                        if let Some(r) = runner {
-                            r.send_message(&text).await?;
-                            state.status = SessionStatus::Running;
-                        }
-                    } else {
-                        *pending_followup = Some(text);
-                    }
-                }
-            }
-        }
-        InputAction::ViewMessage(n) => {
-            view_message(renderer, n);
-            renderer.show_prompt();
-            input.activate();
-        }
-        InputAction::Interrupt => {
-            if let Some(r) = runner {
-                r.kill().await?;
-            }
-            return Ok(LoopAction::Break);
-        }
-        InputAction::EndSession => {
-            if let Some(r) = runner {
-                r.close_input();
-            }
-        }
-        InputAction::Cancel => {
-            flush_event_buffer(event_buffer, state, renderer);
-            if state.status == SessionStatus::WaitingForInput {
-                renderer.show_prompt();
-                input.activate();
-            }
-        }
-        InputAction::None => {}
-    }
-    Ok(LoopAction::Continue)
-}
-
-/// Process a single claude event (not buffered).
-async fn process_claude_event(
-    event: AppEvent,
-    state: &mut SessionState,
-    renderer: &mut Renderer,
-    runner: &mut Option<SessionRunner>,
-    input: &mut InputHandler,
-    pending_followup: &mut Option<String>,
-) -> Result<()> {
-    match event {
-        AppEvent::Claude(inbound) => {
-            handle_inbound(&inbound, state, renderer);
-
-            // If result and there's a pending follow-up, send it
-            if matches!(*inbound, InboundEvent::Result(_)) {
-                if let Some(text) = pending_followup.take() {
-                    if let Some(r) = runner {
-                        r.send_message(&text).await?;
+    extra_args: &[String],
+    term_events: &mut EventStream,
+) -> Result<Option<SessionRunner>> {
+    loop {
+        match term_events.next().await {
+            Some(Ok(Event::Key(key_event))) => {
+                let action = input.handle_key(&key_event);
+                match action {
+                    InputAction::Submit(text, _) => {
+                        let config = SessionConfig {
+                            prompt: Some(text),
+                            extra_args: extra_args.to_vec(),
+                            append_system_prompt: None,
+                        };
+                        let runner = SessionRunner::spawn(config, event_tx.clone()).await?;
                         state.status = SessionStatus::Running;
+                        return Ok(Some(runner));
                     }
-                } else {
-                    // Show prompt for next input
-                    renderer.show_prompt();
-                    input.activate();
+                    InputAction::Interrupt | InputAction::EndSession => return Ok(None),
+                    InputAction::Cancel => {
+                        renderer.show_prompt();
+                        input.activate();
+                    }
+                    _ => {}
                 }
             }
-        }
-        AppEvent::ParseWarning(warning) => {
-            renderer.render_warning(&warning);
-        }
-        AppEvent::ProcessExit(code) => {
-            renderer.render_exit(code);
-            state.status = SessionStatus::Ended;
+            Some(Ok(_)) => {}
+            Some(Err(_)) | None => return Ok(None),
         }
     }
-    Ok(())
-}
-
-/// Flush all buffered events through the renderer.
-fn flush_event_buffer(
-    buffer: &mut Vec<AppEvent>,
-    state: &mut SessionState,
-    renderer: &mut Renderer,
-) {
-    for event in buffer.drain(..) {
-        match event {
-            AppEvent::Claude(inbound) => {
-                handle_inbound(&inbound, state, renderer);
-            }
-            AppEvent::ParseWarning(warning) => {
-                renderer.render_warning(&warning);
-            }
-            AppEvent::ProcessExit(code) => {
-                renderer.render_exit(code);
-                state.status = SessionStatus::Ended;
-            }
-        }
-    }
-}
-
-/// Open message N in $PAGER.
-fn view_message(renderer: &mut Renderer, n: usize) {
-    let messages = renderer.messages();
-    if n == 0 || n > messages.len() {
-        renderer.write_raw(&format!("No message {n}\r\n"));
-        return;
-    }
-
-    let msg = &messages[n - 1];
-    let content = format!("{}\n\n{}", msg.label, msg.content);
-
-    // Temporarily leave raw mode for pager
-    terminal::disable_raw_mode().ok();
-
-    let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    let mut child = StdCommand::new(&pager)
-        .arg("-R") // handle ANSI colors
-        .stdin(std::process::Stdio::piped())
-        .spawn();
-
-    if let Ok(ref mut child) = child {
-        if let Some(ref mut stdin) = child.stdin {
-            use std::io::Write;
-            stdin.write_all(content.as_bytes()).ok();
-        }
-        // Close stdin so pager reads EOF
-        child.stdin.take();
-        child.wait().ok();
-    }
-
-    terminal::enable_raw_mode().ok();
 }

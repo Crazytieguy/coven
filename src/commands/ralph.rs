@@ -1,16 +1,15 @@
 use anyhow::Result;
-use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
+use crossterm::event::EventStream;
 use crossterm::terminal;
-use futures::StreamExt;
 use tokio::sync::mpsc;
 
+use coven::display::input::InputHandler;
 use coven::display::renderer::Renderer;
 use coven::event::AppEvent;
-use coven::protocol::types::InboundEvent;
 use coven::session::runner::{SessionConfig, SessionRunner};
-use coven::session::state::{SessionState, SessionStatus};
+use coven::session::state::SessionState;
 
-use super::handle_inbound;
+use super::session_loop::{self, SessionOutcome};
 
 pub struct RalphConfig {
     pub prompt: String,
@@ -24,8 +23,8 @@ pub struct RalphConfig {
 pub async fn ralph(config: RalphConfig) -> Result<()> {
     terminal::enable_raw_mode()?;
 
-    // Install panic hook for terminal cleanup
     let mut renderer = Renderer::new();
+    let mut input = InputHandler::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;
 
@@ -64,70 +63,37 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
 
         let mut runner = SessionRunner::spawn(session_config, event_tx).await?;
         let mut state = SessionState::default();
-        let mut result_text = String::new();
 
-        // Process events for this iteration
-        let mut interrupted = false;
-        loop {
-            tokio::select! {
-                event = event_rx.recv() => {
-                    match event {
-                        Some(AppEvent::Claude(inbound)) => {
-                            handle_inbound(&inbound, &mut state, &mut renderer);
-
-                            // Capture result text for break tag scanning
-                            if let InboundEvent::Result(ref result) = *inbound {
-                                result_text.clone_from(&result.result);
-                                total_cost += result.total_cost_usd;
-                            }
-
-                            if matches!(*inbound, InboundEvent::Result(_) | InboundEvent::User(_))
-                                && state.status == SessionStatus::WaitingForInput
-                            {
-                                break;
-                            }
-                        }
-                        Some(AppEvent::ParseWarning(warning)) => {
-                            renderer.render_warning(&warning);
-                        }
-                        Some(AppEvent::ProcessExit(code)) => {
-                            renderer.render_exit(code);
-                            break;
-                        }
-                        None => break,
-                    }
-                }
-                term_event = term_events.next() => {
-                    if let Some(Ok(Event::Key(key_event))) = term_event
-                        && matches!(key_event.code,
-                            KeyCode::Char('c' | 'd')
-                            if key_event.modifiers.contains(KeyModifiers::CONTROL)
-                        )
-                    {
-                        runner.kill().await?;
-                        interrupted = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if interrupted {
-            break;
-        }
+        let outcome = session_loop::run_session(
+            &mut runner,
+            &mut state,
+            &mut renderer,
+            &mut input,
+            &mut event_rx,
+            &mut term_events,
+        )
+        .await?;
 
         runner.close_input();
         let _ = runner.wait().await;
 
-        // Show running cost
-        renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+        match outcome {
+            SessionOutcome::Completed { result_text } => {
+                total_cost += state.total_cost_usd;
 
-        // Check for break tag
-        if !config.no_break
-            && let Some(reason) = SessionRunner::scan_break_tag(&result_text, &config.break_tag)
-        {
-            renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
-            break;
+                // Show running cost
+                renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+
+                // Check for break tag
+                if !config.no_break
+                    && let Some(reason) =
+                        SessionRunner::scan_break_tag(&result_text, &config.break_tag)
+                {
+                    renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
+                    break;
+                }
+            }
+            SessionOutcome::Interrupted | SessionOutcome::ProcessExited => break,
         }
     }
 
