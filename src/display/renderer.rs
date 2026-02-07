@@ -234,14 +234,14 @@ impl<W: Write> Renderer<W> {
     // --- Subagent tool calls (indented) ---
 
     pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
-        self.close_tool_line();
+        self.close_tool_line_with_check();
         self.finish_current_block();
         self.tool_counter += 1;
         self.last_tool_is_subagent = true;
         let n = self.tool_counter;
         let detail = format_tool_detail(name, input);
         let label = format!("  [{n}] ▶ {name}  {detail}");
-        queue!(self.out, Print(theme::dim().apply(&label)), Print("\r\n"),).ok();
+        queue!(self.out, Print(theme::dim().apply(&label)),).ok();
 
         // Store for :N viewing
         let content = serde_json::to_string_pretty(input).unwrap_or_default();
@@ -249,6 +249,9 @@ impl<W: Write> Renderer<W> {
             label: format!("[{n}] {name}"),
             content,
         });
+
+        // Leave line open — subagent result will append ✓ or ✗
+        self.tool_line_open = true;
         self.out.flush().ok();
     }
 
@@ -265,6 +268,7 @@ impl<W: Write> Renderer<W> {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             if is_error {
+                self.close_tool_line();
                 let indent = self.tool_indent();
                 queue!(
                     self.out,
@@ -273,8 +277,17 @@ impl<W: Write> Renderer<W> {
                     Print("\r\n"),
                 )
                 .ok();
+            } else if self.tool_line_open {
+                // Append ✓ on the same line as the subagent tool call
+                queue!(
+                    self.out,
+                    Print("  "),
+                    Print(theme::success().apply("✓")),
+                    Print("\r\n"),
+                )
+                .ok();
+                self.tool_line_open = false;
             }
-            // Success: no result line
         }
         self.out.flush().ok();
     }
@@ -302,6 +315,21 @@ impl<W: Write> Renderer<W> {
     fn close_tool_line(&mut self) {
         if self.tool_line_open {
             queue!(self.out, Print("\r\n")).ok();
+            self.tool_line_open = false;
+        }
+    }
+
+    /// Close an open tool call line with a ✓, used when a subagent tool call
+    /// arrives (meaning the parent tool is executing successfully).
+    fn close_tool_line_with_check(&mut self) {
+        if self.tool_line_open {
+            queue!(
+                self.out,
+                Print("  "),
+                Print(theme::success().apply("✓")),
+                Print("\r\n"),
+            )
+            .ok();
             self.tool_line_open = false;
         }
     }
