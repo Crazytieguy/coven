@@ -1,11 +1,9 @@
-[ ] I don't see a status code for bash commands
-[ ] I don't think the input buffering thing is working
-[ ] Got "✗ Error: Exit plan mode?" for exit plan mode. Clearly plan mode doesn't work with -p, maybe we should error on that. Not sure if we have a way to detect it. If we don't: we should pass permission mode acceptEdits unless the user passes a permission mode. 
-[ ] It's awkward to have a line that only has "✓", can probably be ommited (only display failed tool results or tool results with non 0 status code)
-[ ] Indentation seems to not take into account message numbers over 9
-[ ] Probably want a way to interrupt a session before prompting (requires restarting it with --resume, same as if the session ends organically)
-[ ] I'm unclear on the treatment of thinking: am I seeing streaming thinking, or is thinking not shown? Neither is what I wanted, I just want to see a collapsed thinking indicator (user can display the same way they'd display a tool call). That said, if thinking is currently displayed then I'm really enjoying reading it (out of curiosity), so we should have a cli flag to show all thinking
-[ ] At the end of the session it would be nice to display total tokens used and the size of the final context window (if available from claude)
-[ ] Subagent tool calls: currently doesn't display the tool name and details, only ✓ or ✗
-[ ] (unclear if real issue): the VCR replay should fail the test if input isn't being sent correctly to claude
-[ ] It seems that our original research on claude -p mid-session stdin might have been wrong: it doesn't seem to actually send the message to the model. This needs to be checked, and if it's not possible to send messages to claude -p mid session we need to re-design the steering approach to interrupt the session and then resume it. We need to be careful not to kill while a tool is executing though, we should probably interrupt right as an assistant message starts. (All of this is just if claude -p in fact ignores stdin mid session)
+- I don't think the input buffering thing is working
+- Got "✗ Error: Exit plan mode?" for exit plan mode. Clearly plan mode doesn't work with -p, maybe we should error on that. Not sure if we have a way to detect it. If we don't: we should pass permission mode acceptEdits unless the user passes a permission mode.
+- Indentation seems to not take into account message numbers over 9
+- Probably want a way to interrupt a session before prompting (requires restarting it with --resume, same as if the session ends organically)
+- I'm unclear on the treatment of thinking: am I seeing streaming thinking, or is thinking not shown? Neither is what I wanted, I just want to see a collapsed thinking indicator (user can display the same way they'd display a tool call). That said, if thinking is currently displayed then I'm really enjoying reading it (out of curiosity), so we should have a cli flag to show all thinking
+- At the end of the session it would be nice to display total tokens used and the size of the final context window (if available from claude)
+- Subagent tool calls: currently doesn't display the tool name and details, only ✓ or ✗
+- (unclear if real issue): the VCR replay should fail the test if input isn't being sent correctly to claude
+- It seems that our original research on claude -p mid-session stdin might have been wrong: it doesn't seem to actually send the message to the model. This needs to be checked, and if it's not possible to send messages to claude -p mid session we need to re-design the steering approach to interrupt the session and then resume it. We need to be careful not to kill while a tool is executing though, we should probably interrupt right as an assistant message starts. (All of this is just if claude -p in fact ignores stdin mid session)

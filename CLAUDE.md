@@ -18,7 +18,7 @@ See @README.md for user-facing documentation.
 - Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
 - Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record_vcr`
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
-- Whenever you encounter an issue that's unrelated to what you're currently doing, make sure to record it in issues.md so it can be fixed later. This includes if you knowingly add technical debt or skip a requirement.
+- Whenever you encounter an issue that's unrelated to what you're currently doing, add it to issues.md so it can be fixed later. This includes if you knowingly add technical debt or skip a requirement. When an issue is resolved, remove it from the list.
 
 ## Publishing
 
