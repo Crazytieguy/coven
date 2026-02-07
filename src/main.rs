@@ -1,9 +1,5 @@
 mod cli;
 mod commands;
-mod display;
-mod event;
-mod protocol;
-mod session;
 
 use anyhow::Result;
 use clap::Parser;

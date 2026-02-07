@@ -6,12 +6,12 @@ use crossterm::terminal;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
-use crate::display::input::{InputAction, InputHandler};
-use crate::display::renderer::Renderer;
-use crate::event::{AppEvent, InputMode};
-use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
-use crate::session::runner::{SessionConfig, SessionRunner};
-use crate::session::state::{SessionState, SessionStatus};
+use coven::display::input::{InputAction, InputHandler};
+use coven::display::renderer::Renderer;
+use coven::event::{AppEvent, InputMode};
+use coven::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
+use coven::session::runner::{SessionConfig, SessionRunner};
+use coven::session::state::{SessionState, SessionStatus};
 
 /// Flow control signals returned by key event handlers.
 enum LoopAction {

@@ -4,11 +4,11 @@ use crossterm::terminal;
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
-use crate::display::renderer::Renderer;
-use crate::event::AppEvent;
-use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
-use crate::session::runner::{SessionConfig, SessionRunner};
-use crate::session::state::{SessionState, SessionStatus};
+use coven::display::renderer::Renderer;
+use coven::event::AppEvent;
+use coven::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
+use coven::session::runner::{SessionConfig, SessionRunner};
+use coven::session::state::{SessionState, SessionStatus};
 
 pub struct RalphConfig {
     pub prompt: String,
