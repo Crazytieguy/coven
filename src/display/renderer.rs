@@ -91,10 +91,10 @@ impl<W: Write> Renderer<W> {
             "Error"
         };
         let stats = format!("  ${cost:.2} · {secs:.1}s · {num_turns} turns");
-        let hint = if !self.messages.is_empty() {
-            "  (:N to view)"
-        } else {
+        let hint = if self.messages.is_empty() {
             ""
+        } else {
+            "  (:N to view)"
         };
 
         queue!(self.out, Print("\r\n")).ok();

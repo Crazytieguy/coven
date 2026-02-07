@@ -75,7 +75,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
 
                             // Capture result text for break tag scanning
                             if let InboundEvent::Result(ref result) = *inbound {
-                                result_text = result.result.clone();
+                                result_text.clone_from(&result.result);
                                 total_cost += result.total_cost_usd;
                             }
 
@@ -115,7 +115,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
             break;
         }
 
-        runner.close_input().await;
+        runner.close_input();
         let _ = runner.wait().await;
 
         // Show running cost

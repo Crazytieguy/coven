@@ -15,7 +15,7 @@ fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
     // 1. Validate header
     let header: VcrHeader =
         serde_json::from_str(vcr_lines[0]).expect("First line should be valid VCR header JSON");
-    assert_eq!(header._vcr, "header");
+    assert_eq!(header.vcr, "header");
 
     let expected_command = case.expected_command();
     assert_eq!(

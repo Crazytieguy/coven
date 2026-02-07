@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 /// Tracks accumulated session state across events.
 #[derive(Debug, Default)]
 pub struct SessionState {

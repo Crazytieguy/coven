@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::process::Stdio;
 
 use anyhow::{Context, Result};
@@ -117,7 +115,7 @@ impl SessionRunner {
     }
 
     /// Close stdin, signaling claude to finish.
-    pub async fn close_input(&mut self) {
+    pub fn close_input(&mut self) {
         self.stdin.take();
     }
 

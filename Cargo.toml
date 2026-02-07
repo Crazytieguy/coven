@@ -24,7 +24,12 @@ tokio = { version = "1.49.0", features = ["full"] }
 toml = "0.9.11"
 
 [lints.clippy]
-pedantic = "warn"
+pedantic = { level = "warn", priority = -1 }
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
 
 [profile.dist]
 inherits = "release"

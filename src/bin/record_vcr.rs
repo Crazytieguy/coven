@@ -24,10 +24,10 @@ async fn main() -> Result<()> {
     } else {
         // Record all cases
         let mut entries: Vec<_> = std::fs::read_dir(&cases_dir)?
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
             .collect();
-        entries.sort_by_key(|e| e.path());
+        entries.sort_by_key(std::fs::DirEntry::path);
 
         for entry in entries {
             let name = entry
@@ -50,8 +50,8 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let toml_path = cases_dir.join(format!("{name}.toml"));
     let vcr_path = cases_dir.join(format!("{name}.vcr"));
 
-    let toml_content =
-        std::fs::read_to_string(&toml_path).context(format!("Failed to read {toml_path:?}"))?;
+    let toml_content = std::fs::read_to_string(&toml_path)
+        .context(format!("Failed to read {}", toml_path.display()))?;
     let case: TestCase = toml::from_str(&toml_content)?;
 
     // Set up temp working directory
@@ -81,7 +81,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     // Build VCR header
     let expected_command = case.expected_command();
     let header = VcrHeader {
-        _vcr: "header".to_string(),
+        vcr: "header".to_string(),
         command: expected_command.clone(),
     };
     let header_line = serde_json::to_string(&header)?;
@@ -242,7 +242,7 @@ async fn record_ralph(
             vcr_lines.push(format!("< {line}"));
 
             if let Ok(Some(InboundEvent::Result(ref result))) = parse_line(&line) {
-                result_text = result.result.clone();
+                result_text.clone_from(&result.result);
                 break;
             }
         }

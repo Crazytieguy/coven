@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::protocol::types::InboundEvent;
 
 /// Unified application event consumed by the main event loop.

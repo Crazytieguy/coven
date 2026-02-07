@@ -58,7 +58,8 @@ pub struct TestMessage {
 /// VCR file header — first line of every `.vcr` file.
 #[derive(Deserialize, Serialize)]
 pub struct VcrHeader {
-    pub _vcr: String,
+    #[serde(rename = "_vcr")]
+    pub vcr: String,
     pub command: Vec<String>,
 }
 
@@ -70,7 +71,7 @@ pub enum Trigger {
 }
 
 impl TestCase {
-    /// Build a SessionConfig from this test case.
+    /// Build a `SessionConfig` from this test case.
     pub fn session_config(&self) -> SessionConfig {
         if let Some(ref ralph) = self.ralph {
             SessionConfig {

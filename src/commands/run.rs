@@ -117,7 +117,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                                     &mut event_buffer,
                                     &mut state,
                                     &mut renderer,
-                                ).await;
+                                );
 
                                 match mode {
                                     InputMode::Steering => {
@@ -154,7 +154,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                             }
                             InputAction::EndSession => {
                                 if let Some(ref mut r) = runner {
-                                    r.close_input().await;
+                                    r.close_input();
                                 }
                             }
                             InputAction::Cancel => {
@@ -163,7 +163,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
                                     &mut event_buffer,
                                     &mut state,
                                     &mut renderer,
-                                ).await;
+                                );
 
                                 if state.status == SessionStatus::WaitingForInput {
                                     renderer.show_prompt();
@@ -184,7 +184,7 @@ pub async fn run(prompt: Option<String>, extra_args: Vec<String>) -> Result<()> 
     terminal::disable_raw_mode()?;
 
     if let Some(ref mut r) = runner {
-        r.close_input().await;
+        r.close_input();
         let _ = r.wait().await;
     }
 
@@ -231,7 +231,7 @@ async fn process_claude_event(
 }
 
 /// Flush all buffered events through the renderer.
-async fn flush_event_buffer(
+fn flush_event_buffer(
     buffer: &mut Vec<AppEvent>,
     state: &mut SessionState,
     renderer: &mut Renderer,

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use super::types::InboundEvent;
 
-/// Parse a single NDJSON line into an InboundEvent.
+/// Parse a single NDJSON line into an `InboundEvent`.
 ///
 /// Returns `Ok(None)` for empty lines.
 /// Returns `Err` for malformed JSON (caller should warn, not crash).
