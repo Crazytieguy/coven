@@ -34,8 +34,8 @@ pub struct InitEvent {
     pub session_id: String,
     #[serde(default)]
     pub model: String,
-    #[serde(default)]
-    pub tools: Vec<Value>,
+    #[serde(default, rename = "tools")]
+    _tools: Vec<Value>,
 }
 
 // --- Stream events (raw API streaming) ---
@@ -45,7 +45,7 @@ pub struct InitEvent {
 pub struct StreamEvent {
     pub event: StreamEventPayload,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 /// The inner payload of a stream event (the raw Claude API SSE event).
@@ -58,7 +58,7 @@ pub struct StreamEventPayload {
     #[serde(default)]
     pub delta: Option<Delta>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -67,12 +67,12 @@ pub struct ContentBlock {
     pub r#type: String,
     #[serde(default)]
     pub name: Option<String>,
-    #[serde(default)]
-    pub id: Option<String>,
-    #[serde(default)]
-    pub text: Option<String>,
+    #[serde(default, rename = "id")]
+    _id: Option<String>,
+    #[serde(default, rename = "text")]
+    _text: Option<String>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -83,12 +83,12 @@ pub struct Delta {
     pub text: Option<String>,
     #[serde(default)]
     pub partial_json: Option<String>,
-    #[serde(default)]
-    pub thinking: Option<String>,
-    #[serde(default)]
-    pub stop_reason: Option<String>,
+    #[serde(default, rename = "thinking")]
+    _thinking: Option<String>,
+    #[serde(default, rename = "stop_reason")]
+    _stop_reason: Option<String>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 // --- Assistant message (complete) ---
@@ -99,7 +99,7 @@ pub struct AssistantMessage {
     #[serde(default)]
     pub parent_tool_use_id: Option<String>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -107,24 +107,28 @@ pub struct AssistantMessageBody {
     #[serde(default)]
     pub content: Vec<AssistantContentBlock>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum AssistantContentBlock {
     #[serde(rename = "text")]
-    Text { text: String },
+    Text {
+        #[serde(rename = "text")]
+        _text: String,
+    },
     #[serde(rename = "tool_use")]
     ToolUse {
-        id: String,
+        #[serde(rename = "id")]
+        _id: String,
         name: String,
         input: Value,
     },
     #[serde(rename = "thinking")]
     Thinking {
-        #[serde(default)]
-        thinking: String,
+        #[serde(default, rename = "thinking")]
+        _thinking: String,
     },
     #[serde(other)]
     Other,
@@ -143,7 +147,7 @@ pub struct UserToolResult {
     #[serde(default)]
     pub message: Option<Value>,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 // --- Result ---
@@ -160,10 +164,10 @@ pub struct SessionResult {
     pub duration_ms: u64,
     #[serde(default)]
     pub result: String,
-    #[serde(default)]
-    pub session_id: String,
+    #[serde(default, rename = "session_id")]
+    _session_id: String,
     #[serde(flatten)]
-    pub extra: Value,
+    _extra: Value,
 }
 
 // --- Outbound messages ---
