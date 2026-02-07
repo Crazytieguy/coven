@@ -1,0 +1,19 @@
+[package]
+name = "coven"
+version = "0.1.0"
+edition = "2024"
+authors = ["Yoav Tzfati <yoav.tzfati@gmail.com>"]
+license = "MIT"
+description = "A minimal streaming display and workflow runner for Claude Code's -p mode"
+readme = "README.md"
+repository = "https://github.com/Crazytieguy/coven"
+homepage = "https://github.com/Crazytieguy/coven"
+keywords = ["claude", "cli", "tui", "streaming", "workflow"]
+categories = ["command-line-utilities", "development-tools"]
+
+
+[dependencies]
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
