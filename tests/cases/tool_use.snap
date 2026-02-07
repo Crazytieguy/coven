@@ -4,8 +4,7 @@ expression: clean
 ---
 Session b30bc9eb-551c-4669-9b3c-eed8768210fa (claude-opus-4-6)
 
-[1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...
-    ✓
+[1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...  ✓
 The directory is essentially empty — it only contains a `.claude` directory (hidden). No other files or subdirectories are present.
 
 

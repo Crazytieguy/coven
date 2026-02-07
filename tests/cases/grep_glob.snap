@@ -4,8 +4,7 @@ expression: clean
 ---
 Session 5fea435c-f743-4369-914c-f946f2b85e26 (claude-opus-4-6)
 
-[1] ▶ Grep  fn main
-    ✓
+[1] ▶ Grep  fn main  ✓
 Found 1 Rust file containing `fn main`:
 
 - `src/main.rs`

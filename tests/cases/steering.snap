@@ -4,8 +4,7 @@ expression: clean
 ---
 Session da3ff42a-b962-4748-a9ac-24c36fb8f204 (claude-opus-4-6)
 
-[1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/hello.py
-    ✓
+[1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/hello.py  ✓
 The script prints two lines to the console: "hello world" followed by "goodbye".
 
 

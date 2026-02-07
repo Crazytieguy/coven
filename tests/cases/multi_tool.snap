@@ -6,12 +6,9 @@ Session bb6c5d1b-285f-43d1-ac7f-e2c912fda2ec (claude-sonnet-4-5-20250929)
 
 I'll create a hello world script and then change the greeting to "hi".
 
-[1] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py (1 lines)
-    ✓ print("Hello, World!")
-[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py
-    ✓
-[3] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py
-    ✓
+[1] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py (1 lines)  ✓
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py  ✓
+[3] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-multi_tool/hello.py  ✓
 Done! I've created `hello.py` with a hello world script and changed the greeting from "Hello" to "Hi".
 
 

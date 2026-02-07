@@ -26,6 +26,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     tool_counter: usize,
     /// The tool currently in progress (name + input).
     current_tool: Option<(String, Value)>,
+    /// Whether a tool call line is still open (no \r\n yet), awaiting its result.
+    tool_line_open: bool,
     /// Writer for output.
     out: W,
 }
@@ -45,6 +47,7 @@ impl Default for Renderer<io::Stdout> {
             messages: Vec::new(),
             tool_counter: 0,
             current_tool: None,
+            tool_line_open: false,
             out: io::stdout(),
         }
     }
@@ -64,6 +67,7 @@ impl<W: Write> Renderer<W> {
             messages: Vec::new(),
             tool_counter: 0,
             current_tool: None,
+            tool_line_open: false,
             out: writer,
         }
     }
@@ -82,6 +86,7 @@ impl<W: Write> Renderer<W> {
     }
 
     pub fn render_result(&mut self, subtype: &str, cost: f64, duration_ms: u64, num_turns: u32) {
+        self.close_tool_line();
         self.finish_current_block();
         // Round to tenths of a second (add 50ms to round instead of truncate)
         let rounded = duration_ms + 50;
@@ -187,6 +192,7 @@ impl<W: Write> Renderer<W> {
             || matches!(result, Value::String(s) if s.starts_with("Error"));
 
         if is_error {
+            self.close_tool_line();
             queue!(self.out, Print("    "), Print(theme::error().apply("✗")),).ok();
             let text = extract_result_text(result);
             if !text.is_empty() {
@@ -194,16 +200,16 @@ impl<W: Write> Renderer<W> {
                 queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
             }
             queue!(self.out, Print("\r\n")).ok();
-        } else {
-            queue!(self.out, Print("    "), Print(theme::success().apply("✓")),).ok();
-            let text = extract_result_text(result);
-            if !text.is_empty() {
-                let brief = first_line_truncated(&text, 60);
-                if !brief.is_empty() {
-                    queue!(self.out, Print(" "), Print(theme::dim().apply(brief)),).ok();
-                }
-            }
-            queue!(self.out, Print("\r\n")).ok();
+        } else if self.tool_line_open {
+            // Append ✓ on the same line as the tool call
+            queue!(
+                self.out,
+                Print("  "),
+                Print(theme::success().apply("✓")),
+                Print("\r\n"),
+            )
+            .ok();
+            self.tool_line_open = false;
         }
         self.out.flush().ok();
     }
@@ -211,6 +217,7 @@ impl<W: Write> Renderer<W> {
     // --- Subagent tool calls (indented) ---
 
     pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
+        self.close_tool_line();
         self.finish_current_block();
         self.tool_counter += 1;
         let n = self.tool_counter;
@@ -247,15 +254,8 @@ impl<W: Write> Renderer<W> {
                     Print("\r\n"),
                 )
                 .ok();
-            } else {
-                queue!(
-                    self.out,
-                    Print("      "),
-                    Print(theme::success().apply("✓")),
-                    Print("\r\n"),
-                )
-                .ok();
             }
+            // Success: no result line
         }
         self.out.flush().ok();
     }
@@ -268,6 +268,14 @@ impl<W: Write> Renderer<W> {
     }
 
     // --- Internal ---
+
+    /// Close an open tool call line if one is pending.
+    fn close_tool_line(&mut self) {
+        if self.tool_line_open {
+            queue!(self.out, Print("\r\n")).ok();
+            self.tool_line_open = false;
+        }
+    }
 
     fn stream_text(&mut self, text: &str) {
         if !self.text_streaming {
@@ -282,12 +290,14 @@ impl<W: Write> Renderer<W> {
     fn finish_current_block(&mut self) {
         match self.current_block.take() {
             Some(BlockKind::Text) => {
+                self.close_tool_line();
                 if self.text_streaming {
                     queue!(self.out, Print("\r\n\r\n")).ok();
                     self.text_streaming = false;
                 }
             }
             Some(BlockKind::ToolUse) => {
+                self.close_tool_line();
                 if let Some((name, raw_input)) = self.current_tool.take() {
                     self.tool_counter += 1;
                     let n = self.tool_counter;
@@ -302,12 +312,7 @@ impl<W: Write> Renderer<W> {
 
                     let detail = format_tool_detail(&name, &input);
                     let label = format!("[{n}] ▶ {name}  {detail}");
-                    queue!(
-                        self.out,
-                        Print(theme::tool_name().apply(&label)),
-                        Print("\r\n"),
-                    )
-                    .ok();
+                    queue!(self.out, Print(theme::tool_name().apply(&label)),).ok();
 
                     // Store for :N viewing
                     let content = serde_json::to_string_pretty(&input).unwrap_or_default();
@@ -315,9 +320,15 @@ impl<W: Write> Renderer<W> {
                         label: format!("[{n}] {name}"),
                         content,
                     });
+
+                    // Leave line open — result will append ✓ or close and print ✗
+                    self.tool_line_open = true;
                 }
             }
-            Some(BlockKind::Thinking) | None => {}
+            Some(BlockKind::Thinking) => {
+                self.close_tool_line();
+            }
+            None => {}
         }
         self.out.flush().ok();
     }
