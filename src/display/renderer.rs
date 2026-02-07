@@ -380,7 +380,25 @@ impl<W: Write> Renderer<W> {
 /// Format tool detail based on tool name and input.
 fn format_tool_detail(name: &str, input: &Value) -> String {
     match name {
-        "Read" | "Edit" => get_str(input, "file_path").unwrap_or_default().to_string(),
+        "Read" => get_str(input, "file_path").unwrap_or_default().to_string(),
+        "Edit" => {
+            let path = get_str(input, "file_path").unwrap_or_default();
+            let old_lines = get_str(input, "old_string").map_or(0, |s| s.lines().count());
+            let new_lines = get_str(input, "new_string").map_or(0, |s| s.lines().count());
+            let added = new_lines.saturating_sub(old_lines);
+            let removed = old_lines.saturating_sub(new_lines);
+            if added > 0 || removed > 0 {
+                let diff = match (added > 0, removed > 0) {
+                    (true, true) => format!("+{added} -{removed}"),
+                    (true, false) => format!("+{added}"),
+                    (false, true) => format!("-{removed}"),
+                    (false, false) => unreachable!(),
+                };
+                format!("{path} ({diff})")
+            } else {
+                path.to_string()
+            }
+        }
         "Write" => {
             let path = get_str(input, "file_path").unwrap_or_default();
             let lines = get_str(input, "content")
