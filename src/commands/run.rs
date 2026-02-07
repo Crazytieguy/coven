@@ -230,7 +230,6 @@ async fn process_claude_event(
             renderer.render_exit(code);
             state.status = SessionStatus::Ended;
         }
-        _ => {}
     }
     Ok(())
 }
@@ -253,7 +252,6 @@ fn flush_event_buffer(
                 renderer.render_exit(code);
                 state.status = SessionStatus::Ended;
             }
-            _ => {}
         }
     }
 }

@@ -92,7 +92,6 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
                             renderer.render_exit(code);
                             break;
                         }
-                        Some(_) => {}
                         None => break,
                     }
                 }

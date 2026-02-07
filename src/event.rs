@@ -9,20 +9,6 @@ pub enum AppEvent {
     ParseWarning(String),
     /// The claude process has exited.
     ProcessExit(Option<i32>),
-    /// User submitted input text.
-    UserInput(UserInput),
-    /// User requested to view a message by number.
-    ViewMessage(usize),
-    /// User pressed Ctrl-C.
-    Interrupt,
-    /// User pressed Ctrl-D (end session gracefully).
-    EndSession,
-}
-
-#[derive(Debug)]
-pub struct UserInput {
-    pub text: String,
-    pub mode: InputMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
