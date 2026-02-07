@@ -83,8 +83,8 @@ pub struct Delta {
     pub text: Option<String>,
     #[serde(default)]
     pub partial_json: Option<String>,
-    #[serde(default, rename = "thinking")]
-    _thinking: Option<String>,
+    #[serde(default)]
+    pub thinking: Option<String>,
     #[serde(default, rename = "stop_reason")]
     _stop_reason: Option<String>,
     #[serde(flatten)]

@@ -26,6 +26,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     tool_counter: usize,
     /// The tool currently in progress (name + input).
     current_tool: Option<(String, Value)>,
+    /// Accumulated thinking text for the current thinking block.
+    current_thinking: Option<String>,
     /// Whether a tool call line is still open (no \r\n yet), awaiting its result.
     tool_line_open: bool,
     /// Whether the last tool call was a subagent (indented).
@@ -49,6 +51,7 @@ impl Default for Renderer<io::Stdout> {
             messages: Vec::new(),
             tool_counter: 0,
             current_tool: None,
+            current_thinking: None,
             tool_line_open: false,
             last_tool_is_subagent: false,
             out: io::stdout(),
@@ -70,6 +73,7 @@ impl<W: Write> Renderer<W> {
             messages: Vec::new(),
             tool_counter: 0,
             current_tool: None,
+            current_thinking: None,
             tool_line_open: false,
             last_tool_is_subagent: false,
             out: writer,
@@ -154,9 +158,13 @@ impl<W: Write> Renderer<W> {
                         "thinking" => {
                             self.finish_current_block();
                             self.current_block = Some(BlockKind::Thinking);
+                            self.current_thinking = Some(String::new());
+                            self.tool_counter += 1;
+                            let n = self.tool_counter;
+                            let label = format!("[{n}] Thinking...");
                             queue!(
                                 self.out,
-                                Print(theme::dim_italic().apply("Thinking...")),
+                                Print(theme::dim_italic().apply(label)),
                                 Print("\r\n"),
                             )
                             .ok();
@@ -186,7 +194,13 @@ impl<W: Write> Renderer<W> {
                                 }
                             }
                         }
-                        // thinking_delta: content hidden, just show "Thinking..."
+                        "thinking_delta" => {
+                            if let Some(ref text) = delta.thinking
+                                && let Some(ref mut buf) = self.current_thinking
+                            {
+                                buf.push_str(text);
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -379,6 +393,12 @@ impl<W: Write> Renderer<W> {
             }
             Some(BlockKind::Thinking) => {
                 self.close_tool_line();
+                let content = self.current_thinking.take().unwrap_or_default();
+                let n = self.tool_counter;
+                self.messages.push(StoredMessage {
+                    label: format!("[{n}] Thinking"),
+                    content,
+                });
             }
             None => {}
         }
