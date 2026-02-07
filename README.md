@@ -2,34 +2,32 @@
 
 An oven for claude. A minimal streaming display and workflow runner for Claude Code's `-p` mode.
 
-## Status
+## Why?
 
-Early development - project scaffolding phase.
+The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` to provide a clean, lightweight display with support for follow-up messages, mid-stream steering, and looping workflows.
 
-## Features (Planned)
+## Features
 
-- **Minimal streaming display**: Run `claude -p` with streaming JSON output, parse and display with a clean, configurable TUI
-- **Hook-based communication**: Send messages to Claude via Claude Code hooks
-- **Session continuation**: Follow up on ended sessions with `claude --continue`
-- **Ralph Wiggum looping**: Run the same prompt repeatedly with filesystem state accumulation
-- **Session inspector**: View full details of tool calls and session activity
+- **Streaming display**: One line per tool call, streaming text, collapsed thinking
+- **Follow-up messages**: Continue sessions with additional prompts after results
+- **Ralph mode**: Loop Claude with fresh sessions, filesystem state persists between iterations
+- **Mid-stream steering**: Type messages while Claude is working to redirect it
+- **Message inspection**: View full details of any message via `:N` pager command
 
-## Why `-p` mode?
+### Planned
 
-- **Performance**: Each Claude TUI instance is expensive; `-p` mode is lightweight for parallel runs
-- **Permissions**: Claude keeps going instead of blocking on permission prompts
-- **Flexibility**: Enables workflows not natively supported by Claude Code
+- **Fixed bottom prompt**: Terminal scroll regions for simultaneous output and typing
 
-## Installation
+## Testing
 
+Tests are recorded from real Claude sessions using a VCR approach. Each test case has a `.toml` (config), `.vcr` (recorded NDJSON), and `.snap` (expected display) in `tests/cases/`.
+
+```bash
+cargo run --bin record-vcr           # re-record all fixtures
+cargo run --bin record-vcr simple_qa # re-record one
+cargo insta review                   # review snapshot changes
 ```
-cargo install --path .
-```
-
-## Usage
-
-TODO
 
 ## License
 
-TODO
+MIT
