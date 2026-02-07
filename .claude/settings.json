@@ -149,9 +149,9 @@
       "WebFetch",
       "WebSearch",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git commit:*)"
     ],
-    "defaultMode": "plan",
     "deny": [
       "Bash(for *)",
       "Bash(while *)",
