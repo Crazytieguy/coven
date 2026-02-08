@@ -29,44 +29,60 @@ The formula is technically accurate, but the displayed number is misleading:
 
 ## Approach
 
-Replace the single "total tokens" number with a more useful breakdown showing input/output split, since that's what users care about for understanding cost and usage.
+Replace the raw token count with context window usage percentage, showing how close the session was to requiring a compaction. This directly answers "how much context runway did I have?" rather than showing a misleading aggregate number.
 
-Display format change from:
+### Data source
+
+The `modelUsage` field in result events contains per-model data including `contextWindow` (e.g., 200,000). Example from VCR data:
+
+```json
+"modelUsage": {
+  "claude-opus-4-6": {
+    "inputTokens": 4,
+    "outputTokens": 146,
+    "cacheReadInputTokens": 37146,
+    "cacheCreationInputTokens": 4590,
+    "contextWindow": 200000,
+    ...
+  }
+}
+```
+
+Total context consumed = `inputTokens + cacheReadInputTokens + cacheCreationInputTokens + outputTokens` summed across all models sharing the primary context window. Context usage = total consumed / contextWindow.
+
+### Display format change
+
+From:
 ```
 Done  $0.04 · 1.7s · 1 turn · 20k tokens
 ```
 To:
 ```
-Done  $0.04 · 1.7s · 1 turn · 20k in / 0k out
+Done  $0.04 · 1.7s · 1 turn · 21% context
 ```
 
-This makes the cache-dominated input visible vs actual model output. We'd use `modelUsage` (cumulative, all models) when available, falling back to `usage` fields.
+If `modelUsage` is unavailable (older Claude Code), drop the token display entirely — cost is already a good proxy.
 
 ### Changes
 
-1. **`src/protocol/types.rs`**: Add `ModelUsageEntry` struct and `model_usage` field to `SessionResult` to parse the `modelUsage` map from result events.
+1. **`src/protocol/types.rs`**: Add `ModelUsageEntry` struct with `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `context_window` fields (deserializing from camelCase). Add `model_usage: Option<HashMap<String, ModelUsageEntry>>` to `SessionResult`.
 
-2. **`src/lib.rs`**: Compute cumulative input and output tokens from `modelUsage` (summing across all models), falling back to `usage` fields.
+2. **`src/lib.rs`**: Compute context usage percentage from `modelUsage`. Sum all token fields across all models for total consumed; use the primary model's `context_window` as the denominator. Pass `Option<u8>` (percentage) to the renderer instead of raw token count.
 
-3. **`src/display/renderer.rs`**: Update `render_result` to accept separate input/output token counts and format as `Xk in / Yk out`.
+3. **`src/display/renderer.rs`**: Update `render_result` to display `X% context` when available, or omit the token segment entirely when not.
 
 4. Re-record VCR fixtures and update snapshots.
 
 ## Questions
 
-### Should we show cache breakdown or just input/output?
+### How should we identify the "primary" model for context window?
 
-We could show a three-way split like `16k cached / 4k in / 0k out`, but that adds complexity. The simpler `20k in / 0k out` still conveys the key info (output is small relative to input). A middle ground is showing just `in / out` since cost already captures the financial impact.
+`modelUsage` can contain multiple models (e.g., Opus + Haiku). The context window is a property of each model. Options:
+- Use the model with the highest total token usage (most likely the primary)
+- Use the model with the largest context window
+- Use the first model listed
 
-Recommendation: `in / out` only, since caching is an implementation detail users shouldn't need to think about.
-
-Answer:
-
-### Should we use modelUsage for cumulative accuracy?
-
-`modelUsage` in the result event is cumulative across all turns and includes all sub-models (Haiku, etc.). Using it would fix the multi-turn inconsistency (tokens would be cumulative like cost). The downside is it's a different field with different structure (`camelCase` keys, nested per-model map).
-
-Recommendation: Yes, use `modelUsage` for accuracy, fall back to `usage` for older Claude Code versions.
+Recommendation: Use the model with the highest total token usage, since that's the model whose context window matters for compaction.
 
 Answer:
 
