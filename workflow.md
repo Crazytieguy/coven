@@ -46,12 +46,4 @@ Questions are optional but encouraged — surface ambiguity rather than guessing
 - Always verify clippy + tests pass before committing.
 - Commit all artifact changes (issues.md, plan files) alongside code changes.
 - If your changes introduced new problems, revert and stop. End result should be 0-1 atomic changes, with state at least as clean as when you started.
-
-## When to break
-
-Use `<break>reason</break>` to end the ralph loop when there's genuinely nothing productive left to do:
-- All issues have draft plans pending review and no other work available
-- No linter issues, no approved plans, no unplanned issues
-- No test gaps, no refactoring opportunities
-
 Good luck!
