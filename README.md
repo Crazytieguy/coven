@@ -17,6 +17,7 @@ The native Claude Code TUI is resource-heavy, blocks on permission prompts, and 
 ### Planned
 
 - **Fixed bottom prompt**: Terminal scroll regions for simultaneous output and typing
+- **Recurring tasks**: Periodic maintenance tasks (test review, refactoring) as a first-class workflow concept
 
 ## Testing
 

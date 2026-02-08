@@ -5,7 +5,7 @@ This session is unattended (no human at the keyboard). One small action at a tim
 1. **Lint**: Run clippy and fix any warnings.
 2. **Work on issues**: Process issues from `issues.md` by priority (`[P0]` > `[P1]` > `[P2]`; untagged defaults to `[P1]`). Within the same priority level, prefer planning over implementing. Across levels, implementing a higher-priority issue takes precedence over planning a lower-priority one.
    - **Plan**: Pick the highest-priority issue that has no `(plan: ...)` reference. Write a plan file and link it. Planning counts as one action.
-   - **Implement**: Check git status (or the gitStatus provided at session start) for modified plan files — uncommitted modifications to plan files mean the human has reviewed them. Read those files and act on their updated status. As a low-priority fallback, also read all plan files referenced from issues.md if git-based discovery found nothing.
+   - **Implement**: Check git status (or the gitStatus provided at session start) for modified plan files — uncommitted modifications to plan files mean the human has reviewed them. Read those files and act on their updated status.
      - `Status: approved` — implement the plan. If necessary, re-record relevant VCR tests and regenerate snapshots, and verify that the snapshot reflects the intended change. When done, remove the issue from issues.md and delete the plan file.
      - `Status: rejected` — revise the plan based on the Review section comments. Counts as one action.
      - `Status: draft` — not yet reviewed, skip.
