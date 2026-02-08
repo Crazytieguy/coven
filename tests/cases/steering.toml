@@ -1,9 +1,11 @@
 [run]
-prompt = "Read hello.py and write a summary of what it does"
+prompt = "Read each .py file in this directory one at a time. After reading each file, write a summary of it before moving on to the next file."
 
 [files]
 "hello.py" = "print('hello world')\nprint('goodbye')\n"
+"counter.py" = "count = 0\nfor i in range(10):\n    count += i\nprint(f'Total: {count}')\n"
+"greet.py" = "import sys\nname = sys.argv[1] if len(sys.argv) > 1 else 'World'\nprint(f'Hello, {name}!')\n"
 
 [[messages]]
-content = "Actually, just count the lines instead"
+content = "Actually, just count the lines in each file instead"
 trigger = "after-tool:1"
