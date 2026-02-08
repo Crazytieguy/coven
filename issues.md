@@ -2,7 +2,6 @@
 - I think token count is over-counting, please investigate (plan: plans/token-overcounting.md)
 - workflow issue: when claude edits a reviewed plan, it should remove the review (plan: plans/clear-review-on-plan-edit.md)
 - Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
-- Workflow issue: the review subagent should not look at plans/ or issues.md (plan: plans/review-subagent-scope.md)
 - Tool line metadata (line counts, diff stats) is truncated away when file paths are long — truncation should preserve the metadata suffix and truncate only the path portion (plan: plans/tool-line-metadata-truncation.md)
 - Duplicated error rendering: `render_tool_result` and `render_subagent_tool_result` in renderer.rs have identical error display logic (close_tool_line, indent, format `✗` line, truncate, print) — extract a shared helper (plan: plans/duplicated-error-rendering.md)
 - Redundant session header in multi-turn follow-ups: when a follow-up continues the same session, the full `Session <id> (model)` header is repeated — suppress the duplicate or show a simpler turn separator (plan: plans/redundant-session-header.md)
