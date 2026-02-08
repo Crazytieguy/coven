@@ -117,6 +117,12 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    pub fn render_turn_separator(&mut self) {
+        queue!(self.out, Print(theme::dim().apply("---")), Print("\r\n")).ok();
+        queue!(self.out, Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
     pub fn render_result(
         &mut self,
         subtype: &str,

@@ -18,10 +18,15 @@ pub fn handle_inbound<W: Write>(
 ) {
     match event {
         InboundEvent::System(SystemEvent::Init(init)) => {
+            let same_session = state.session_id.as_deref() == Some(&init.session_id);
             state.session_id = Some(init.session_id.clone());
             state.model = Some(init.model.clone());
             state.status = SessionStatus::Running;
-            renderer.render_session_header(&init.session_id, &init.model);
+            if same_session {
+                renderer.render_turn_separator();
+            } else {
+                renderer.render_session_header(&init.session_id, &init.model);
+            }
         }
         InboundEvent::System(SystemEvent::Other) => {}
         InboundEvent::StreamEvent(se) => {
