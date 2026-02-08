@@ -3,3 +3,4 @@
 - :N command: pager displays the content at the bottom of the terminal instead of the top (plan: plans/pager-display-position.md)
 - I think token count is over-counting, please investigate
 - workflow issue: when claude edits a reviewed plan, it should remove the review
+- Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display
