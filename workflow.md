@@ -36,7 +36,7 @@ Answer:
 <human writes approval/rejection/comments here>
 ```
 
-After creating the plan file, update the issue in issues.md to include `(plan: plans/<filename>.md)`.
+After creating the plan file, update the issue in issues.md to include `(plan: plans/<filename>.md)`. Commit the plan file and issues.md update immediately.
 
 Questions are optional but encouraged — surface ambiguity rather than guessing.
 
@@ -44,6 +44,7 @@ Questions are optional but encouraged — surface ambiguity rather than guessing
 
 - One action, then end your response.
 - Always verify clippy + tests pass before committing.
+- After creating or modifying a plan file (and updating issues.md if needed), commit the plan changes immediately — don't wait to bundle them with code changes.
 - Commit all artifact changes (issues.md, plan files) alongside code changes.
 - If your changes introduced new problems, revert and stop. End result should be 0-1 atomic changes, with state at least as clean as when you started.
 Good luck!

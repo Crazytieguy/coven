@@ -5,4 +5,3 @@
 - We should use the terminal width to truncate rendering more accurately (plan: plans/terminal-width-truncation.md)
 - workflow improvement: after finishing a task, we should have claude spin up a review subagent and iterate until the review returns pristine (plan: plans/workflow-review-subagent.md)
 - Some responses have extra blank lines at the top before the first content. Claude sometimes emits an initial text block containing only `\n\n` before a thinking block (visible in error_handling, mcp_tool, grep_glob VCR recordings but not simple_qa or multi_tool). The renderer streams these faithfully, creating inconsistent vertical whitespace. Should strip leading-whitespace-only text blocks or suppress blank text that precedes thinking. (plan: plans/leading-blank-lines.md)
-- I want new and modified plans to always be commited so that it's easier for me to see what I'm changing in them (workflow change) (plan: plans/commit-plans-immediately.md)
