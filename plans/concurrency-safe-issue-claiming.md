@@ -3,49 +3,45 @@ Status: draft
 
 ## Approach
 
-Add a lightweight file-based claiming mechanism to the workflow. Before an agent starts working on an issue, it creates a claim file that signals "this issue is taken."
+Use explicit numeric IDs on issues in `issues.md` to make identification deterministic. Then use file-based claiming keyed by those IDs.
 
-### Mechanism
+### Issue IDs
 
-1. Add a `claims/` directory (gitignored — claims are ephemeral local state, not shared via git).
-2. Update workflow.md to instruct agents: before picking an issue to plan or implement, attempt to create a claim file `claims/<issue-kebab>.claim` using `set -o noclobber` + redirect (`set -C && echo $$ > claims/foo.claim`). If the file already exists, the create fails atomically and the agent should pick a different issue.
-3. When an issue is resolved (removed from issues.md), the resolving agent deletes the corresponding claim file.
-4. Stale claims: if a claim file is older than some threshold (e.g., 1 hour), agents may delete it and re-claim. This handles crashed/abandoned agents.
+Each issue in `issues.md` gets a short numeric ID prefix:
+
+```
+- #1 When there are queued messages, we should display them somehow...
+- #2 I think token count is over-counting...
+```
+
+Workflow rules:
+- New issues get the next available number (max existing ID + 1).
+- When an issue is resolved and removed, its number is retired (not reused).
+- The ID is the source of truth for identity — two agents always agree on which issue is `#3`.
+
+### Claiming mechanism
+
+1. Add a `claims/` directory (gitignored — claims are ephemeral local state).
+2. Before working on an issue, create a claim file `claims/<id>.<type>` where `<type>` is `plan` or `impl`. Use `set -C` (noclobber) + redirect for atomic creation:
+   ```
+   set -C && echo "claimed" > claims/3.plan
+   ```
+   If the file exists, the shell fails atomically — pick a different issue.
+3. Planning and implementation are separate claims (`claims/3.plan` vs `claims/3.impl`), so one agent can plan while another implements a different issue.
+4. When done (plan committed, or issue resolved), delete the claim file.
 
 ### Changes
 
 - **`.gitignore`**: Add `claims/` entry.
-- **`workflow.md`**: Add a "Claiming issues" section between current priorities and writing-plans sections, documenting the protocol.
-- **No code changes** — this is purely a workflow/convention change.
-
-### Why file-based?
-
-- Shell `noclobber` (`set -C`) provides true atomic file creation at the OS level — if two agents race, exactly one succeeds and the other gets an error.
-- No dependencies, no external services, no git race conditions.
-- Works locally (which is the current deployment model).
+- **`workflow.md`**: Add a "Claiming issues" section documenting the ID and claiming protocol. Update issue format instructions.
+- **`issues.md`**: Add numeric IDs to existing issues.
+- **No code changes** — purely workflow/convention.
 
 ## Questions
 
-### Should claims be git-tracked or gitignored?
+### Should IDs be strictly sequential?
 
-Git-tracked claims would enable distributed concurrency (multiple machines), but add noise to the repo history and require push/pull synchronization (which reintroduces race conditions). Gitignored claims are simpler and sufficient for local multi-agent concurrency.
-
-Answer:
-
-### Staleness threshold
-
-1 hour seems reasonable for detecting abandoned claims, but the right value depends on how long a typical plan/implementation takes. Should this be configurable, or is a fixed 1-hour threshold fine?
-
-Answer:
-
-### Claim granularity
-
-Should claiming apply to:
-- (a) Planning only — claim when starting to write a plan, release after committing the plan
-- (b) Full lifecycle — claim when starting any work on an issue, release when the issue is resolved
-- (c) Both, with different claim types (e.g., `.plan-claim` vs `.work-claim`)
-
-Option (b) is simplest and prevents two agents from independently planning and then implementing the same issue.
+Strictly sequential (no gaps) is simplest for "next available = max + 1". Gaps from removed issues are fine — we don't reuse numbers, so `#1, #3, #5` is valid after `#2` and `#4` are resolved.
 
 Answer:
 
