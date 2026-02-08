@@ -1,4 +1,4 @@
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too) (plan: plans/theme-color-tuning.md)
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
-- Write tool detail shows `(1 lines)` instead of `(1 line)` for single-line files — needs singular/plural handling
+- Write tool detail shows `(1 lines)` instead of `(1 line)` for single-line files — needs singular/plural handling (plan: plans/write-tool-singular-line.md)
 - :N command: pager displays the content at the bottom of the terminal instead of the top
