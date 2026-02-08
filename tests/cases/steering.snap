@@ -10,17 +10,17 @@ Let me start by finding all the `.py` files in this directory.
 [2] ▶ Glob  **/*.py
 Found 3 `.py` files. Let me read the first one.
 
-[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/greet.py
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 **`greet.py`** — A simple greeting script. It takes an optional command-line argument for a name (defaulting to `'World'`) and prints `Hello, {name}!`. 3 lines of code.
 
 Now the second file.
 
-[4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/hello.py
+[4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 **`hello.py`** — A minimal script that prints `hello world` followed by `goodbye`. 2 lines of code.
 
 Now the third file.
 
-[5] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-steering/counter.py
+[5] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 **`counter.py`** — Sums the integers 0 through 9 using a loop and prints the total (which is 45). 4 lines of code.
 
 ---

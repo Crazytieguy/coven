@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use crossterm::queue;
 use crossterm::style::Print;
 use serde_json::Value;
+use unicode_width::UnicodeWidthChar;
 
 use super::theme;
 use crate::protocol::types::StreamEvent;
@@ -281,12 +282,19 @@ impl<W: Write> Renderer<W> {
         if is_error {
             self.close_tool_line();
             let indent = self.tool_indent();
-            queue!(self.out, Print(indent), Print(theme::error().apply("✗")),).ok();
-            if !text.is_empty() {
-                let brief = first_line_truncated(&text, 60);
-                queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
-            }
-            queue!(self.out, Print("\r\n")).ok();
+            let error_line = if text.is_empty() {
+                format!("{indent}✗")
+            } else {
+                let brief = first_line(&text);
+                format!("{indent}✗ {brief}")
+            };
+            let error_line = truncate_line(&error_line);
+            queue!(
+                self.out,
+                Print(theme::error().apply(&error_line)),
+                Print("\r\n"),
+            )
+            .ok();
         } else {
             self.close_tool_line();
         }
@@ -303,7 +311,7 @@ impl<W: Write> Renderer<W> {
         let n = self.tool_counter;
         let display_name = display_tool_name(name);
         let detail = format_tool_detail(name, input);
-        let label = format!("  [{n}] ▶ {display_name}  {detail}");
+        let label = truncate_line(&format!("  [{n}] ▶ {display_name}  {detail}"));
         queue!(self.out, Print(theme::tool_name_dim().apply(&label)),).ok();
 
         // Store for :N viewing
@@ -343,12 +351,19 @@ impl<W: Write> Renderer<W> {
             if is_error {
                 self.close_tool_line();
                 let indent = self.tool_indent();
-                queue!(self.out, Print(indent), Print(theme::error().apply("✗")),).ok();
-                if !text.is_empty() {
-                    let brief = first_line_truncated(&text, 60);
-                    queue!(self.out, Print(" "), Print(theme::error().apply(brief)),).ok();
-                }
-                queue!(self.out, Print("\r\n")).ok();
+                let error_line = if text.is_empty() {
+                    format!("{indent}✗")
+                } else {
+                    let brief = first_line(&text);
+                    format!("{indent}✗ {brief}")
+                };
+                let error_line = truncate_line(&error_line);
+                queue!(
+                    self.out,
+                    Print(theme::error().apply(&error_line)),
+                    Print("\r\n"),
+                )
+                .ok();
             } else {
                 self.close_tool_line();
             }
@@ -461,7 +476,7 @@ impl<W: Write> Renderer<W> {
 
                     let display_name = display_tool_name(&name);
                     let detail = format_tool_detail(&name, &input);
-                    let label = format!("[{n}] ▶ {display_name}  {detail}");
+                    let label = truncate_line(&format!("[{n}] ▶ {display_name}  {detail}"));
                     queue!(self.out, Print(theme::tool_name().apply(&label)),).ok();
 
                     // Store for :N viewing
@@ -574,7 +589,7 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
         }
         "Bash" => {
             let cmd = get_str(input, "command").unwrap_or_default();
-            first_line_truncated(cmd, 60)
+            first_line(cmd).to_string()
         }
         "Task" => get_str(input, "description")
             .unwrap_or_default()
@@ -586,7 +601,7 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
             if let Value::Object(map) = input {
                 for (_, v) in map {
                     if let Value::String(s) = v {
-                        return first_line_truncated(s, 60);
+                        return first_line(s).to_string();
                     }
                 }
             }
@@ -612,13 +627,50 @@ fn digit_count(n: usize) -> usize {
     count
 }
 
-fn first_line_truncated(s: &str, max: usize) -> String {
-    let line = s.lines().next().unwrap_or("");
-    if line.len() > max {
-        format!("{}...", &line[..max])
-    } else {
-        line.to_string()
+/// Extract the first line of a string (no truncation).
+fn first_line(s: &str) -> &str {
+    s.lines().next().unwrap_or("")
+}
+
+/// Truncate a string to fit within `max_width` display columns, appending `...` if truncated.
+fn truncate_to_width(s: &str, max_width: usize) -> String {
+    let ellipsis_width = 3; // "..."
+    let mut width = 0;
+    // Track the byte position where we'd cut for ellipsis
+    let mut cut_pos = 0;
+    let mut result = String::new();
+    for ch in s.chars() {
+        let ch_width = ch.width().unwrap_or(0);
+        if width + ch_width > max_width {
+            // Need to truncate — use the cut point we've been tracking
+            if max_width >= ellipsis_width {
+                result.truncate(cut_pos);
+                result.push_str("...");
+            } else {
+                result.clear();
+            }
+            return result;
+        }
+        result.push(ch);
+        width += ch_width;
+        // Track the latest position that leaves room for "..."
+        if width <= max_width.saturating_sub(ellipsis_width) {
+            cut_pos = result.len();
+        }
     }
+    result
+}
+
+/// Truncate a line to the current terminal width.
+fn truncate_line(line: &str) -> String {
+    truncate_to_width(line, term_width())
+}
+
+/// Query the current terminal width, defaulting to 80.
+fn term_width() -> usize {
+    crossterm::terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
 }
 
 /// Shorten MCP tool names from `mcp__<server-key>__<tool>` to a colon-separated form.
@@ -699,5 +751,50 @@ mod tests {
     #[test]
     fn display_tool_name_not_enough_parts() {
         assert_eq!(display_tool_name("mcp__solo"), "mcp__solo");
+    }
+
+    #[test]
+    fn first_line_extracts_first() {
+        assert_eq!(first_line("hello\nworld"), "hello");
+        assert_eq!(first_line("single"), "single");
+        assert_eq!(first_line(""), "");
+    }
+
+    #[test]
+    fn truncate_to_width_no_truncation() {
+        assert_eq!(truncate_to_width("hello", 10), "hello");
+        assert_eq!(truncate_to_width("hello", 5), "hello");
+    }
+
+    #[test]
+    fn truncate_to_width_exact_fit() {
+        assert_eq!(truncate_to_width("12345", 5), "12345");
+    }
+
+    #[test]
+    fn truncate_to_width_truncates_with_ellipsis() {
+        assert_eq!(truncate_to_width("hello world", 8), "hello...");
+        assert_eq!(truncate_to_width("abcdefghij", 6), "abc...");
+    }
+
+    #[test]
+    fn truncate_to_width_very_small_max() {
+        // max_width < 3 can't even fit "..."
+        assert_eq!(truncate_to_width("hello", 2), "");
+        assert_eq!(truncate_to_width("hello", 3), "...");
+    }
+
+    #[test]
+    fn truncate_to_width_empty_string() {
+        assert_eq!(truncate_to_width("", 10), "");
+    }
+
+    #[test]
+    fn truncate_to_width_wide_chars() {
+        // CJK characters are 2 display columns wide
+        // "漢字" is 4 columns, "ab" is 2 columns = 6 total
+        assert_eq!(truncate_to_width("漢字ab", 10), "漢字ab");
+        // Truncate: 6 cols needed, max 5 → need ellipsis, target=2, "漢" is 2 cols
+        assert_eq!(truncate_to_width("漢字ab", 5), "漢...");
     }
 }

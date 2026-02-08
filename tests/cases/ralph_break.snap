@@ -5,13 +5,13 @@ expression: clean
 Session a0be8091-d475-4b2d-a23c-646b4afc6381 (claude-opus-4-6)
 
 [1] Thinking...
-[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/TODO.md
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 The first unchecked task is to create `hello.py` that prints 'hi'.
 
-[3] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/hello.py (1 lines)
+[3] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 Now let me mark it done in TODO.md.
 
-[4] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/TODO.md
+[4] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 Done. Created `hello.py` that prints `'hi'` and marked the task complete. There's one more unchecked task remaining (Create a README.md with the project name).
 
 
@@ -19,16 +19,16 @@ Done  $0.08 · 14.3s · 4 turns · 85k tokens  (:N to view)
 Session 5af0f7ed-6502-412e-8968-c0e8f5354ae1 (claude-opus-4-6)
 
 [5] Thinking...
-[6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/TODO.md
+[6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 The next unchecked task is: **Create a README.md with the project name**. Let me check what project name to use.
 
 [7] ▶ Glob  *
 The directory name is `coven-vcr-ralph_break`. I'll use that as the project name and create the README.
 
-[8] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/README.md (1 lines)
+[8] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 Now let me mark the task as done.
 
-[9] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ralph_break/TODO.md
+[9] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 Done. Created `README.md` with the project name and marked the task complete. All tasks in TODO.md are now checked off.
 
 <break>All tasks in TODO.md are completed.</break>

@@ -6,7 +6,7 @@ Session 9e285ac3-47b5-4608-8d7a-4acf58dfc5fb (claude-opus-4-6)
 
 [1] Thinking...
 [2] ▶ llms-fetch-mcp:llms-fetch:fetch  https://docs.rs/tokio
-[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-mcp_tool/.llms-fetch-mcp/docs.rs/tokio/index
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 Here's a summary of the Tokio docs from docs.rs:
 
 ## Tokio - Async Runtime for Rust

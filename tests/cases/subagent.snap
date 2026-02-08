@@ -5,7 +5,7 @@ expression: clean
 Session 31765887-ede9-4e06-916c-61a1927f7b4c (claude-opus-4-6)
 
 [1] ▶ Task  Summarize README.md
-  [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-subagent/README.md
+  [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-...
 The README describes this as a minimal project created for testing subagent display in coven.
 
 

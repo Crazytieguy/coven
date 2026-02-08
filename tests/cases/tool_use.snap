@@ -4,7 +4,7 @@ expression: clean
 ---
 Session a3ae5e3c-6274-434f-8a04-6129c1c1da46 (claude-opus-4-6)
 
-[1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000g...
+[1] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 The directory is essentially empty — it only contains a `.claude` directory (which holds Claude Code configuration). No project files are present.
 
 
