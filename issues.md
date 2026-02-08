@@ -1,6 +1,5 @@
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - I think token count is over-counting, please investigate (plan: plans/token-overcounting.md)
-- workflow issue: when claude edits a reviewed plan, it should remove the review (plan: plans/clear-review-on-plan-edit.md)
 - Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
 - Tool line metadata (line counts, diff stats) is truncated away when file paths are long — truncation should preserve the metadata suffix and truncate only the path portion (plan: plans/tool-line-metadata-truncation.md)
 - Redundant session header in multi-turn follow-ups: when a follow-up continues the same session, the full `Session <id> (model)` header is repeated — suppress the duplicate or show a simpler turn separator (plan: plans/redundant-session-header.md)

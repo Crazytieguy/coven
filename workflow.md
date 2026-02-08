@@ -7,7 +7,7 @@ This session is unattended (no human at the keyboard). One small action at a tim
    - **Plan**: Pick the highest-priority issue that has no `(plan: ...)` reference. Write a plan file and link it. Planning counts as one action.
    - **Implement**: Check git status (or the gitStatus provided at session start) for modified plan files — uncommitted modifications to plan files mean the human has reviewed them. Read those files and act on their updated status.
      - `Status: approved` — implement the plan. If necessary, re-record relevant VCR tests and regenerate snapshots, and verify that the snapshot reflects the intended change. When done, remove the issue from issues.md and delete the plan file.
-     - `Status: rejected` — revise the plan based on the Review section comments. Counts as one action.
+     - `Status: rejected` — revise the plan based on the Review section comments. After revising, clear the Review section and any inline notes so the human knows it needs re-review. Counts as one action.
      - `Status: draft` — not yet reviewed, skip.
 3. **Review test cases**: Don't break early just because higher-priority work is done — these matter too. Review the test cases (case definition, vcr file, snapshot): does each test cover the right thing? Does the vcr recording reflect intended behavior? Is the snapshot correct, readable, and showing good UI? This is also an opportunity to spot UI improvements — if the output could look better, that's an issue. If you find a problem, add it to issues.md and stop.
 4. **Add test coverage**: Look for untested features and add VCR + snapshot test cases for them.
