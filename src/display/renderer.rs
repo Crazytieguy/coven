@@ -573,7 +573,14 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
         "Write" => {
             let path = get_str(input, "file_path").unwrap_or_default();
             let lines = get_str(input, "content")
-                .map(|c| format!("({} lines)", c.lines().count()))
+                .map(|c| {
+                    let count = c.lines().count();
+                    if count == 1 {
+                        "(1 line)".to_string()
+                    } else {
+                        format!("({count} lines)")
+                    }
+                })
                 .unwrap_or_default();
             format!("{path} {lines}").trim().to_string()
         }
