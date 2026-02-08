@@ -280,21 +280,7 @@ impl<W: Write> Renderer<W> {
         }
 
         if is_error {
-            self.close_tool_line();
-            let indent = self.tool_indent();
-            let error_line = if text.is_empty() {
-                format!("{indent}✗")
-            } else {
-                let brief = first_line(&text);
-                format!("{indent}✗ {brief}")
-            };
-            let error_line = truncate_line(&error_line);
-            queue!(
-                self.out,
-                Print(theme::error().apply(&error_line)),
-                Print("\r\n"),
-            )
-            .ok();
+            self.render_error_line(&text);
         } else {
             self.close_tool_line();
         }
@@ -349,21 +335,7 @@ impl<W: Write> Renderer<W> {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             if is_error {
-                self.close_tool_line();
-                let indent = self.tool_indent();
-                let error_line = if text.is_empty() {
-                    format!("{indent}✗")
-                } else {
-                    let brief = first_line(&text);
-                    format!("{indent}✗ {brief}")
-                };
-                let error_line = truncate_line(&error_line);
-                queue!(
-                    self.out,
-                    Print(theme::error().apply(&error_line)),
-                    Print("\r\n"),
-                )
-                .ok();
+                self.render_error_line(&text);
             } else {
                 self.close_tool_line();
             }
@@ -408,6 +380,25 @@ impl<W: Write> Renderer<W> {
     }
 
     // --- Internal ---
+
+    /// Render an error line beneath a tool call: `✗ <first line of error text>`.
+    fn render_error_line(&mut self, text: &str) {
+        self.close_tool_line();
+        let indent = self.tool_indent();
+        let error_line = if text.is_empty() {
+            format!("{indent}✗")
+        } else {
+            let brief = first_line(text);
+            format!("{indent}✗ {brief}")
+        };
+        let error_line = truncate_line(&error_line);
+        queue!(
+            self.out,
+            Print(theme::error().apply(&error_line)),
+            Print("\r\n"),
+        )
+        .ok();
+    }
 
     /// Compute the indent string that aligns content under a `[N] ▶` prefix.
     /// For subagent calls, includes the extra 2-space indent.
