@@ -3,3 +3,4 @@
 - workflow issue: when claude edits a reviewed plan, it should remove the review (plan: plans/clear-review-on-plan-edit.md)
 - Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
 - Workflow issue: the review subagent should not look at plans/ or issues.md (plan: plans/review-subagent-scope.md)
+- Tool line metadata (line counts, diff stats) is truncated away when file paths are long — truncation should preserve the metadata suffix and truncate only the path portion
