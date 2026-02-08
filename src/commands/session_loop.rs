@@ -337,8 +337,8 @@ pub fn view_message(renderer: &mut Renderer, n: usize) {
         None => format!("{}\n\n{}", msg.label, msg.content),
     };
 
-    // Switch to alternate screen and leave raw mode for pager
-    crossterm::execute!(std::io::stdout(), terminal::EnterAlternateScreen).ok();
+    // Leave raw mode so the pager can handle keyboard input.
+    // The pager manages its own alternate screen.
     terminal::disable_raw_mode().ok();
 
     let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
@@ -358,5 +358,4 @@ pub fn view_message(renderer: &mut Renderer, n: usize) {
     }
 
     terminal::enable_raw_mode().ok();
-    crossterm::execute!(std::io::stdout(), terminal::LeaveAlternateScreen).ok();
 }
