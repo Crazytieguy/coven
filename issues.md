@@ -4,4 +4,4 @@
 - Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
 - Workflow issue: the review subagent should not look at plans/ or issues.md (plan: plans/review-subagent-scope.md)
 - Tool line metadata (line counts, diff stats) is truncated away when file paths are long — truncation should preserve the metadata suffix and truncate only the path portion (plan: plans/tool-line-metadata-truncation.md)
-- Dead code in Edit diff stats: the `(true, true)` branch in `format_tool_detail` for Edit (`+N -M` format) is unreachable — `saturating_sub` means if added > 0 then removed = 0 and vice versa
+- Dead code in Edit diff stats: the `(true, true)` branch in `format_tool_detail` for Edit (`+N -M` format) is unreachable — `saturating_sub` means if added > 0 then removed = 0 and vice versa (plan: plans/edit-diff-dead-code.md)
