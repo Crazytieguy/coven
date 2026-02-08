@@ -559,11 +559,10 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
             let added = new_lines.saturating_sub(old_lines);
             let removed = old_lines.saturating_sub(new_lines);
             if added > 0 || removed > 0 {
-                let diff = match (added > 0, removed > 0) {
-                    (true, true) => format!("+{added} -{removed}"),
-                    (true, false) => format!("+{added}"),
-                    (false, true) => format!("-{removed}"),
-                    (false, false) => unreachable!(),
+                let diff = if added > 0 {
+                    format!("+{added}")
+                } else {
+                    format!("-{removed}")
                 };
                 format!("{path} ({diff})")
             } else {
