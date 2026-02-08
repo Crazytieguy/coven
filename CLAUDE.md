@@ -16,7 +16,7 @@ See @README.md for user-facing documentation.
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
 - Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
-- Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record_vcr`. Re-recording is cheap enough: `cargo run --bin record_vcr` re-records all fixtures, `cargo run --bin record_vcr simple_qa` re-records one. After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`.
+- Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record-vcr`. Re-recording is cheap enough: `cargo run --bin record-vcr` re-records all fixtures, `cargo run --bin record-vcr simple_qa` re-records one. After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
 - Always record issues you encounter that are unrelated to your current work — add them as one-liners to issues.md so they can be planned and fixed later. This includes bugs you notice, UI problems, technical debt you knowingly add, requirements you skip, and improvements you spot. Don't let things slip through the cracks. When an issue is resolved, remove it from the list.
 - See workflow.md for the autonomous ralph-mode workflow (plan-based issue tracking, priorities, session discipline).

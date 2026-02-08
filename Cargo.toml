@@ -12,6 +12,10 @@ keywords = ["claude", "cli", "tui", "streaming", "workflow"]
 categories = ["command-line-utilities", "development-tools"]
 
 
+[[bin]]
+name = "record-vcr"
+path = "src/bin/record_vcr.rs"
+
 [dependencies]
 anyhow = "1.0.101"
 clap = { version = "4.5.57", features = ["derive"] }
