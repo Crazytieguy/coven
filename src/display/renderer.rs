@@ -301,14 +301,15 @@ impl<W: Write> Renderer<W> {
         self.tool_counter += 1;
         self.last_tool_is_subagent = true;
         let n = self.tool_counter;
+        let display_name = display_tool_name(name);
         let detail = format_tool_detail(name, input);
-        let label = format!("  [{n}] ▶ {name}  {detail}");
+        let label = format!("  [{n}] ▶ {display_name}  {detail}");
         queue!(self.out, Print(theme::tool_name_dim().apply(&label)),).ok();
 
         // Store for :N viewing
         let content = serde_json::to_string_pretty(input).unwrap_or_default();
         self.messages.push(StoredMessage {
-            label: format!("[{n}] {name}"),
+            label: format!("[{n}] {display_name}"),
             content,
             result: None,
         });
@@ -458,14 +459,15 @@ impl<W: Write> Renderer<W> {
                         other => other,
                     };
 
+                    let display_name = display_tool_name(&name);
                     let detail = format_tool_detail(&name, &input);
-                    let label = format!("[{n}] ▶ {name}  {detail}");
+                    let label = format!("[{n}] ▶ {display_name}  {detail}");
                     queue!(self.out, Print(theme::tool_name().apply(&label)),).ok();
 
                     // Store for :N viewing
                     let content = serde_json::to_string_pretty(&input).unwrap_or_default();
                     self.messages.push(StoredMessage {
-                        label: format!("[{n}] {name}"),
+                        label: format!("[{n}] {display_name}"),
                         content,
                         result: None,
                     });
@@ -619,6 +621,31 @@ fn first_line_truncated(s: &str, max: usize) -> String {
     }
 }
 
+/// Shorten MCP tool names from `mcp__<server-key>__<tool>` to a colon-separated form.
+///
+/// Plugin keys encode `plugin:<id>:<name>` as `plugin_<id>_<name>`, so we decode
+/// the first `_` back to `:` and strip the `plugin_` prefix. Non-plugin keys are
+/// used as-is. Examples:
+/// - `mcp__plugin_llms-fetch-mcp_llms-fetch__fetch` → `llms-fetch-mcp:llms-fetch:fetch`
+/// - `mcp__my-server__do_thing` → `my-server:do_thing`
+/// - `Read` → `Read` (non-MCP, unchanged)
+fn display_tool_name(name: &str) -> String {
+    let parts: Vec<&str> = name.splitn(3, "__").collect();
+    if parts.len() == 3 && parts[0] == "mcp" {
+        let server_key = parts[1];
+        let tool = parts[2];
+        if let Some(rest) = server_key.strip_prefix("plugin_") {
+            // Plugin keys encode `:` as `_`: plugin_X_Y → X:Y
+            let server = rest.replacen('_', ":", 1);
+            format!("{server}:{tool}")
+        } else {
+            format!("{server_key}:{tool}")
+        }
+    } else {
+        name.to_string()
+    }
+}
+
 /// Extract displayable text from a tool result value.
 /// Handles: objects with "content" (regular tools), arrays of content blocks (MCP tools),
 /// and plain strings (permission errors).
@@ -640,5 +667,37 @@ fn extract_result_text(value: &Value) -> String {
             String::new()
         }
         _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_tool_name_plugin_mcp() {
+        assert_eq!(
+            display_tool_name("mcp__plugin_llms-fetch-mcp_llms-fetch__fetch"),
+            "llms-fetch-mcp:llms-fetch:fetch"
+        );
+    }
+
+    #[test]
+    fn display_tool_name_non_plugin_mcp() {
+        assert_eq!(
+            display_tool_name("mcp__my-server__do_thing"),
+            "my-server:do_thing"
+        );
+    }
+
+    #[test]
+    fn display_tool_name_non_mcp() {
+        assert_eq!(display_tool_name("Read"), "Read");
+        assert_eq!(display_tool_name("Bash"), "Bash");
+    }
+
+    #[test]
+    fn display_tool_name_not_enough_parts() {
+        assert_eq!(display_tool_name("mcp__solo"), "mcp__solo");
     }
 }

@@ -1,5 +1,4 @@
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too) (plan: plans/theme-color-tuning.md)
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - We should use the terminal width to truncate rendering more accurately (plan: plans/terminal-width-truncation.md)
-- MCP tool names are displayed as raw identifiers (e.g. `mcp__plugin_llms-fetch-mcp_llms-fetch__fetch`) — should be shortened to a readable form like `llms-fetch: fetch` (plan: plans/mcp-tool-name-shortening.md)
 - Write tool detail shows `(1 lines)` instead of `(1 line)` for single-line files — needs singular/plural handling
