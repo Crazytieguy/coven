@@ -28,7 +28,7 @@ pub enum SessionOutcome {
 /// Per-session transient state for event buffering and follow-ups.
 struct SessionLocals {
     event_buffer: Vec<AppEvent>,
-    pending_followup: Option<String>,
+    pending_followups: Vec<String>,
     result_text: String,
 }
 
@@ -49,7 +49,7 @@ pub async fn run_session(
 ) -> Result<SessionOutcome> {
     let mut locals = SessionLocals {
         event_buffer: Vec::new(),
-        pending_followup: None,
+        pending_followups: Vec::new(),
         result_text: String::new(),
     };
 
@@ -117,7 +117,7 @@ async fn handle_session_key_event(
             flush_event_buffer(locals, state, renderer);
             match mode {
                 InputMode::Steering => {
-                    renderer.render_user_message(&text);
+                    renderer.render_steering_sent(&text);
                     runner.send_message(&text).await?;
                 }
                 InputMode::FollowUp => {
@@ -126,8 +126,8 @@ async fn handle_session_key_event(
                         runner.send_message(&text).await?;
                         state.status = SessionStatus::Running;
                     } else {
-                        // Don't render yet — will render when dispatched after Result
-                        locals.pending_followup = Some(text);
+                        renderer.render_followup_queued(&text);
+                        locals.pending_followups.push(text);
                     }
                 }
             }
@@ -176,17 +176,17 @@ async fn process_claude_event(
                 locals.result_text.clone_from(&result.result);
             }
 
-            // If result and there's a pending follow-up, send it
+            // If result and there's a pending follow-up, send it (FIFO)
             if matches!(*inbound, InboundEvent::Result(_)) {
-                if let Some(text) = locals.pending_followup.take() {
-                    renderer.render_user_message(&text);
-                    runner.send_message(&text).await?;
-                    state.status = SessionStatus::Running;
-                } else {
+                if locals.pending_followups.is_empty() {
                     return Ok(Some(SessionOutcome::Completed {
                         result_text: locals.result_text.clone(),
                     }));
                 }
+                let text = locals.pending_followups.remove(0);
+                renderer.render_followup_sent(&text);
+                runner.send_message(&text).await?;
+                state.status = SessionStatus::Running;
             }
         }
         AppEvent::ParseWarning(warning) => {

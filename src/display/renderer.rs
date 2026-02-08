@@ -320,6 +320,32 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    // --- User message indicators ---
+
+    /// Render a steering message indicator: `⤷ steering: <text>`.
+    pub fn render_steering_sent(&mut self, text: &str) {
+        self.ensure_new_line();
+        let line = format!("⤷ steering: {text}");
+        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
+    /// Render a queued follow-up indicator: `⏳ queued: <text>`.
+    pub fn render_followup_queued(&mut self, text: &str) {
+        self.ensure_new_line();
+        let line = format!("⏳ queued: {text}");
+        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
+    /// Render a follow-up dispatched indicator: `⤷ follow-up: <text>`.
+    pub fn render_followup_sent(&mut self, text: &str) {
+        self.ensure_new_line();
+        let line = format!("⤷ follow-up: {text}");
+        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
     // --- Prompt ---
 
     pub fn show_prompt(&mut self) {
@@ -330,22 +356,14 @@ impl<W: Write> Renderer<W> {
     /// Ensure we're on a fresh line and show the `> ` input prompt prefix.
     /// Called when the user starts typing mid-stream.
     pub fn begin_input_line(&mut self) {
-        self.close_tool_line();
-        if self.text_streaming {
-            queue!(self.out, Print("\r\n")).ok();
-            self.text_streaming = false;
-        }
+        self.ensure_new_line();
         queue!(self.out, Print(theme::prompt_style().apply("> "))).ok();
         self.out.flush().ok();
     }
 
     /// Print a styled record of the user's message (e.g. `> hello`).
     pub fn render_user_message(&mut self, text: &str) {
-        self.close_tool_line();
-        if self.text_streaming {
-            queue!(self.out, Print("\r\n")).ok();
-            self.text_streaming = false;
-        }
+        self.ensure_new_line();
         let line = format!("> {text}");
         queue!(
             self.out,
@@ -357,6 +375,15 @@ impl<W: Write> Renderer<W> {
     }
 
     // --- Internal ---
+
+    /// Ensure we're on a fresh line (close any open tool line, end text streaming).
+    fn ensure_new_line(&mut self) {
+        self.close_tool_line();
+        if self.text_streaming {
+            queue!(self.out, Print("\r\n")).ok();
+            self.text_streaming = false;
+        }
+    }
 
     /// Render a tool call line: `[N] ▶ ToolName  detail`. Subagent calls are
     /// indented and use a dimmer style. Leaves the line open for the result.
