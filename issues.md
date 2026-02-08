@@ -12,4 +12,4 @@
 - Dead CLI flag: `--no-stream` is parsed in `cli.rs` but never used anywhere — either implement or remove (plan: plans/dead-no-stream-flag.md)
 - The priority based workflow causes a lot of duplicate work in the case that all the tasks are planned. Should probably streamline and make everything a task. Document planned feature to have recurring tasks (plan: plans/workflow-streamlining.md)
 - Workflow: we should have issue priorities (plan: plans/issue-priorities.md)
-- It would be nice if issues could be "claimed" in a concurrency-safe way, so that multiple agents can work with the same issue list
+- It would be nice if issues could be "claimed" in a concurrency-safe way, so that multiple agents can work with the same issue list (plan: plans/concurrency-safe-issue-claiming.md)
