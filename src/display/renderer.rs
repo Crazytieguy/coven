@@ -140,8 +140,9 @@ impl<W: Write> Renderer<W> {
             Some(t) => format!(" · {}k tokens", t / 1000),
             None => String::new(),
         };
+        let turn_word = if num_turns == 1 { "turn" } else { "turns" };
         let stats =
-            format!("  ${cost:.2} · {whole_secs}.{tenths}s · {num_turns} turns{tokens_str}");
+            format!("  ${cost:.2} · {whole_secs}.{tenths}s · {num_turns} {turn_word}{tokens_str}");
         let hint = if self.messages.is_empty() {
             ""
         } else {
