@@ -1,5 +1,5 @@
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - I think token count is over-counting, please investigate (plan: plans/token-overcounting.md)
 - workflow issue: when claude edits a reviewed plan, it should remove the review
-- Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display
+- Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
 - Workflow issue: the review subagent should not look at plans/ or issues.md
