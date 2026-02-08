@@ -1,5 +1,5 @@
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - [P2] review all snapshots for correctness and UI quality
-- [P2] Concurrent subagent rendering: support displaying multiple concurrent claude subagent sessions running in parallel, with per-session status lines and interleaved output
+- [P2] Concurrent subagent rendering: support displaying multiple concurrent claude Task subagents running in parallel. Exact rendering approach needs to be discussed
 - [P2] Big issue: support model-driven context forking via claude cli's `--fork` flag. Model outputs xml with definitions for some number of sub tasks (just an assistant message), coven parses it to find the sub tasks and creates a forked claude session per sub task using `--fork` with a simple follow up message like "you own subtask N" (each child gets the full parent context window — that's the value over native subagents), waits for all subtasks to complete, and then continues the original session, displaying to the model the final assistant message for each subtask. Blocked on: concurrent subagent rendering.
-- [P2] Big issue: integrate our workflow directly into a coven subcommand, based on workflow.md (plan: plans/workflow-subcommand.md)
+- [P2] Big issue: integrate our workflow directly into a coven subcommand, based on workflow.md
