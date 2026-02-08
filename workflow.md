@@ -40,6 +40,10 @@ After creating the plan file, update the issue in issues.md to include `(plan: p
 
 Questions are optional but encouraged — surface ambiguity rather than guessing.
 
+## Review before committing
+
+After any code-changing action, spawn a review subagent (Task tool, general-purpose type) to review the changes. The prompt should be a single sentence: "Review the uncommitted changes in this repo and surface anything that could be improved — only approve if everything is pristine." If the review surfaces issues, fix them and re-review. Only proceed to commit once the review returns clean.
+
 ## Session discipline
 
 - One action, then end your response.
