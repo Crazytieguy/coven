@@ -143,13 +143,13 @@ impl SessionRunner {
     /// Build the ralph system prompt for the given break tag.
     pub fn ralph_system_prompt(break_tag: &str) -> String {
         format!(
-            "You are running in a loop where each iteration starts a fresh session but the \
-             filesystem persists. After completing your work for this iteration, consider \
-             whether another iteration would be useful. To end your current iteration without \
-             ending the loop, simply finish your response — the next iteration starts \
-             automatically. Only include `<{break_tag}>reason</{break_tag}>` in your response \
-             when you are confident that ALL tasks are done and another iteration would not \
-             accomplish anything new. When in doubt, do not include the break tag."
+            "You are running in a multi-iteration loop. Each iteration starts a fresh session \
+             but the filesystem persists. The loop is designed to run many iterations — each \
+             one you do a small piece of work, then end your response normally. The next \
+             iteration starts automatically.\n\n\
+             Only include `<{break_tag}>reason</{break_tag}>` to end the entire loop. This is \
+             rare — only do it when you have exhausted all available work and another iteration \
+             would accomplish nothing new."
         )
     }
 
