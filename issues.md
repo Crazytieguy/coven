@@ -9,3 +9,7 @@
 - Redundant session header in multi-turn follow-ups: when a follow-up continues the same session, the full `Session <id> (model)` header is repeated — suppress the duplicate or show a simpler turn separator (plan: plans/redundant-session-header.md)
 - Duplicated input-wait loops: `wait_for_followup` and `wait_for_user_input` in session_loop.rs have nearly identical event loops (ViewMessage, Cancel, Interrupt/EndSession, Activated/None handling) — extract a shared input-wait helper parameterized by the submit behavior (plan: plans/duplicated-input-wait-loops.md)
 - Duplicated tool call rendering: `finish_current_block` (ToolUse case) and `render_subagent_tool_call` in renderer.rs have nearly identical logic (build display name + detail, truncate label, print with theme, store message, set tool_line_open) — extract a shared helper parameterized by `is_subagent` (plan: plans/duplicated-tool-call-rendering.md)
+- Dead CLI flag: `--no-stream` is parsed in `cli.rs` but never used anywhere — either implement or remove
+- The priority based workflow causes a lot of duplicate work in the case that all the tasks are planned. Should probably streamline and make everything a task. Document planned feature to have recurring tasks
+- Workflow: we should have issue priorities
+- It would be nice if issues could be "claimed" in a concurrency-safe way, so that multiple agents can work with the same issue list
