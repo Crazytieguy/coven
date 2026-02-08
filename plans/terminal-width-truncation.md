@@ -1,55 +1,70 @@
 Issue: We should use the terminal width to truncate rendering more accurately
-Status: rejected
+Status: draft
 
 ## Approach
 
-Currently, tool detail lines (bash commands, error messages, tool parameters) are truncated to a hardcoded 60 characters via `first_line_truncated()`. This should adapt to the actual terminal width.
+Currently, tool detail lines and error messages are truncated to a hardcoded 60 characters via `first_line_truncated()`. This should adapt to the actual terminal width, use unicode display widths, and handle resizes.
+
+### Key design: truncate whole lines, not fragments
+
+The current approach truncates detail text inside `format_tool_detail()` and at each error-rendering call site — 4 separate places that each need to know the available width. Instead, we move truncation to the point where the complete line is assembled, so the prefix width is computed from actual content rather than estimated.
 
 ### Changes
 
-1. **Add `term_width` to `RendererConfig`** (`src/display/renderer.rs`):
-   - Add `pub term_width: u16` field
-   - Query `crossterm::terminal::size()` at renderer creation time (in `commands/run.rs`)
-   - Default to 80 if the query fails
+1. **Add `unicode-width` crate** (`cargo add unicode-width`):
+   - Use `UnicodeWidthStr::width()` for display-width-aware truncation instead of byte `.len()`.
 
-2. **Pass available width to `first_line_truncated()`**:
-   - Change `first_line_truncated(s, 60)` calls to compute available width from `term_width` minus the line prefix length (e.g. `[N] > toolname  ` is ~20-30 chars depending on tool name and index)
-   - The 4 call sites in `renderer.rs` (lines 285, 346, 557, 569) all need updating
+2. **Replace `first_line_truncated()` with two functions**:
+   - `first_line(s: &str) -> &str` — extracts the first line, no truncation. Used inside `format_tool_detail()` for Bash commands and unknown tools.
+   - `truncate_to_width(s: &str, max_width: usize) -> String` — truncates a string to `max_width` display columns using `unicode-width`, appending `...` if truncated. Operates on chars, accumulating display width until the limit.
 
-User note: the fact we have 4 call sites that need updating tells me we should probably find a more DRY solution
+3. **Add `term_width()` helper**:
+   ```rust
+   fn term_width() -> usize {
+       crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
+   }
+   ```
+   Called fresh each time to handle terminal resizes automatically — no stored state needed.
 
-3. **Compute available width per context**:
-   - In `format_tool_detail()`, the caller (`render_tool_use` at line 457) formats `[{index}] ▶ {name}  {detail}`. The prefix length is knowable: `[` + index digits + `] ▶ ` + name length + `  ` = ~`5 + index_width + name.len()` characters.
-   - Pass the remaining width to `format_tool_detail()` so each truncation adapts.
-   - For error messages (line 285) and subagent results (line 346), the prefix is different — compute accordingly.
+4. **Add `truncate_line()` method on Renderer** — the single place where line truncation happens:
+   ```rust
+   fn truncate_line(&self, line: &str) -> String {
+       truncate_to_width(line, term_width())
+   }
+   ```
+   This is called right before `queue!(Print(...))` for any line that could exceed terminal width: tool call lines, subagent tool call lines, and error detail lines.
 
-User note: make sure this is exact. Ideally the code should be such that this is computed from the actual content so that it stays in sync
+5. **Update `format_tool_detail()`** — remove truncation from inside this function:
+   - Change internal `first_line_truncated(s, 60)` calls to `first_line(s).to_string()`.
+   - The function now returns untruncated detail text. Truncation happens in the caller via `truncate_line()`.
 
-4. **Handle terminal resize** (optional, low priority):
-   - Could listen for `Event::Resize` in the input handler and update width, but this adds complexity. A simpler approach: re-query `terminal::size()` each time we render a tool line. The call is cheap (single syscall). This avoids needing mutable shared state for width.
+6. **Update the 3 rendering sites** to use `truncate_line()`:
+   - `finish_current_block()` (tool use case, line ~462): after assembling `let label = format!("[{n}] ▶ {name}  {detail}")`, pass through `self.truncate_line(&label)`.
+   - `render_subagent_tool_call()` (line ~305): same pattern with the `  [{n}] ▶ {name}  {detail}` line.
+   - Error rendering in `render_tool_result()` and `render_subagent_tool_result()`: assemble the full error line (`{indent}✗ {brief}`) and pass through `self.truncate_line()`.
 
-User note: not optional, let's do it
+   The error rendering paths (lines ~282-288 and ~342-350) currently do truncation + output in separate queue calls. Refactor each into: assemble full line string → truncate → single Print.
 
-### Recommended approach for width query
+### Why this is DRY
 
-Rather than storing width in config (which becomes stale on resize), have `first_line_truncated` accept a `max` parameter computed at each call site from a fresh `terminal::size()` query. This is simple and handles resize automatically. Wrap the query in a small helper:
+- `format_tool_detail()` no longer truncates — it just formats.
+- All width-aware truncation flows through `truncate_line()` → `truncate_to_width()`.
+- Prefix width is computed from the actual assembled string, not estimated — stays in sync automatically.
+- `term_width()` is called fresh each time, handling resizes with no stored state.
 
-```rust
-fn term_width() -> usize {
-    crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
-}
-```
+### Files to change
 
-Then at each truncation call site, compute `term_width() - prefix_len` and pass that as `max`.
-
-This means we don't need to change `RendererConfig` at all — just add the helper and update the 4 call sites.
+- `Cargo.toml` — add `unicode-width`
+- `src/display/renderer.rs` — all changes are in this one file:
+  - Add `term_width()`, `first_line()`, `truncate_to_width()` free functions
+  - Add `truncate_line()` method on `Renderer`
+  - Update `format_tool_detail()` to not truncate
+  - Update the 3 rendering sites to use `truncate_line()`
+  - Remove `first_line_truncated()`
 
 ## Questions
 
-### Should we also handle wide Unicode characters?
-
-The current `first_line_truncated` uses `.len()` which counts bytes, not display width. For accurate truncation we'd need `unicode-width` crate. This is a separate concern — file paths and bash commands are almost always ASCII.
-
-Answer: Yes
+None — all previous questions answered.
 
 ## Review
+
