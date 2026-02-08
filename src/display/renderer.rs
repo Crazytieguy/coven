@@ -804,4 +804,145 @@ mod tests {
         // Truncate: 6 cols needed, max 5 → need ellipsis, target=2, "漢" is 2 cols
         assert_eq!(truncate_to_width("漢字ab", 5), "漢...");
     }
+
+    #[test]
+    fn format_tool_detail_read() {
+        let input = serde_json::json!({"file_path": "/src/main.rs"});
+        assert_eq!(format_tool_detail("Read", &input), "/src/main.rs");
+    }
+
+    #[test]
+    fn format_tool_detail_edit_with_additions() {
+        let input = serde_json::json!({
+            "file_path": "/src/main.rs",
+            "old_string": "line1",
+            "new_string": "line1\nline2\nline3"
+        });
+        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (+2)");
+    }
+
+    #[test]
+    fn format_tool_detail_edit_with_removals() {
+        let input = serde_json::json!({
+            "file_path": "/src/main.rs",
+            "old_string": "line1\nline2\nline3",
+            "new_string": "line1"
+        });
+        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (-2)");
+    }
+
+    #[test]
+    fn format_tool_detail_edit_net_additions() {
+        let input = serde_json::json!({
+            "file_path": "/src/main.rs",
+            "old_string": "aaa\nbbb\nccc",
+            "new_string": "xxx\nyyy\nzzz\nwww\nvvv"
+        });
+        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (+2)");
+    }
+
+    #[test]
+    fn format_tool_detail_edit_same_line_count() {
+        let input = serde_json::json!({
+            "file_path": "/src/main.rs",
+            "old_string": "old_value",
+            "new_string": "new_value"
+        });
+        // Same line count → no diff stats
+        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs");
+    }
+
+    #[test]
+    fn format_tool_detail_write_single_line() {
+        let input = serde_json::json!({
+            "file_path": "/hello.txt",
+            "content": "Hello, world!"
+        });
+        assert_eq!(format_tool_detail("Write", &input), "/hello.txt (1 line)");
+    }
+
+    #[test]
+    fn format_tool_detail_write_multiple_lines() {
+        let input = serde_json::json!({
+            "file_path": "/hello.py",
+            "content": "print('hello')\nprint('world')\n"
+        });
+        assert_eq!(format_tool_detail("Write", &input), "/hello.py (2 lines)");
+    }
+
+    #[test]
+    fn format_tool_detail_write_trailing_newline() {
+        // str::lines() doesn't count a trailing newline as an extra line
+        let input = serde_json::json!({
+            "file_path": "/hello.txt",
+            "content": "single line\n"
+        });
+        assert_eq!(format_tool_detail("Write", &input), "/hello.txt (1 line)");
+    }
+
+    #[test]
+    fn format_tool_detail_write_no_content() {
+        let input = serde_json::json!({"file_path": "/empty.txt"});
+        assert_eq!(format_tool_detail("Write", &input), "/empty.txt");
+    }
+
+    #[test]
+    fn format_tool_detail_glob() {
+        let input = serde_json::json!({"pattern": "**/*.rs"});
+        assert_eq!(format_tool_detail("Glob", &input), "**/*.rs");
+    }
+
+    #[test]
+    fn format_tool_detail_grep_with_path() {
+        let input = serde_json::json!({"pattern": "fn main", "path": "/src"});
+        assert_eq!(format_tool_detail("Grep", &input), "fn main  /src");
+    }
+
+    #[test]
+    fn format_tool_detail_grep_without_path() {
+        let input = serde_json::json!({"pattern": "TODO"});
+        assert_eq!(format_tool_detail("Grep", &input), "TODO");
+    }
+
+    #[test]
+    fn format_tool_detail_bash() {
+        let input = serde_json::json!({"command": "ls -la\necho done"});
+        assert_eq!(format_tool_detail("Bash", &input), "ls -la");
+    }
+
+    #[test]
+    fn format_tool_detail_task() {
+        let input = serde_json::json!({"description": "Summarize README"});
+        assert_eq!(format_tool_detail("Task", &input), "Summarize README");
+    }
+
+    #[test]
+    fn format_tool_detail_web_fetch() {
+        let input = serde_json::json!({"url": "https://docs.rs/tokio"});
+        assert_eq!(
+            format_tool_detail("WebFetch", &input),
+            "https://docs.rs/tokio"
+        );
+    }
+
+    #[test]
+    fn format_tool_detail_web_search() {
+        let input = serde_json::json!({"query": "rust async runtime"});
+        assert_eq!(
+            format_tool_detail("WebSearch", &input),
+            "rust async runtime"
+        );
+    }
+
+    #[test]
+    fn format_tool_detail_unknown_tool() {
+        let input = serde_json::json!({"some_key": "some_value"});
+        assert_eq!(format_tool_detail("CustomTool", &input), "some_value");
+    }
+
+    #[test]
+    fn format_tool_detail_unknown_tool_empty() {
+        let input = serde_json::json!({});
+        assert_eq!(format_tool_detail("CustomTool", &input), "");
+    }
 }
