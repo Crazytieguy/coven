@@ -3,45 +3,59 @@ Status: draft
 
 ## Approach
 
-### Current State
+### We already reuse the terminal theme
 
-All styling is centralized in `src/display/theme.rs` with 7 style functions using crossterm's `ContentStyle`. The palette is:
-- **Yellow**: Tool call names (bright and dimmed variants)
-- **Red**: Error indicators/messages
-- **Green + Bold**: Success "Done" label
-- **Cyan + Bold**: User input prompt `>`
-- **Dim**: Metadata, stats, help text, warnings
-- **Dim + Italic**: Thinking blocks
+crossterm's named colors (`Color::Yellow`, `Color::Red`, etc.) map to ANSI colors 0-15, which are defined by the user's terminal color scheme. If someone uses Solarized Light, their terminal's "Yellow" is already tuned by Solarized to be readable on a light background. Same for iTerm themes, Catppuccin, Dracula, etc.
 
-DarkGrey was previously replaced with `Attribute::Dim` — this is the safer choice since `Dim` adapts to the terminal's foreground color rather than picking an absolute color value.
+So the current code already adapts to the terminal theme automatically. Well-designed terminal themes make all 16 ANSI colors readable on their chosen background.
 
-### Potential Problems on Light Backgrounds
+### When this breaks
 
-1. **Yellow** (`Color::Yellow`) — this is the biggest risk. On light/white backgrounds, yellow text is notoriously hard to read. Tool call names (`[N] > tool_name`) use this and are prominent UI elements.
-2. **Green** (`Color::Green`) — can be low-contrast on some light themes, though Bold helps.
-3. **Cyan** (`Color::Cyan`) — generally readable on both, Bold helps further.
-4. **Dim** — adapts to foreground, should be fine on both.
-5. **Red** — readable on both dark and light backgrounds.
+The problem arises with poorly configured themes or when the user's theme doesn't define readable versions of all 16 colors. Yellow (ANSI 3) is the most common offender — some themes leave it as bright yellow even on white backgrounds.
 
-### Proposed Changes
+### Proposed: add color configurability
 
-Replace `Color::Yellow` with `Color::DarkYellow` (or a similar darker variant) for tool names. This reads better on light backgrounds while remaining visible on dark ones. Alternatively, consider `Color::Magenta` or `Color::Blue` which have good contrast on both.
+Since the default ANSI mapping is already theme-adaptive, configurability would serve as an escape hatch for edge cases. The approach:
 
-However, this is a judgment call that really needs manual verification on actual terminals.
+1. **Add a `[colors]` section to the config TOML** with optional overrides for each semantic role:
+   ```toml
+   [colors]
+   tool_name = "blue"        # default: yellow
+   tool_name_dim = "blue"    # default: yellow (dimmed)
+   error = "red"             # default: red
+   success = "green"         # default: green
+   prompt = "cyan"           # default: cyan
+   ```
+
+2. **Support ANSI color names and 256-color indices**: Accept the 8 basic names (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`), their `bright_` variants, and numeric 256-color indices (e.g., `208` for orange).
+
+3. **In `theme.rs`**, change each function to accept an optional color override from config. The simplest way: make `Theme` a struct initialized from config, with a method per style. Falls back to current hardcoded defaults when no override is specified.
+
+4. **Thread the theme through**: `DisplayState` already gets created with config context. Pass the `Theme` struct in and use it where styles are applied.
+
+### Files to change
+
+- `src/config.rs` — add `ColorConfig` struct with optional fields, deserialized from `[colors]`
+- `src/display/theme.rs` — convert from free functions to a `Theme` struct with methods
+- `src/display/state.rs` — store `Theme` in `DisplayState`, pass it through to rendering
+- `src/display/render.rs` — use `state.theme.tool_name()` instead of `theme::tool_name()`
+- Update any other call sites of `theme::*` functions
+
+### Not included
+
+- No auto-detection of light/dark background (unreliable, requires terminal escape sequence query with timeout)
+- No built-in alternate theme presets (YAGNI — the override system covers this)
 
 ## Questions
 
-### What level of light-theme support do you want?
+### Should we support RGB hex colors (e.g., `#ff8800`)?
 
-The simplest fix is swapping Yellow for a more universally-readable color (like Blue or Magenta for tool names). A more thorough approach would be testing every style on 2-3 common terminal themes (default dark, Solarized Light, macOS default light) and tuning individually.
+crossterm supports `Color::Rgb { r, g, b }` which would allow exact color specification. This is more powerful but won't adapt to terminal themes the way ANSI colors do.
 
 Options:
-1. **Targeted fix**: Just swap Yellow to something safer (e.g., Blue or Magenta) since it's the most problematic color. Quick, low-risk.
-2. **Full audit**: Manually test on light terminals and tune all colors as needed. More thorough but requires your visual feedback.
-3. **Terminal-adaptive theming**: Detect background color and switch palettes. Most robust but significantly more complex.
-4. **Close as won't-fix**: The current scheme works well on dark backgrounds (the common case). Light-theme users are a small minority for CLI tools.
+1. **ANSI names + 256-color only** — keeps colors theme-adaptive, simpler to document
+2. **Also support `#rrggbb` hex** — more flexible, useful for users with truecolor terminals
 
 Answer:
 
 ## Review
-
