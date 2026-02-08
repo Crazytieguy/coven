@@ -14,10 +14,6 @@ pub struct Cli {
     #[arg(value_name = "PROMPT")]
     pub prompt: Option<String>,
 
-    /// Disable partial message streaming (show only complete messages).
-    #[arg(long)]
-    pub no_stream: bool,
-
     /// Stream thinking text inline in dim italic instead of collapsing.
     #[arg(long)]
     pub show_thinking: bool,
