@@ -9,6 +9,8 @@ use crate::event::InputMode;
 pub enum InputAction {
     /// No action yet — still editing.
     None,
+    /// First character typed while inactive — caller should set up input line.
+    Activated(char),
     /// User submitted text (Enter = steering, Alt+Enter = follow-up).
     Submit(String, InputMode),
     /// User wants to view message N.
@@ -61,14 +63,10 @@ impl InputHandler {
                     return InputAction::EndSession;
                 }
                 KeyCode::Char(c) => {
-                    // Start input mode
+                    // Start input mode — caller handles the visual setup
                     self.activate();
                     self.buffer.push(c);
-                    // Echo the character
-                    let mut out = io::stdout();
-                    queue!(out, crossterm::style::Print(c)).ok();
-                    out.flush().ok();
-                    return InputAction::None;
+                    return InputAction::Activated(c);
                 }
                 _ => return InputAction::None,
             }
@@ -107,8 +105,14 @@ impl InputHandler {
                 let text = self.buffer.clone();
                 self.deactivate();
 
+                // Clear the input line so buffered output can print in its place
                 let mut out = io::stdout();
-                queue!(out, crossterm::style::Print("\r\n")).ok();
+                queue!(
+                    out,
+                    crossterm::style::Print("\r"),
+                    terminal::Clear(terminal::ClearType::CurrentLine),
+                )
+                .ok();
                 out.flush().ok();
 
                 if text.is_empty() {

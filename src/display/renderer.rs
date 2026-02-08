@@ -361,6 +361,35 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    /// Ensure we're on a fresh line and show the `> ` input prompt prefix.
+    /// Called when the user starts typing mid-stream.
+    pub fn begin_input_line(&mut self) {
+        self.close_tool_line();
+        if self.text_streaming {
+            queue!(self.out, Print("\r\n")).ok();
+            self.text_streaming = false;
+        }
+        queue!(self.out, Print(theme::prompt_style().apply("> "))).ok();
+        self.out.flush().ok();
+    }
+
+    /// Print a styled record of the user's message (e.g. `> hello`).
+    pub fn render_user_message(&mut self, text: &str) {
+        self.close_tool_line();
+        if self.text_streaming {
+            queue!(self.out, Print("\r\n")).ok();
+            self.text_streaming = false;
+        }
+        let line = format!("> {text}");
+        queue!(
+            self.out,
+            Print(theme::prompt_style().apply(line)),
+            Print("\r\n"),
+        )
+        .ok();
+        self.out.flush().ok();
+    }
+
     // --- Internal ---
 
     /// Compute the indent string that aligns content under a `[N] ▶` prefix.

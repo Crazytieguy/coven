@@ -109,17 +109,24 @@ async fn handle_session_key_event(
 ) -> Result<LoopAction> {
     let action = input.handle_key(key_event);
     match action {
+        InputAction::Activated(c) => {
+            renderer.begin_input_line();
+            renderer.write_raw(&c.to_string());
+        }
         InputAction::Submit(text, mode) => {
             flush_event_buffer(locals, state, renderer);
             match mode {
                 InputMode::Steering => {
+                    renderer.render_user_message(&text);
                     runner.send_message(&text).await?;
                 }
                 InputMode::FollowUp => {
                     if state.status == SessionStatus::WaitingForInput {
+                        renderer.render_user_message(&text);
                         runner.send_message(&text).await?;
                         state.status = SessionStatus::Running;
                     } else {
+                        // Don't render yet — will render when dispatched after Result
                         locals.pending_followup = Some(text);
                     }
                 }
@@ -172,6 +179,7 @@ async fn process_claude_event(
             // If result and there's a pending follow-up, send it
             if matches!(*inbound, InboundEvent::Result(_)) {
                 if let Some(text) = locals.pending_followup.take() {
+                    renderer.render_user_message(&text);
                     runner.send_message(&text).await?;
                     state.status = SessionStatus::Running;
                 } else {
@@ -244,6 +252,7 @@ pub async fn wait_for_followup(
                 let action = input.handle_key(&key_event);
                 match action {
                     InputAction::Submit(text, _) => {
+                        renderer.render_user_message(&text);
                         runner.send_message(&text).await?;
                         state.status = SessionStatus::Running;
                         return Ok(FollowUpAction::Sent);
@@ -260,7 +269,7 @@ pub async fn wait_for_followup(
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(FollowUpAction::Exit);
                     }
-                    InputAction::None => {}
+                    InputAction::Activated(_) | InputAction::None => {}
                 }
             }
             Some(Ok(_)) => {}
