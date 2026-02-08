@@ -1,3 +1,13 @@
+//! Terminal display styles.
+//!
+//! All styles use only named ANSI colors (Black, Red, Green, Yellow, Blue,
+//! Magenta, Cyan, White) so that colors adapt to the user's terminal theme.
+//! Avoid `Color::Rgb`, `Color::AnsiValue`, and bright variants — these bypass
+//! the user's palette and may be unreadable on some backgrounds.
+//!
+//! Use `Attribute::Dim` / `Attribute::Bold` for emphasis rather than bright
+//! color variants.
+
 use crossterm::style::{Attribute, Attributes, Color, ContentStyle};
 
 pub fn dim() -> ContentStyle {
