@@ -4,8 +4,6 @@ expression: clean
 ---
 Session a874d835-5d7d-458a-b86d-6136117cb531 (claude-opus-4-6)
 
-
-
 [1] Thinking...
 [2] ▶ Bash  ls /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh
