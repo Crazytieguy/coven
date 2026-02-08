@@ -17,6 +17,8 @@ pub struct SessionConfig {
     pub extra_args: Vec<String>,
     /// Append to system prompt (for ralph mode).
     pub append_system_prompt: Option<String>,
+    /// Resume an existing session by ID (uses `--resume`).
+    pub resume: Option<String>,
 }
 
 /// Manages a claude -p subprocess with bidirectional stream-json.
@@ -81,6 +83,11 @@ impl SessionRunner {
             "stream-json".to_string(),
             "--include-partial-messages".to_string(),
         ];
+
+        if let Some(ref session_id) = config.resume {
+            args.push("--resume".to_string());
+            args.push(session_id.clone());
+        }
 
         if !has_flag(&config.extra_args, "--permission-mode") {
             args.push("--permission-mode".to_string());

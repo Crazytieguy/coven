@@ -33,8 +33,9 @@ pub async fn run(
     let mut runner = if let Some(prompt) = prompt {
         let config = SessionConfig {
             prompt: Some(prompt),
-            extra_args,
+            extra_args: extra_args.clone(),
             append_system_prompt: None,
+            resume: None,
         };
         SessionRunner::spawn(config, event_tx).await?
     } else {
@@ -84,7 +85,40 @@ pub async fn run(
                     FollowUpAction::Exit => break,
                 }
             }
-            SessionOutcome::Interrupted | SessionOutcome::ProcessExited => break,
+            SessionOutcome::Interrupted => {
+                runner.close_input();
+                let _ = runner.wait().await;
+
+                // If we have a session_id, offer to resume; otherwise just exit
+                if let Some(session_id) = state.session_id.take() {
+                    renderer.render_interrupted();
+
+                    match session_loop::wait_for_user_input(
+                        &mut input,
+                        &mut renderer,
+                        &mut term_events,
+                    )
+                    .await?
+                    {
+                        Some(text) => {
+                            let (new_tx, new_rx) = mpsc::unbounded_channel();
+                            event_rx = new_rx;
+                            let config = SessionConfig {
+                                prompt: Some(text),
+                                extra_args: extra_args.clone(),
+                                append_system_prompt: None,
+                                resume: Some(session_id),
+                            };
+                            runner = SessionRunner::spawn(config, new_tx).await?;
+                            state = SessionState::default();
+                        }
+                        None => break,
+                    }
+                } else {
+                    break;
+                }
+            }
+            SessionOutcome::ProcessExited => break,
         }
     }
 
@@ -114,6 +148,7 @@ async fn wait_for_initial_prompt(
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
                             append_system_prompt: None,
+                            resume: None,
                         };
                         let runner = SessionRunner::spawn(config, event_tx.clone()).await?;
                         state.status = SessionStatus::Running;

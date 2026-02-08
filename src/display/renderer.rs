@@ -498,6 +498,19 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    pub fn render_interrupted(&mut self) {
+        self.close_tool_line();
+        self.finish_current_block();
+        queue!(
+            self.out,
+            Print("\r\n"),
+            Print(theme::dim().apply("[interrupted]")),
+            Print("\r\n"),
+        )
+        .ok();
+        self.out.flush().ok();
+    }
+
     pub fn render_exit(&mut self, code: Option<i32>) {
         let msg = match code {
             Some(c) => format!("Claude process exited with code {c}"),

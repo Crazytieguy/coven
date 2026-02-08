@@ -1,5 +1,5 @@
 Issue: Confirmed: `claude -p --input-format stream-json` ignores stdin messages sent mid-stream. Steering needs to be redesigned — likely by interrupting the session and resuming with the steering message as a follow-up.
-Status: draft
+Status: rejected
 
 ## Approach
 
@@ -48,6 +48,7 @@ The Claude backend preserves conversation state server-side, so `--resume` picks
 #### Display behavior
 
 When steering triggers a restart:
+
 - Current partial output stays on screen (it's already rendered)
 - New session's init event renders a new session header below
 - Claude's response to the steering message renders normally
@@ -97,3 +98,4 @@ Answer:
 
 ## Review
 
+This whole plan is based on a false premise, I've seen the steering prompts work with my own eyes. If we don't have a good vcr + snapshot test that demonstrates this, we should add one (long task with a steering prompt). Remove the original issue.

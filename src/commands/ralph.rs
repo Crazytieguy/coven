@@ -41,7 +41,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
         SessionRunner::ralph_system_prompt(&config.break_tag)
     };
 
-    loop {
+    'outer: loop {
         iteration += 1;
 
         // Check iteration limit
@@ -62,41 +62,77 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
             prompt: Some(config.prompt.clone()),
             extra_args: config.extra_args.clone(),
             append_system_prompt: Some(system_prompt.clone()),
+            resume: None,
         };
 
         let mut runner = SessionRunner::spawn(session_config, event_tx).await?;
         let mut state = SessionState::default();
+        let mut iteration_cost = 0.0;
 
-        let outcome = session_loop::run_session(
-            &mut runner,
-            &mut state,
-            &mut renderer,
-            &mut input,
-            &mut event_rx,
-            &mut term_events,
-        )
-        .await?;
+        loop {
+            let outcome = session_loop::run_session(
+                &mut runner,
+                &mut state,
+                &mut renderer,
+                &mut input,
+                &mut event_rx,
+                &mut term_events,
+            )
+            .await?;
 
-        runner.close_input();
-        let _ = runner.wait().await;
+            runner.close_input();
+            let _ = runner.wait().await;
 
-        match outcome {
-            SessionOutcome::Completed { result_text } => {
-                total_cost += state.total_cost_usd;
+            match outcome {
+                SessionOutcome::Completed { result_text } => {
+                    iteration_cost += state.total_cost_usd;
+                    total_cost += iteration_cost;
 
-                // Show running cost
-                renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+                    // Show running cost
+                    renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
-                // Check for break tag
-                if !config.no_break
-                    && let Some(reason) =
-                        SessionRunner::scan_break_tag(&result_text, &config.break_tag)
-                {
-                    renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
-                    break;
+                    // Check for break tag
+                    if !config.no_break
+                        && let Some(reason) =
+                            SessionRunner::scan_break_tag(&result_text, &config.break_tag)
+                    {
+                        renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
+                        break 'outer;
+                    }
+
+                    break; // next iteration
                 }
+                SessionOutcome::Interrupted => {
+                    let Some(session_id) = state.session_id.take() else {
+                        break 'outer;
+                    };
+                    iteration_cost += state.total_cost_usd;
+                    renderer.render_interrupted();
+
+                    match session_loop::wait_for_user_input(
+                        &mut input,
+                        &mut renderer,
+                        &mut term_events,
+                    )
+                    .await?
+                    {
+                        Some(text) => {
+                            let (new_tx, new_rx) = mpsc::unbounded_channel();
+                            event_rx = new_rx;
+                            let resume_config = SessionConfig {
+                                prompt: Some(text),
+                                extra_args: config.extra_args.clone(),
+                                append_system_prompt: Some(system_prompt.clone()),
+                                resume: Some(session_id),
+                            };
+                            runner = SessionRunner::spawn(resume_config, new_tx).await?;
+                            state = SessionState::default();
+                        }
+                        None => break 'outer,
+                    }
+                }
+                SessionOutcome::ProcessExited => break 'outer,
             }
-            SessionOutcome::Interrupted | SessionOutcome::ProcessExited => break,
         }
     }
 

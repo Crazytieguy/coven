@@ -278,6 +278,48 @@ pub async fn wait_for_followup(
     }
 }
 
+/// Show a prompt and wait for user input. Returns the text, or None to exit.
+///
+/// Unlike `wait_for_followup`, this doesn't send the message to a runner —
+/// the caller decides what to do with the text (e.g. spawn a resumed session).
+pub async fn wait_for_user_input(
+    input: &mut InputHandler,
+    renderer: &mut Renderer,
+    term_events: &mut EventStream,
+) -> Result<Option<String>> {
+    renderer.show_prompt();
+    input.activate();
+
+    loop {
+        match term_events.next().await {
+            Some(Ok(Event::Key(key_event))) => {
+                let action = input.handle_key(&key_event);
+                match action {
+                    InputAction::Submit(text, _) => {
+                        renderer.render_user_message(&text);
+                        return Ok(Some(text));
+                    }
+                    InputAction::ViewMessage(n) => {
+                        view_message(renderer, n);
+                        renderer.show_prompt();
+                        input.activate();
+                    }
+                    InputAction::Cancel => {
+                        renderer.show_prompt();
+                        input.activate();
+                    }
+                    InputAction::Interrupt | InputAction::EndSession => {
+                        return Ok(None);
+                    }
+                    InputAction::Activated(_) | InputAction::None => {}
+                }
+            }
+            Some(Ok(_)) => {}
+            Some(Err(_)) | None => return Ok(None),
+        }
+    }
+}
+
 /// Open message N in $PAGER.
 pub fn view_message(renderer: &mut Renderer, n: usize) {
     let messages = renderer.messages();
