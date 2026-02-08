@@ -1,0 +1,5 @@
+[run]
+prompt = "In greeting.py, change the greeting from 'hello' to 'goodbye' and add a farewell line"
+
+[files]
+"greeting.py" = "def greet(name):\n    print(f'hello, {name}!')\n\ngreet('world')\n"

@@ -179,6 +179,7 @@ vcr_test!(ralph_break);
 vcr_test!(steering);
 vcr_test!(subagent);
 vcr_test!(write_single_line);
+vcr_test!(edit_tool);
 
 /// Test that --show-thinking streams thinking text inline.
 /// Replays multi_tool.vcr (which contains thinking blocks) with show_thinking enabled.
