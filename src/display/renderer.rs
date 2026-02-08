@@ -292,24 +292,7 @@ impl<W: Write> Renderer<W> {
     pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
         self.close_tool_line();
         self.finish_current_block();
-        self.tool_counter += 1;
-        self.last_tool_is_subagent = true;
-        let n = self.tool_counter;
-        let display_name = display_tool_name(name);
-        let detail = format_tool_detail(name, input);
-        let label = truncate_line(&format!("  [{n}] ▶ {display_name}  {detail}"));
-        queue!(self.out, Print(theme::tool_name_dim().apply(&label)),).ok();
-
-        // Store for :N viewing
-        let content = serde_json::to_string_pretty(input).unwrap_or_default();
-        self.messages.push(StoredMessage {
-            label: format!("[{n}] {display_name}"),
-            content,
-            result: None,
-        });
-
-        // Leave line open — subagent result will close or print ✗
-        self.tool_line_open = true;
+        self.render_tool_call_line(name, input, true);
         self.out.flush().ok();
     }
 
@@ -380,6 +363,34 @@ impl<W: Write> Renderer<W> {
     }
 
     // --- Internal ---
+
+    /// Render a tool call line: `[N] ▶ ToolName  detail`. Subagent calls are
+    /// indented and use a dimmer style. Leaves the line open for the result.
+    fn render_tool_call_line(&mut self, name: &str, input: &Value, is_subagent: bool) {
+        self.tool_counter += 1;
+        self.last_tool_is_subagent = is_subagent;
+        let n = self.tool_counter;
+        let display_name = display_tool_name(name);
+        let detail = format_tool_detail(name, input);
+
+        let prefix = if is_subagent { "  " } else { "" };
+        let label = truncate_line(&format!("{prefix}[{n}] ▶ {display_name}  {detail}"));
+        let style = if is_subagent {
+            theme::tool_name_dim()
+        } else {
+            theme::tool_name()
+        };
+        queue!(self.out, Print(style.apply(&label))).ok();
+
+        let content = serde_json::to_string_pretty(input).unwrap_or_default();
+        self.messages.push(StoredMessage {
+            label: format!("[{n}] {display_name}"),
+            content,
+            result: None,
+        });
+
+        self.tool_line_open = true;
+    }
 
     /// Render an error line beneath a tool call: `✗ <first line of error text>`.
     fn render_error_line(&mut self, text: &str) {
@@ -453,10 +464,6 @@ impl<W: Write> Renderer<W> {
             Some(BlockKind::ToolUse) => {
                 self.close_tool_line();
                 if let Some((name, raw_input)) = self.current_tool.take() {
-                    self.tool_counter += 1;
-                    self.last_tool_is_subagent = false;
-                    let n = self.tool_counter;
-
                     // Parse accumulated JSON
                     let input = match raw_input {
                         Value::String(s) => {
@@ -464,22 +471,7 @@ impl<W: Write> Renderer<W> {
                         }
                         other => other,
                     };
-
-                    let display_name = display_tool_name(&name);
-                    let detail = format_tool_detail(&name, &input);
-                    let label = truncate_line(&format!("[{n}] ▶ {display_name}  {detail}"));
-                    queue!(self.out, Print(theme::tool_name().apply(&label)),).ok();
-
-                    // Store for :N viewing
-                    let content = serde_json::to_string_pretty(&input).unwrap_or_default();
-                    self.messages.push(StoredMessage {
-                        label: format!("[{n}] {display_name}"),
-                        content,
-                        result: None,
-                    });
-
-                    // Leave line open — result will close or print ✗
-                    self.tool_line_open = true;
+                    self.render_tool_call_line(&name, &input, false);
                 }
             }
             Some(BlockKind::Thinking) => {
