@@ -243,38 +243,13 @@ pub async fn wait_for_followup(
     state: &mut SessionState,
     term_events: &mut EventStream,
 ) -> Result<FollowUpAction> {
-    renderer.show_prompt();
-    input.activate();
-
-    loop {
-        match term_events.next().await {
-            Some(Ok(Event::Key(key_event))) => {
-                let action = input.handle_key(&key_event);
-                match action {
-                    InputAction::Submit(text, _) => {
-                        renderer.render_user_message(&text);
-                        runner.send_message(&text).await?;
-                        state.status = SessionStatus::Running;
-                        return Ok(FollowUpAction::Sent);
-                    }
-                    InputAction::ViewMessage(n) => {
-                        view_message(renderer, n);
-                        renderer.show_prompt();
-                        input.activate();
-                    }
-                    InputAction::Cancel => {
-                        renderer.show_prompt();
-                        input.activate();
-                    }
-                    InputAction::Interrupt | InputAction::EndSession => {
-                        return Ok(FollowUpAction::Exit);
-                    }
-                    InputAction::Activated(_) | InputAction::None => {}
-                }
-            }
-            Some(Ok(_)) => {}
-            Some(Err(_)) | None => return Ok(FollowUpAction::Exit),
+    match wait_for_text_input(input, renderer, term_events).await? {
+        Some(text) => {
+            runner.send_message(&text).await?;
+            state.status = SessionStatus::Running;
+            Ok(FollowUpAction::Sent)
         }
+        None => Ok(FollowUpAction::Exit),
     }
 }
 
@@ -283,6 +258,18 @@ pub async fn wait_for_followup(
 /// Unlike `wait_for_followup`, this doesn't send the message to a runner —
 /// the caller decides what to do with the text (e.g. spawn a resumed session).
 pub async fn wait_for_user_input(
+    input: &mut InputHandler,
+    renderer: &mut Renderer,
+    term_events: &mut EventStream,
+) -> Result<Option<String>> {
+    wait_for_text_input(input, renderer, term_events).await
+}
+
+/// Wait for user to type and submit text, or exit.
+///
+/// Shows the prompt, activates input, and loops on terminal events.
+/// Returns the submitted text, or None if the user interrupted/ended.
+async fn wait_for_text_input(
     input: &mut InputHandler,
     renderer: &mut Renderer,
     term_events: &mut EventStream,
