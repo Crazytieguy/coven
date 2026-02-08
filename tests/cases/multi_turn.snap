@@ -14,7 +14,7 @@ Rust is a systems programming language focused on safety, speed, and concurrency
 It's commonly used for systems software, WebAssembly, CLI tools, game engines, embedded systems, and performance-critical applications. Originally developed at Mozilla, it's now governed by the Rust Foundation.
 
 
-Done  $0.04 · 5.1s · 1 turn · 20k tokens
+Done  $0.04 · 5.1s · 1 turn
 ---
 
 Rust's ownership system is its core mechanism for memory safety without a garbage collector. Three rules:
@@ -52,4 +52,4 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
 This all gets checked at **compile time** — no runtime overhead.
 
 
-Done  $0.06 · 8.0s · 1 turn · 21k tokens
+Done  $0.06 · 8.0s · 1 turn

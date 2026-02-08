@@ -15,7 +15,7 @@ Now let me mark it done in TODO.md.
 Done. Created `hello.py` that prints `'hi'` and marked the task complete. There's one more unchecked task remaining (Create a README.md with the project name).
 
 
-Done  $0.08 · 14.3s · 4 turns · 85k tokens  (:N to view)
+Done  $0.08 · 14.3s · 4 turns  (:N to view)
 Session 5af0f7ed-6502-412e-8968-c0e8f5354ae1 (claude-opus-4-6)
 
 [5] Thinking...
@@ -34,4 +34,4 @@ Done. Created `README.md` with the project name and marked the task complete. Al
 <break>All tasks in TODO.md are completed.</break>
 
 
-Done  $0.08 · 18.9s · 5 turns · 110k tokens  (:N to view)
+Done  $0.08 · 18.9s · 5 turns  (:N to view)

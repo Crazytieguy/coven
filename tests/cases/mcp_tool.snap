@@ -51,4 +51,4 @@ tokio = { version = "1", features = ["full"] }
 The file is saved locally at `.llms-fetch-mcp/docs.rs/tokio/index` if you want to reference it again.
 
 
-Done  $0.12 · 17.8s · 3 turns · 70k tokens  (:N to view)
+Done  $0.12 · 17.8s · 3 turns  (:N to view)

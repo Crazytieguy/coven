@@ -19,4 +19,4 @@ The script hardcodes `exit 1` (failure). Fixing it to exit with success.
 Fixed. The script was hardcoding `exit 1` (failure) — changed it to `exit 0` (success). Tests now pass.
 
 
-Done  $0.10 · 20.6s · 6 turns · 107k tokens  (:N to view)
+Done  $0.10 · 20.6s · 6 turns  (:N to view)

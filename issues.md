@@ -1,5 +1,4 @@
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
-- I think token count is over-counting, please investigate (plan: plans/token-overcounting.md)
 - [P2] review all snapshots for correctness and UI quality
 - [P2] Big issue: support model-driven context forking. Model outputs xml with definitions for some number of sub tasks (just an assistant message), coven parses it to find the sub tasks and creates a forked claude session per sub task with a simple follow up message like "you own subtask N", waits for all subtasks to complete, and then continues the original session, displaying to the model the final assistant message for each subtask (plan: plans/context-forking.md)
 - [P2] Big issue: integrate our workflow directly into a coven subcommand, based on workflow.md
