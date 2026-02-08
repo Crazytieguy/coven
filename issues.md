@@ -2,5 +2,3 @@
 - Theme colors may need further tuning for specific terminal themes (DarkGrey replaced with Attribute::Dim but worth verifying on light backgrounds too) (plan: plans/theme-color-tuning.md)
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - We should use the terminal width to truncate rendering more accurately (plan: plans/terminal-width-truncation.md)
-- Since we're now committing plans and issues immediately, claude can find reviewed plan just using git (I don't commit plans when I review them) (plan: plans/git-based-plan-review-discovery.md)
-- Some plans were committed right after I reviewed them by accident, so look for rejected / approved plans manually (one time task, not workflow change)

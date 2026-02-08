@@ -1,5 +1,5 @@
 Issue: The steering VCR test doesn't demonstrate steering working — it uses a task too short for the steering message to take effect. Re-record with a longer multi-step task so the snapshot shows Claude responding to the steering input.
-Status: draft
+Status: approved
 
 ## Approach
 
@@ -17,6 +17,7 @@ The current steering test uses a short task ("Summarize this file") that complet
 ### What to look for in the snapshot
 
 The snapshot should show:
+
 - Initial tool calls for the original task
 - The steering message appearing in the stream
 - Subsequent output from Claude that follows the steered instruction, not the original one
@@ -34,7 +35,6 @@ The prompt needs to be long enough that Claude is mid-stream when the steering m
 
 The delay timing may need experimentation to hit the right window.
 
-Answer:
+Answer: Let's do option A, but we need to watch out for claude reading all the files in parallel. Have it summarize each one independently initially
 
 ## Review
-
