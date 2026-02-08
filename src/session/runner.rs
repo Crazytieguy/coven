@@ -145,9 +145,11 @@ impl SessionRunner {
         format!(
             "You are running in a loop where each iteration starts a fresh session but the \
              filesystem persists. After completing your work for this iteration, consider \
-             whether another iteration would be useful. Only include \
-             `<{break_tag}>reason</{break_tag}>` in your response when you are confident \
-             that all tasks are done and another iteration would not accomplish anything new."
+             whether another iteration would be useful. To end your current iteration without \
+             ending the loop, simply finish your response — the next iteration starts \
+             automatically. Only include `<{break_tag}>reason</{break_tag}>` in your response \
+             when you are confident that ALL tasks are done and another iteration would not \
+             accomplish anything new. When in doubt, do not include the break tag."
         )
     }
 
