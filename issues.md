@@ -1,7 +1,7 @@
 - When there are queued messages, we should display them somehow below the messages that are streaming in. Different display for follow up and steering messages. Not sure what the right technical approach is here. (plan: plans/queued-message-display.md)
 - I think token count is over-counting, please investigate (plan: plans/token-overcounting.md)
-- Add a VCR test case covering the Write tool with single-line content to verify the "(1 line)" singular display (plan: plans/write-tool-single-line-test.md)
 - Tool line metadata (line counts, diff stats) is truncated away when file paths are long — truncation should preserve the metadata suffix and truncate only the path portion (plan: plans/tool-line-metadata-truncation.md)
 - Duplicated input-wait loops: `wait_for_followup` and `wait_for_user_input` in session_loop.rs have nearly identical event loops (ViewMessage, Cancel, Interrupt/EndSession, Activated/None handling) — extract a shared input-wait helper parameterized by the submit behavior (plan: plans/duplicated-input-wait-loops.md)
+- [P2] review all snapshots for correctness and UI quality
 - [P2] Big issue: support model-driven context forking. Model outputs xml with definitions for some number of sub tasks (just an assistant message), coven parses it to find the sub tasks and creates a forked claude session per sub task with a simple follow up message like "you own subtask N", waits for all subtasks to complete, and then continues the original session, displaying to the model the final assistant message for each subtask
 - [P2] Big issue: integrate our workflow directly into a coven subcommand, based on workflow.md

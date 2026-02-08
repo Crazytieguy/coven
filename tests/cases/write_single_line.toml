@@ -1,0 +1,2 @@
+[run]
+prompt = "Write a file called hello.txt containing just the text 'Hello, world!'"
