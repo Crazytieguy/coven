@@ -553,24 +553,25 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
                 } else {
                     format!("-{removed}")
                 };
-                format!("{path} ({diff})")
+                format!("({diff})  {path}")
             } else {
                 path.to_string()
             }
         }
         "Write" => {
             let path = get_str(input, "file_path").unwrap_or_default();
-            let lines = get_str(input, "content")
-                .map(|c| {
-                    let count = c.lines().count();
-                    if count == 1 {
-                        "(1 line)".to_string()
-                    } else {
-                        format!("({count} lines)")
-                    }
-                })
-                .unwrap_or_default();
-            format!("{path} {lines}").trim().to_string()
+            let lines = get_str(input, "content").map(|c| {
+                let count = c.lines().count();
+                if count == 1 {
+                    "(1 line)".to_string()
+                } else {
+                    format!("({count} lines)")
+                }
+            });
+            match lines {
+                Some(l) => format!("{l}  {path}"),
+                None => path.to_string(),
+            }
         }
         "Glob" => get_str(input, "pattern").unwrap_or_default().to_string(),
         "Grep" => {
@@ -806,7 +807,7 @@ mod tests {
             "old_string": "line1",
             "new_string": "line1\nline2\nline3"
         });
-        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (+2)");
+        assert_eq!(format_tool_detail("Edit", &input), "(+2)  /src/main.rs");
     }
 
     #[test]
@@ -816,7 +817,7 @@ mod tests {
             "old_string": "line1\nline2\nline3",
             "new_string": "line1"
         });
-        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (-2)");
+        assert_eq!(format_tool_detail("Edit", &input), "(-2)  /src/main.rs");
     }
 
     #[test]
@@ -826,7 +827,7 @@ mod tests {
             "old_string": "aaa\nbbb\nccc",
             "new_string": "xxx\nyyy\nzzz\nwww\nvvv"
         });
-        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs (+2)");
+        assert_eq!(format_tool_detail("Edit", &input), "(+2)  /src/main.rs");
     }
 
     #[test]
@@ -846,7 +847,7 @@ mod tests {
             "file_path": "/hello.txt",
             "content": "Hello, world!"
         });
-        assert_eq!(format_tool_detail("Write", &input), "/hello.txt (1 line)");
+        assert_eq!(format_tool_detail("Write", &input), "(1 line)  /hello.txt");
     }
 
     #[test]
@@ -855,7 +856,7 @@ mod tests {
             "file_path": "/hello.py",
             "content": "print('hello')\nprint('world')\n"
         });
-        assert_eq!(format_tool_detail("Write", &input), "/hello.py (2 lines)");
+        assert_eq!(format_tool_detail("Write", &input), "(2 lines)  /hello.py");
     }
 
     #[test]
@@ -865,7 +866,7 @@ mod tests {
             "file_path": "/hello.txt",
             "content": "single line\n"
         });
-        assert_eq!(format_tool_detail("Write", &input), "/hello.txt (1 line)");
+        assert_eq!(format_tool_detail("Write", &input), "(1 line)  /hello.txt");
     }
 
     #[test]

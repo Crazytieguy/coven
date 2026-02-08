@@ -4,7 +4,7 @@ expression: clean
 ---
 Session 0adf5c13-4d06-4d8e-a600-5a19a1ad6f07 (claude-opus-4-6)
 
-[1] ▶ Write  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[1] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 Done. Created `hello.txt` with the text "Hello, world!".
 
 
