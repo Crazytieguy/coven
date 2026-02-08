@@ -1,39 +1,40 @@
-Issue: The steering VCR test passes despite steering being broken — it only validates that stdin was written, not that Claude responded to the message. The test should verify that Claude's output actually changed in response to steering input.
-Status: rejected
+Issue: The steering VCR test doesn't demonstrate steering working — it uses a task too short for the steering message to take effect. Re-record with a longer multi-step task so the snapshot shows Claude responding to the steering input.
+Status: draft
 
 ## Approach
 
-The steering VCR test currently validates two things:
+The current steering test uses a short task ("Summarize this file") that completes before the steering message can influence Claude's behavior. The fix is to re-record the VCR with a longer, multi-step task where the steering message arrives mid-stream and visibly alters Claude's output.
 
-1. `validate_vcr` checks that the steering message appears in the VCR stdin lines
-2. The snapshot matches the rendered display
+### Steps
 
-But neither of these validates that Claude _responded_ to the steering message. The current VCR recording actually proves Claude ignored it — thinking "Simple file. Let me summarize it." and outputting a summary, not a line count.
+1. Update `tests/cases/steering.toml` to use a longer, multi-step prompt that gives Claude enough work to be interruptible — e.g., "Read each file in this directory, summarize each one, then write a combined report" or similar multi-tool task.
+2. Update the steering message to redirect to something clearly different and verifiable in the output — e.g., "Actually, just count the lines in each file instead."
+3. Set an appropriate `steering_delay_ms` to send the steering message after the first tool call but before the task completes.
+4. Re-record with `cargo run --bin record-vcr steering`.
+5. Run `cargo test` and review the snapshot — verify that Claude's output after the steering message reflects the redirected task (line counts instead of summaries, or whatever the steered task is).
+6. Accept with `cargo insta accept` once the snapshot shows steering working.
 
-### Option A: Mark the test as expected-broken
+### What to look for in the snapshot
 
-Add a comment to the steering snapshot acknowledging that the output shows the original task (summary) rather than the steered task (line count). This makes the test honest about what it's testing — the display of a steering attempt, not successful steering.
+The snapshot should show:
+- Initial tool calls for the original task
+- The steering message appearing in the stream
+- Subsequent output from Claude that follows the steered instruction, not the original one
 
-No code changes needed beyond updating the snapshot comment. Once the steering redesign lands, re-recording the VCR will produce a response that actually follows the steering message, and the snapshot will update naturally.
-
-### Option B: Add assertion that output reflects steering
-
-Add a check in the test that the rendered output contains evidence of the steered task (e.g., "2 lines" or "line count") rather than the original task. This would make the test _fail_ until steering actually works. We'd need to `#[ignore]` or `#[should_panic]` it in the meantime.
-
-### Recommendation
-
-Option A is more practical — the test still serves a purpose (validating display rendering for multi-message sessions), and the steering-redesign plan will fix the underlying issue. Adding a comment makes the situation explicit without losing test coverage.
+This validates both the display rendering AND that steering actually works.
 
 ## Questions
 
-### Should the test fail now to signal steering is broken, or pass while documenting the limitation?
+### What prompt and steering message should we use?
 
-Option A (recommended): Keep the test passing. Add a comment to the test case TOML and/or snapshot noting that the current VCR recording shows Claude ignoring the steering message, and that the test validates display rendering only — not steering effectiveness. Once the steering redesign lands and the VCR is re-recorded, the comment can be removed.
+The prompt needs to be long enough that Claude is mid-stream when the steering message arrives, and the steering redirect needs to produce visibly different output. Suggestions:
 
-Option B: Make the test fail (via `#[ignore]` or an explicit assertion) to create pressure to fix steering. This is more principled but loses test coverage for display rendering in the meantime.
+- **Option A**: Prompt: "Read and summarize each file in this directory." Steer: "Actually, just count the lines in each file." (Clear difference: summaries vs line counts)
+- **Option B**: Prompt: "Write a detailed analysis of this codebase." Steer: "Stop, just list the files instead." (Clear difference: analysis vs file listing)
+
+The delay timing may need experimentation to hit the right window.
 
 Answer:
 
 ## Review
 
-Steering isn't broken, we just need to make the test use a longer multi step task so we can see it in action.
