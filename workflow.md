@@ -1,4 +1,4 @@
-This session is unattended (no human at the keyboard). One small action at a time — pick the highest-priority action available, do it, and stop. Stopping means outputting a final assistant message with no tool calls — the session ends but the ralph loop continues.
+This session is unattended (no human at the keyboard). One small action at a time — pick the highest-priority action available, do it, then end your response. The loop will continue with a new session automatically.
 
 ## Priorities
 
@@ -42,7 +42,7 @@ Questions are optional but encouraged — surface ambiguity rather than guessing
 
 ## Session discipline
 
-- One action, then stop.
+- One action, then end your response.
 - Always verify clippy + tests pass before committing.
 - Commit all artifact changes (issues.md, plan files) alongside code changes.
 - If your changes introduced new problems, revert and stop. End result should be 0-1 atomic changes, with state at least as clean as when you started.
