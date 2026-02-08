@@ -136,6 +136,9 @@ impl SessionRunner {
     }
 
     /// Scan response text for `<tag>reason</tag>` and return the reason if found.
+    /// Note: the raw break tag is intentionally left visible in Claude's streamed output
+    /// so the user can see exactly what Claude emitted. The clean "Loop complete: reason"
+    /// line is added separately after the stats display (see ralph.rs).
     pub fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
         let open = format!("<{tag}>");
         let close = format!("</{tag}>");
