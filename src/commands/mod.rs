@@ -1,3 +1,4 @@
+pub mod gc;
 pub mod init;
 pub mod ralph;
 pub mod run;

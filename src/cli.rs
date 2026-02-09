@@ -60,6 +60,9 @@ pub enum Command {
     /// Show status of all active workers.
     Status,
 
+    /// Remove orphaned worktrees left behind by dead workers.
+    Gc,
+
     /// Start an orchestration worker (dispatch → agent → land loop).
     Worker {
         /// Branch name for the worktree (random if not specified).

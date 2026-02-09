@@ -144,6 +144,53 @@ fn generate_branch_name() -> String {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
+/// A git worktree entry from `git worktree list --porcelain`.
+pub struct WorktreeEntry {
+    pub path: PathBuf,
+    /// Branch name (without refs/heads/ prefix). None for detached HEAD.
+    pub branch: Option<String>,
+    /// Whether this is the main worktree (first entry in the list).
+    pub is_main: bool,
+}
+
+/// List all worktrees in the repository.
+pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeEntry>, WorktreeError> {
+    let output = git(repo_path, &["worktree", "list", "--porcelain"])?;
+
+    let mut entries = Vec::new();
+    let mut current_path = None;
+    let mut current_branch = None;
+
+    for line in output.lines() {
+        if let Some(p) = line.strip_prefix("worktree ") {
+            current_path = Some(PathBuf::from(p));
+        } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
+            current_branch = Some(b.to_string());
+        } else if line.is_empty() {
+            if let Some(path) = current_path.take() {
+                let is_main = entries.is_empty();
+                entries.push(WorktreeEntry {
+                    path,
+                    branch: current_branch.take(),
+                    is_main,
+                });
+            }
+            current_branch = None;
+        }
+    }
+    // Handle last entry (porcelain output may not have trailing blank line)
+    if let Some(path) = current_path {
+        let is_main = entries.is_empty();
+        entries.push(WorktreeEntry {
+            path,
+            branch: current_branch,
+            is_main,
+        });
+    }
+
+    Ok(entries)
+}
+
 /// Spawn a new worktree with a random branch name (or caller-provided name).
 ///
 /// - Validates we're in a git repo

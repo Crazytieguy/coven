@@ -26,6 +26,9 @@ async fn main() -> Result<()> {
         Some(Command::Status) => {
             commands::status::status()?;
         }
+        Some(Command::Gc) => {
+            commands::gc::gc()?;
+        }
         Some(Command::Ralph {
             prompt,
             iterations,
