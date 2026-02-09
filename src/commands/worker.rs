@@ -127,7 +127,12 @@ async fn run_dispatch(
 
     let dispatch_prompt = dispatch_agent.render(&dispatch_args)?;
 
-    match run_phase_session(
+    // Run the dispatch session
+    let PhaseOutcome::Completed {
+        result_text,
+        cost,
+        session_id,
+    } = run_phase_session(
         &dispatch_prompt,
         worktree_path,
         extra_args,
@@ -137,19 +142,62 @@ async fn run_dispatch(
         term_events,
     )
     .await?
-    {
-        PhaseOutcome::Completed {
-            result_text, cost, ..
-        } => {
-            let decision = dispatch::parse_decision(&result_text)
-                .context("failed to parse dispatch decision")?;
+    else {
+        return Ok(None);
+    };
+
+    // Try to parse the decision
+    match dispatch::parse_decision(&result_text) {
+        Ok(decision) => Ok(Some(DispatchResult {
+            decision,
+            agent_defs,
+            cost,
+        })),
+        Err(parse_err) => {
+            // If we have a session to resume, retry with a correction prompt
+            let Some(session_id) = session_id else {
+                return Err(parse_err).context("failed to parse dispatch decision");
+            };
+
+            renderer.write_raw(&format!(
+                "\r\nDispatch output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
+            ));
+
+            let retry_prompt = format!(
+                "Your previous output could not be parsed: {parse_err}\n\n\
+                 Please output your decision inside a <dispatch> tag containing YAML. \
+                 For example:\n\n\
+                 <dispatch>\nagent: plan\nissue: issues/example.md\n</dispatch>\n\n\
+                 Or to sleep:\n\n\
+                 <dispatch>\nsleep: true\n</dispatch>"
+            );
+
+            let PhaseOutcome::Completed {
+                result_text: retry_text,
+                cost: retry_cost,
+                ..
+            } = run_phase_session(
+                &retry_prompt,
+                worktree_path,
+                extra_args,
+                Some(&session_id),
+                renderer,
+                input,
+                term_events,
+            )
+            .await?
+            else {
+                return Ok(None);
+            };
+
+            let decision = dispatch::parse_decision(&retry_text)
+                .context("failed to parse dispatch decision after retry")?;
             Ok(Some(DispatchResult {
                 decision,
                 agent_defs,
-                cost,
+                cost: cost + retry_cost,
             }))
         }
-        PhaseOutcome::Exited => Ok(None),
     }
 }
 
