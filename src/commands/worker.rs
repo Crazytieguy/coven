@@ -238,6 +238,9 @@ async fn worker_loop(
                 // not block landing and cause committed work to be discarded.
                 let _ = worktree::clean(worktree_path);
                 land_worktree(worktree_path, renderer)?;
+
+                // Clear state so other dispatchers don't see stale agent info
+                worker_state::update(worktree_path, None, &HashMap::new())?;
             }
         }
     }
