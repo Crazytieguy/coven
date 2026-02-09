@@ -113,7 +113,6 @@ impl<W: Write> Renderer<W> {
     }
 
     pub fn render_result(&mut self, subtype: &str, cost: f64, duration_ms: u64, num_turns: u32) {
-        self.close_tool_line();
         self.finish_current_block();
         // Round to tenths of a second (add 50ms to round instead of truncate)
         let rounded = duration_ms + 50;
@@ -262,7 +261,6 @@ impl<W: Write> Renderer<W> {
     // --- Subagent tool calls (indented) ---
 
     pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
-        self.close_tool_line();
         self.finish_current_block();
         self.render_tool_call_line(name, input, true);
         self.out.flush().ok();
@@ -450,16 +448,15 @@ impl<W: Write> Renderer<W> {
     }
 
     fn finish_current_block(&mut self) {
+        self.close_tool_line();
         match self.current_block.take() {
             Some(BlockKind::Text) => {
-                self.close_tool_line();
                 if self.text_streaming {
                     queue!(self.out, Print("\r\n\r\n")).ok();
                     self.text_streaming = false;
                 }
             }
             Some(BlockKind::ToolUse) => {
-                self.close_tool_line();
                 if let Some((name, raw_input)) = self.current_tool.take() {
                     // Parse accumulated JSON
                     let input = match raw_input {
@@ -472,7 +469,6 @@ impl<W: Write> Renderer<W> {
                 }
             }
             Some(BlockKind::Thinking) => {
-                self.close_tool_line();
                 let content = self.current_thinking.take().unwrap_or_default();
                 let n = self.tool_counter;
                 if self.config.show_thinking && !content.is_empty() {
@@ -500,7 +496,6 @@ impl<W: Write> Renderer<W> {
     }
 
     pub fn render_interrupted(&mut self) {
-        self.close_tool_line();
         self.finish_current_block();
         queue!(
             self.out,
