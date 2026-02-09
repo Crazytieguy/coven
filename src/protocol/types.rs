@@ -67,8 +67,8 @@ pub struct ContentBlock {
     pub r#type: String,
     #[serde(default)]
     pub name: Option<String>,
-    #[serde(default, rename = "id")]
-    _id: Option<String>,
+    #[serde(default)]
+    pub id: Option<String>,
     #[serde(default, rename = "text")]
     _text: Option<String>,
     #[serde(flatten)]
@@ -120,8 +120,7 @@ pub enum AssistantContentBlock {
     },
     #[serde(rename = "tool_use")]
     ToolUse {
-        #[serde(rename = "id")]
-        _id: String,
+        id: String,
         name: String,
         input: Value,
     },

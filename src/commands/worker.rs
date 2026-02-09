@@ -34,10 +34,9 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
     // specified a permission mode. The user is expected to set up persistent
     // permissions for their project so agents can run unattended.
     if !config.extra_args.iter().any(|a| a == "--permission-mode") {
-        config.extra_args.extend([
-            "--permission-mode".to_string(),
-            "acceptEdits".to_string(),
-        ]);
+        config
+            .extra_args
+            .extend(["--permission-mode".to_string(), "acceptEdits".to_string()]);
     }
 
     let project_root = std::env::current_dir()?;

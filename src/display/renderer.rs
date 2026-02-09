@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{self, Write};
 
 use crossterm::queue;
@@ -15,6 +16,11 @@ pub struct StoredMessage {
     pub content: String,
     /// Tool result text, attached when the result arrives.
     pub result: Option<String>,
+}
+
+/// Tracks an active subagent (Task tool call) for concurrent rendering.
+struct ActiveSubagent {
+    tool_number: usize,
 }
 
 /// Display configuration for the renderer.
@@ -40,8 +46,12 @@ pub struct Renderer<W: Write = io::Stdout> {
     current_thinking: Option<String>,
     /// Whether a tool call line is still open (no \r\n yet), awaiting its result.
     tool_line_open: bool,
-    /// Whether the last tool call was a subagent (indented).
-    last_tool_is_subagent: bool,
+    /// Active subagents, keyed by `tool_use_id`.
+    active_subagents: HashMap<String, ActiveSubagent>,
+    /// The `tool_use_id` of the currently-streaming `tool_use` block.
+    current_tool_use_id: Option<String>,
+    /// Indent width for content under the last-rendered tool call.
+    last_tool_indent: usize,
     /// Display configuration.
     config: RendererConfig,
     /// Writer for output.
@@ -77,7 +87,9 @@ impl<W: Write> Renderer<W> {
             current_tool: None,
             current_thinking: None,
             tool_line_open: false,
-            last_tool_is_subagent: false,
+            active_subagents: HashMap::new(),
+            current_tool_use_id: None,
+            last_tool_indent: 0,
             config: RendererConfig::default(),
             out: writer,
         }
@@ -161,6 +173,7 @@ impl<W: Write> Renderer<W> {
                             let name = cb.name.as_deref().unwrap_or("unknown").to_string();
                             self.current_block = Some(BlockKind::ToolUse);
                             self.current_tool = Some((name, Value::Null));
+                            self.current_tool_use_id.clone_from(&cb.id);
                         }
                         "thinking" => {
                             self.finish_current_block();
@@ -254,15 +267,32 @@ impl<W: Write> Renderer<W> {
             text = extract_result_text(block);
         }
 
+        // Deregister completed subagent (tool_use_id in message content)
+        if let Some(tool_use_id) = msg_content_block
+            .and_then(|b| b.get("tool_use_id"))
+            .and_then(Value::as_str)
+        {
+            self.active_subagents.remove(tool_use_id);
+        }
+
         self.apply_tool_result(&text, is_error);
         self.out.flush().ok();
     }
 
     // --- Subagent tool calls (indented) ---
 
-    pub fn render_subagent_tool_call(&mut self, name: &str, input: &Value) {
+    pub fn render_subagent_tool_call(
+        &mut self,
+        name: &str,
+        input: &Value,
+        parent_tool_use_id: &str,
+    ) {
         self.finish_current_block();
-        self.render_tool_call_line(name, input, true);
+        let parent_number = self
+            .active_subagents
+            .get(parent_tool_use_id)
+            .map(|s| s.tool_number);
+        self.render_tool_call_line(name, input, parent_number);
         self.out.flush().ok();
     }
 
@@ -345,18 +375,32 @@ impl<W: Write> Renderer<W> {
         }
     }
 
-    /// Render a tool call line: `[N] ▶ ToolName  detail`. Subagent calls are
-    /// indented and use a dimmer style. Leaves the line open for the result.
-    fn render_tool_call_line(&mut self, name: &str, input: &Value, is_subagent: bool) {
+    /// Render a tool call line: `[N] ▶ ToolName  detail`. Child tool calls
+    /// within a subagent use `[P/N]` prefixed numbering with indented, dimmer
+    /// style. Leaves the line open for the result.
+    fn render_tool_call_line(
+        &mut self,
+        name: &str,
+        input: &Value,
+        parent_tool_number: Option<usize>,
+    ) {
         self.tool_counter += 1;
-        self.last_tool_is_subagent = is_subagent;
         let n = self.tool_counter;
         let display_name = display_tool_name(name);
         let detail = format_tool_detail(name, input);
+        let is_child = parent_tool_number.is_some();
 
-        let prefix = if is_subagent { "  " } else { "" };
-        let label = truncate_line(&format!("{prefix}[{n}] ▶ {display_name}  {detail}"));
-        let style = if is_subagent {
+        let (prefix, number_label) = match parent_tool_number {
+            Some(p) => ("  ", format!("{p}/{n}")),
+            None => ("", format!("{n}")),
+        };
+        // Indent width: prefix + "[" + number_label + "] "
+        self.last_tool_indent = prefix.len() + 1 + number_label.len() + 2;
+
+        let label = truncate_line(&format!(
+            "{prefix}[{number_label}] ▶ {display_name}  {detail}"
+        ));
+        let style = if is_child {
             theme::tool_name_dim()
         } else {
             theme::tool_name()
@@ -365,7 +409,7 @@ impl<W: Write> Renderer<W> {
 
         let content = serde_json::to_string_pretty(input).unwrap_or_default();
         self.messages.push(StoredMessage {
-            label: format!("[{n}] {display_name}"),
+            label: format!("[{number_label}] {display_name}"),
             content,
             result: None,
         });
@@ -406,14 +450,10 @@ impl<W: Write> Renderer<W> {
         .ok();
     }
 
-    /// Compute the indent string that aligns content under a `[N] ▶` prefix.
-    /// For subagent calls, includes the extra 2-space indent.
+    /// Compute the indent string that aligns content under the last-rendered
+    /// tool call's `[N] ▶` or `  [P/N] ▶` prefix.
     fn tool_indent(&self) -> String {
-        // Width of "[N] " is: 1 + digit_count + 2
-        let digits = digit_count(self.tool_counter);
-        let base = digits + 3; // "[" + digits + "] "
-        let extra = if self.last_tool_is_subagent { 2 } else { 0 };
-        " ".repeat(base + extra)
+        " ".repeat(self.last_tool_indent)
     }
 
     /// Close an open tool call line if one is pending.
@@ -458,6 +498,7 @@ impl<W: Write> Renderer<W> {
             }
             Some(BlockKind::ToolUse) => {
                 if let Some((name, raw_input)) = self.current_tool.take() {
+                    let tool_use_id = self.current_tool_use_id.take();
                     // Parse accumulated JSON
                     let input = match raw_input {
                         Value::String(s) => {
@@ -465,7 +506,18 @@ impl<W: Write> Renderer<W> {
                         }
                         other => other,
                     };
-                    self.render_tool_call_line(&name, &input, false);
+                    self.render_tool_call_line(&name, &input, None);
+                    // Register Task tool calls as active subagents
+                    if name == "Task"
+                        && let Some(id) = tool_use_id
+                    {
+                        self.active_subagents.insert(
+                            id,
+                            ActiveSubagent {
+                                tool_number: self.tool_counter,
+                            },
+                        );
+                    }
                 }
             }
             Some(BlockKind::Thinking) => {
@@ -600,19 +652,6 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
 
 fn get_str<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
-}
-
-fn digit_count(n: usize) -> usize {
-    if n == 0 {
-        return 1;
-    }
-    let mut count = 0;
-    let mut v = n;
-    while v > 0 {
-        count += 1;
-        v /= 10;
-    }
-    count
 }
 
 /// Extract the first line of a string (no truncation).

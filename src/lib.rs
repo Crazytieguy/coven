@@ -37,10 +37,10 @@ pub fn handle_inbound<W: Write>(
             renderer.handle_stream_event(se);
         }
         InboundEvent::Assistant(msg) => {
-            if msg.parent_tool_use_id.is_some() {
+            if let Some(ref parent_id) = msg.parent_tool_use_id {
                 for block in &msg.message.content {
                     if let AssistantContentBlock::ToolUse { name, input, .. } = block {
-                        renderer.render_subagent_tool_call(name, input);
+                        renderer.render_subagent_tool_call(name, input, parent_id);
                     }
                 }
             }
