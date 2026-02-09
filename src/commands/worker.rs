@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use crossterm::event::{Event, EventStream};
+use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
 use crossterm::terminal;
 use futures::StreamExt;
 use tokio::sync::mpsc;
@@ -336,7 +336,7 @@ async fn run_agent(
     // Clean untracked files before landing. Agents should commit
     // their work; leftover files (test artifacts, temp files) must
     // not block landing and cause committed work to be discarded.
-    let _ = worktree::clean(worktree_path);
+    warn_clean(worktree_path, renderer);
 
     let commit_result = ensure_commits(
         worktree_path,
@@ -424,7 +424,7 @@ async fn ensure_commits(
         } => {
             *total_cost += cost;
             renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-            let _ = worktree::clean(worktree_path);
+            warn_clean(worktree_path, renderer);
 
             if worktree::has_unique_commits(worktree_path)? {
                 Ok(CommitCheck::HasCommits { session_id })
@@ -453,12 +453,15 @@ async fn land_or_resolve(
     term_events: &mut EventStream,
     total_cost: &mut f64,
 ) -> Result<bool> {
+    const MAX_ATTEMPTS: u32 = 5;
+
     renderer.write_raw("\r\n=== Landing ===\r\n");
 
     // Track the session to resume for conflict resolution. Starts as the
     // agent's session, then updated to the resolution session's ID so
     // subsequent rounds of conflicts can be resolved in-context.
     let mut resume_session_id = session_id.map(String::from);
+    let mut attempts: u32 = 0;
 
     loop {
         let conflict_files = match worktree::land(worktree_path) {
@@ -474,22 +477,38 @@ async fn land_or_resolve(
                 renderer.write_raw(&format!("Land failed: {e}\r\n"));
                 renderer.write_raw("Resetting to main.\r\n");
                 worktree::reset_to_main(worktree_path)?;
-                let _ = worktree::clean(worktree_path);
+                warn_clean(worktree_path, renderer);
                 return Ok(false);
             }
         };
 
-        // Rebase is in progress with conflict markers. Resume the session
-        // to resolve, or abort if we don't have a session to resume.
+        attempts += 1;
+
+        // After too many failed attempts, pause and let the user decide when to retry
+        // (e.g. after other workers quiesce). Abort rebase but keep branch commits.
+        if attempts > MAX_ATTEMPTS {
+            worktree::abort_rebase(worktree_path)?;
+            renderer.write_raw(&format!(
+                "Conflict resolution failed after {MAX_ATTEMPTS} attempts \
+                 — pausing worker. Press Enter to retry.\r\n",
+            ));
+            if wait_for_enter_or_exit(term_events).await {
+                return Ok(true);
+            }
+            attempts = 0;
+            continue;
+        }
+
         let files_display = conflict_files.join(", ");
 
+        // A conflict with no session ID should be impossible — the session ID
+        // is captured from the Init event at the start of the agent session.
         let Some(sid) = resume_session_id.as_deref() else {
-            renderer.write_raw(&format!("Rebase conflict in: {files_display}\r\n"));
-            renderer.write_raw("No session to resume — aborting rebase.\r\n");
             worktree::abort_rebase(worktree_path)?;
-            worktree::reset_to_main(worktree_path)?;
-            let _ = worktree::clean(worktree_path);
-            return Ok(false);
+            bail!(
+                "Rebase conflict in {files_display} but no session ID available \
+                 — this should be impossible"
+            );
         };
 
         renderer.write_raw(&format!(
@@ -504,44 +523,155 @@ async fn land_or_resolve(
              continuing, resolve those too until the rebase completes."
         );
 
-        match run_phase_session(
+        match resolve_conflict(
             &prompt,
             worktree_path,
+            sid,
             extra_args,
-            Some(sid),
             renderer,
             input,
             term_events,
         )
         .await?
         {
-            PhaseOutcome::Completed {
-                cost, session_id, ..
-            } => {
+            ResolveOutcome::Resolved { session_id, cost } => {
                 *total_cost += cost;
-                let _ = worktree::clean(worktree_path);
-
-                if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
-                    renderer.write_raw("Rebase still in progress — resolution incomplete.\r\n");
-                    renderer.write_raw("Aborting rebase, resetting to main.\r\n");
-                    worktree::abort_rebase(worktree_path)?;
-                    worktree::reset_to_main(worktree_path)?;
-                    let _ = worktree::clean(worktree_path);
-                    return Ok(false);
-                }
-
-                // Resolution complete. Retry the full land — main may have
-                // moved while the agent was resolving conflicts.
                 renderer.write_raw("Conflict resolution complete, retrying land...\r\n");
                 resume_session_id = session_id;
             }
-            PhaseOutcome::Exited => {
-                let _ = worktree::abort_rebase(worktree_path);
-                worktree::reset_to_main(worktree_path)?;
-                let _ = worktree::clean(worktree_path);
-                return Ok(true);
+            ResolveOutcome::Incomplete { session_id, cost } => {
+                *total_cost += cost;
+                renderer.write_raw("Retrying land...\r\n");
+                resume_session_id = session_id;
             }
+            ResolveOutcome::Exited => return Ok(true),
         }
+    }
+}
+
+enum ResolveOutcome {
+    /// Conflict resolved (possibly after nudge), retry land with this session ID.
+    Resolved {
+        session_id: Option<String>,
+        cost: f64,
+    },
+    /// Rebase still incomplete after nudge — rebase aborted, retry loop continues.
+    Incomplete {
+        session_id: Option<String>,
+        cost: f64,
+    },
+    /// User exited — cleanup already done.
+    Exited,
+}
+
+/// Run a conflict resolution session, nudging once if the rebase remains incomplete.
+async fn resolve_conflict(
+    prompt: &str,
+    worktree_path: &Path,
+    sid: &str,
+    extra_args: &[String],
+    renderer: &mut Renderer,
+    input: &mut InputHandler,
+    term_events: &mut EventStream,
+) -> Result<ResolveOutcome> {
+    let PhaseOutcome::Completed {
+        cost, session_id, ..
+    } = run_phase_session(
+        prompt,
+        worktree_path,
+        extra_args,
+        Some(sid),
+        renderer,
+        input,
+        term_events,
+    )
+    .await?
+    else {
+        abort_and_reset(worktree_path, renderer)?;
+        return Ok(ResolveOutcome::Exited);
+    };
+
+    warn_clean(worktree_path, renderer);
+
+    if !worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+        if session_id.as_deref() != Some(sid) {
+            renderer.write_raw(
+                "Warning: resolution session returned a different session ID than expected.\r\n",
+            );
+        }
+        return Ok(ResolveOutcome::Resolved { session_id, cost });
+    }
+
+    // Nudge Claude to complete the rebase
+    renderer.write_raw("Rebase still in progress — nudging session to complete it.\r\n\r\n");
+    let nudge_sid = session_id.as_deref().unwrap_or(sid);
+
+    let PhaseOutcome::Completed {
+        cost: nudge_cost,
+        session_id: nudge_session_id,
+        ..
+    } = run_phase_session(
+        "The rebase is still in progress — please run `git rebase --continue` to complete it.",
+        worktree_path,
+        extra_args,
+        Some(nudge_sid),
+        renderer,
+        input,
+        term_events,
+    )
+    .await?
+    else {
+        abort_and_reset(worktree_path, renderer)?;
+        return Ok(ResolveOutcome::Exited);
+    };
+
+    let total_cost = cost + nudge_cost;
+    warn_clean(worktree_path, renderer);
+
+    if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+        renderer.write_raw("Rebase still in progress after nudge — aborting this attempt.\r\n");
+        worktree::abort_rebase(worktree_path)?;
+        return Ok(ResolveOutcome::Incomplete {
+            session_id: nudge_session_id,
+            cost: total_cost,
+        });
+    }
+
+    Ok(ResolveOutcome::Resolved {
+        session_id: nudge_session_id,
+        cost: total_cost,
+    })
+}
+
+/// Wait for Enter (returns false) or Ctrl-C/Ctrl-D/stream end (returns true = should exit).
+async fn wait_for_enter_or_exit(term_events: &mut EventStream) -> bool {
+    loop {
+        match term_events.next().await {
+            Some(Ok(Event::Key(key_event))) => match key_event.code {
+                KeyCode::Enter => return false,
+                KeyCode::Char('c' | 'd') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    return true;
+                }
+                _ => {}
+            },
+            None => return true,
+            _ => {}
+        }
+    }
+}
+
+/// Abort any in-progress rebase, reset to main, and clean the worktree.
+fn abort_and_reset(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> {
+    let _ = worktree::abort_rebase(worktree_path);
+    worktree::reset_to_main(worktree_path)?;
+    warn_clean(worktree_path, renderer);
+    Ok(())
+}
+
+/// Run `git clean -fd` and warn (but don't fail) if it errors.
+fn warn_clean(worktree_path: &Path, renderer: &mut Renderer) {
+    if let Err(e) = worktree::clean(worktree_path) {
+        renderer.write_raw(&format!("Warning: worktree clean failed: {e}\r\n"));
     }
 }
 

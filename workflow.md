@@ -9,6 +9,7 @@ This session is unattended (no human at the keyboard). One small action at a tim
      - `Status: approved` — implement the plan. If necessary, re-record relevant VCR tests and regenerate snapshots, and verify that the snapshot reflects the intended change. When done, remove the issue from issues.md and delete the plan file.
      - `Status: rejected` — revise the plan based on the Review section comments. After revising, clear the Review section and any inline notes so the human knows it needs re-review. Counts as one action.
      - `Status: draft` — not yet reviewed, skip.
+3. **Audit the codebase**: look for a problem in the tests or code and write an issue and a plan with a proposed fix
 
 ## Writing plans
 
