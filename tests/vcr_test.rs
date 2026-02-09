@@ -79,6 +79,7 @@ fn replay_stdout(vcr_lines: &[&str], display: &DisplayConfig) -> String {
     let mut renderer = Renderer::with_writer(&mut output);
     renderer.set_show_thinking(display.show_thinking);
     let mut state = SessionState::default();
+    let mut seen_first_stdin = false;
 
     for line in &vcr_lines[1..] {
         let line = line.trim();
@@ -89,11 +90,17 @@ fn replay_stdout(vcr_lines: &[&str], display: &DisplayConfig) -> String {
         // `---` separates ralph iterations
         if line == "---" {
             state = SessionState::default();
+            seen_first_stdin = false;
             continue;
         }
 
-        // `>` lines are stdin — skip during replay
+        // `>` lines are stdin
         if line.starts_with("> ") {
+            if seen_first_stdin {
+                // Follow-up message — suppress the next turn separator
+                state.suppress_next_separator = true;
+            }
+            seen_first_stdin = true;
             continue;
         }
 
@@ -101,7 +108,7 @@ fn replay_stdout(vcr_lines: &[&str], display: &DisplayConfig) -> String {
         if let Some(json) = line.strip_prefix("< ") {
             match parse_line(json) {
                 Ok(Some(event)) => {
-                    handle_inbound(&event, &mut state, &mut renderer);
+                    handle_inbound(&event, &mut state, &mut renderer, false);
                 }
                 Ok(None) => {}
                 Err(e) => {

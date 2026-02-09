@@ -15,8 +15,6 @@ It's commonly used for systems software, WebAssembly, CLI tools, game engines, e
 
 
 Done  $0.04 · 5.1s · 1 turn
----
-
 Rust's ownership system is its core mechanism for memory safety without a garbage collector. Three rules:
 
 1. **Each value has exactly one owner** (a variable)

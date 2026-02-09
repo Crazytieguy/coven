@@ -15,10 +15,14 @@ pub mod worker_state;
 pub mod worktree;
 
 /// Handle an inbound Claude event, updating session state and rendering output.
+///
+/// When `has_pending_followups` is true, Result events update state but skip
+/// rendering the Done line — the follow-up will continue the conversation.
 pub fn handle_inbound<W: Write>(
     event: &InboundEvent,
     state: &mut SessionState,
     renderer: &mut Renderer<W>,
+    has_pending_followups: bool,
 ) {
     match event {
         InboundEvent::System(SystemEvent::Init(init)) => {
@@ -27,8 +31,13 @@ pub fn handle_inbound<W: Write>(
             state.model = Some(init.model.clone());
             state.status = SessionStatus::Running;
             if same_session {
-                renderer.render_turn_separator();
+                if state.suppress_next_separator {
+                    state.suppress_next_separator = false;
+                } else {
+                    renderer.render_turn_separator();
+                }
             } else {
+                state.suppress_next_separator = false;
                 renderer.render_session_header(&init.session_id, &init.model);
             }
         }
@@ -59,12 +68,14 @@ pub fn handle_inbound<W: Write>(
             state.num_turns = result.num_turns;
             state.duration_ms = result.duration_ms;
             state.status = SessionStatus::WaitingForInput;
-            renderer.render_result(
-                &result.subtype,
-                result.total_cost_usd,
-                result.duration_ms,
-                result.num_turns,
-            );
+            if !has_pending_followups {
+                renderer.render_result(
+                    &result.subtype,
+                    result.total_cost_usd,
+                    result.duration_ms,
+                    result.num_turns,
+                );
+            }
         }
     }
 }

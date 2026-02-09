@@ -123,6 +123,7 @@ async fn handle_session_key_event(
                 InputMode::FollowUp => {
                     if state.status == SessionStatus::WaitingForInput {
                         renderer.render_user_message(&text);
+                        state.suppress_next_separator = true;
                         runner.send_message(&text).await?;
                         state.status = SessionStatus::Running;
                     } else {
@@ -169,7 +170,8 @@ async fn process_claude_event(
 ) -> Result<Option<SessionOutcome>> {
     match event {
         AppEvent::Claude(inbound) => {
-            handle_inbound(&inbound, state, renderer);
+            let has_pending = !locals.pending_followups.is_empty();
+            handle_inbound(&inbound, state, renderer, has_pending);
 
             // Capture result text
             if let InboundEvent::Result(ref result) = *inbound {
@@ -185,6 +187,7 @@ async fn process_claude_event(
                 }
                 let text = locals.pending_followups.remove(0);
                 renderer.render_followup_sent(&text);
+                state.suppress_next_separator = true;
                 runner.send_message(&text).await?;
                 state.status = SessionStatus::Running;
             }
@@ -214,7 +217,7 @@ fn flush_event_buffer(
                 if let InboundEvent::Result(ref result) = *inbound {
                     locals.result_text.clone_from(&result.result);
                 }
-                handle_inbound(&inbound, state, renderer);
+                handle_inbound(&inbound, state, renderer, false);
             }
             AppEvent::ParseWarning(warning) => {
                 renderer.render_warning(&warning);
@@ -245,6 +248,7 @@ pub async fn wait_for_followup(
 ) -> Result<FollowUpAction> {
     match wait_for_text_input(input, renderer, term_events).await? {
         Some(text) => {
+            state.suppress_next_separator = true;
             runner.send_message(&text).await?;
             state.status = SessionStatus::Running;
             Ok(FollowUpAction::Sent)

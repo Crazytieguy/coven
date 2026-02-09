@@ -7,6 +7,11 @@ pub struct SessionState {
     pub total_cost_usd: f64,
     pub num_turns: u32,
     pub duration_ms: u64,
+    /// When true, the next Init event for the same session will skip
+    /// rendering the turn separator (`---`). Set when sending a follow-up
+    /// so the separator doesn't appear between the follow-up message
+    /// and Claude's response.
+    pub suppress_next_separator: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
