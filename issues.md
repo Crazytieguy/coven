@@ -3,7 +3,7 @@
 - [P0] VCR + snapshot testing for concurrent worker sessions. Needs design — recording multiple interleaved sessions, snapshot format for parallel output, and how to make tests deterministic. (plan: plans/concurrent-worker-testing.md)
 - [P1] "Landed" message prints even when agent committed nothing. Agent should always commit something unless it's a dispatch agent. If a non-dispatch agent produces no commits, consider resuming the session to ask it to commit. (plan: plans/landed-message-no-commits.md)
 - [P1] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc.
-- [P1] `coven init` should ask the user if they'd like to update CLAUDE.md to reference the workflow.
+- [P1] `coven init` should ask the user if they'd like to update CLAUDE.md to reference the workflow. (plan: plans/init-claude-md-prompt.md)
 - [P1] Audit conflict resolution logic (worker.rs land_or_resolve). Complex nested loop with session resume, rebase retry, and multiple fallback paths — worth a careful review.
 - [P2] Test system gap: follow-up and steering messages aren't visible in snapshots because the test harness sends messages but doesn't simulate how they'd appear in the terminal. Investigate whether the test runner should inject display lines for sent messages. (plan: plans/test-message-display.md)
 - [P2] Concurrent subagent rendering: support displaying multiple concurrent claude Task subagents running in parallel. Exact rendering approach needs to be discussed (plan: plans/concurrent-subagent-rendering.md)
