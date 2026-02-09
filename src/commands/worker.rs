@@ -55,7 +55,7 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
     let mut term_events = EventStream::new();
     let mut total_cost = 0.0;
 
-    worker_state::register(&spawn_result.worktree_path)?;
+    worker_state::register(&spawn_result.worktree_path, &spawn_result.branch)?;
 
     renderer.write_raw(&format!(
         "\r\nWorker started: {} ({})\r\n",
@@ -66,6 +66,7 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
     let result = worker_loop(
         &config,
         &spawn_result.worktree_path,
+        &spawn_result.branch,
         &mut renderer,
         &mut input,
         &mut term_events,
@@ -151,6 +152,7 @@ async fn run_dispatch(
 async fn worker_loop(
     config: &WorkerConfig,
     worktree_path: &Path,
+    branch: &str,
     renderer: &mut Renderer,
     input: &mut InputHandler,
     term_events: &mut EventStream,
@@ -181,10 +183,10 @@ async fn worker_loop(
         // Update worker state before releasing lock so the next dispatch sees it
         match &dispatch.decision {
             DispatchDecision::Sleep => {
-                worker_state::update(worktree_path, None, &HashMap::new())?;
+                worker_state::update(worktree_path, branch, None, &HashMap::new())?;
             }
             DispatchDecision::RunAgent { agent, args } => {
-                worker_state::update(worktree_path, Some(agent), args)?;
+                worker_state::update(worktree_path, branch, Some(agent), args)?;
             }
         }
         drop(lock);
@@ -259,7 +261,7 @@ async fn worker_loop(
                 }
 
                 // Clear state so other dispatchers don't see stale agent info
-                worker_state::update(worktree_path, None, &HashMap::new())?;
+                worker_state::update(worktree_path, branch, None, &HashMap::new())?;
             }
         }
     }

@@ -20,14 +20,17 @@ pub fn status() -> Result<()> {
                     state.args.iter().map(|(k, v)| format!("{k}={v}")).collect();
                 args_parts.sort();
                 if args_parts.is_empty() {
-                    println!("  Worker {} — {agent}", state.pid);
+                    println!("  {} (PID {}) — {agent}", state.branch, state.pid);
                 } else {
                     let args_str = args_parts.join(", ");
-                    println!("  Worker {} — {agent} ({args_str})", state.pid);
+                    println!(
+                        "  {} (PID {}) — {agent} ({args_str})",
+                        state.branch, state.pid
+                    );
                 }
             }
             None => {
-                println!("  Worker {} — idle", state.pid);
+                println!("  {} (PID {}) — idle", state.branch, state.pid);
             }
         }
     }

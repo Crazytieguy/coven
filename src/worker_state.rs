@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkerState {
     pub pid: u32,
+    pub branch: String,
     pub agent: Option<String>,
     pub args: HashMap<String, String>,
 }
@@ -66,12 +67,13 @@ fn state_file_path(repo_path: &Path) -> Result<PathBuf> {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /// Register this worker by creating its state file.
-pub fn register(repo_path: &Path) -> Result<()> {
+pub fn register(repo_path: &Path, branch: &str) -> Result<()> {
     let dir = workers_dir(repo_path)?;
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
     let state = WorkerState {
         pid: std::process::id(),
+        branch: branch.to_string(),
         agent: None,
         args: HashMap::new(),
     };
@@ -82,11 +84,13 @@ pub fn register(repo_path: &Path) -> Result<()> {
 /// Update this worker's current agent and arguments.
 pub fn update<S: std::hash::BuildHasher>(
     repo_path: &Path,
+    branch: &str,
     agent: Option<&str>,
     args: &HashMap<String, String, S>,
 ) -> Result<()> {
     let state = WorkerState {
         pid: std::process::id(),
+        branch: branch.to_string(),
         agent: agent.map(String::from),
         args: args.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
     };
@@ -153,14 +157,22 @@ pub fn format_status(states: &[WorkerState]) -> String {
                     state.args.iter().map(|(k, v)| format!("{k}={v}")).collect();
                 args_parts.sort();
                 if args_parts.is_empty() {
-                    let _ = writeln!(out, "- Worker {}: running {agent}", state.pid);
+                    let _ = writeln!(
+                        out,
+                        "- {} (PID {}): running {agent}",
+                        state.branch, state.pid
+                    );
                 } else {
                     let args_str = args_parts.join(", ");
-                    let _ = writeln!(out, "- Worker {}: running {agent} ({args_str})", state.pid);
+                    let _ = writeln!(
+                        out,
+                        "- {} (PID {}): running {agent} ({args_str})",
+                        state.branch, state.pid
+                    );
                 }
             }
             None => {
-                let _ = writeln!(out, "- Worker {}: idle", state.pid);
+                let _ = writeln!(out, "- {} (PID {}): idle", state.branch, state.pid);
             }
         }
     }
@@ -236,7 +248,7 @@ mod tests {
         let repo = TempDir::new().unwrap();
         init_repo(repo.path());
 
-        register(repo.path()).unwrap();
+        register(repo.path(), "swift-fox-42").unwrap();
 
         let path = state_file_path(repo.path()).unwrap();
         assert!(path.exists());
@@ -244,6 +256,7 @@ mod tests {
         let content = fs::read_to_string(&path).unwrap();
         let state: WorkerState = serde_json::from_str(&content).unwrap();
         assert_eq!(state.pid, std::process::id());
+        assert_eq!(state.branch, "swift-fox-42");
         assert!(state.agent.is_none());
     }
 
@@ -252,14 +265,15 @@ mod tests {
         let repo = TempDir::new().unwrap();
         init_repo(repo.path());
 
-        register(repo.path()).unwrap();
+        register(repo.path(), "swift-fox-42").unwrap();
 
         let args = HashMap::from([("issue".to_string(), "issues/foo.md".to_string())]);
-        update(repo.path(), Some("plan"), &args).unwrap();
+        update(repo.path(), "swift-fox-42", Some("plan"), &args).unwrap();
 
         let path = state_file_path(repo.path()).unwrap();
         let content = fs::read_to_string(&path).unwrap();
         let state: WorkerState = serde_json::from_str(&content).unwrap();
+        assert_eq!(state.branch, "swift-fox-42");
         assert_eq!(state.agent.as_deref(), Some("plan"));
         assert_eq!(
             state.args.get("issue").map(String::as_str),
@@ -272,7 +286,7 @@ mod tests {
         let repo = TempDir::new().unwrap();
         init_repo(repo.path());
 
-        register(repo.path()).unwrap();
+        register(repo.path(), "test-branch").unwrap();
         let path = state_file_path(repo.path()).unwrap();
         assert!(path.exists());
 
@@ -285,10 +299,11 @@ mod tests {
         let repo = TempDir::new().unwrap();
         init_repo(repo.path());
 
-        register(repo.path()).unwrap();
+        register(repo.path(), "test-branch").unwrap();
         let states = read_all(repo.path()).unwrap();
         assert_eq!(states.len(), 1);
         assert_eq!(states[0].pid, std::process::id());
+        assert_eq!(states[0].branch, "test-branch");
     }
 
     #[test]
@@ -301,6 +316,7 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let stale = WorkerState {
             pid: 4_000_000_000, // Extremely unlikely to be alive
+            branch: "stale-branch".into(),
             agent: Some("plan".into()),
             args: HashMap::new(),
         };
@@ -320,6 +336,7 @@ mod tests {
     fn format_status_no_others() {
         let status = format_status(&[WorkerState {
             pid: std::process::id(),
+            branch: "my-branch".into(),
             agent: Some("plan".into()),
             args: HashMap::new(),
         }]);
@@ -331,24 +348,29 @@ mod tests {
         let states = vec![
             WorkerState {
                 pid: std::process::id(),
+                branch: "my-branch".into(),
                 agent: None,
                 args: HashMap::new(),
             },
             WorkerState {
                 pid: 12345,
+                branch: "swift-fox-42".into(),
                 agent: Some("implement".into()),
                 args: HashMap::from([("issue".into(), "issues/foo.md".into())]),
             },
             WorkerState {
                 pid: 12346,
+                branch: "bold-oak-7".into(),
                 agent: None,
                 args: HashMap::new(),
             },
         ];
         let status = format_status(&states);
-        assert!(status.contains("Worker 12345: running implement (issue=issues/foo.md)"));
-        assert!(status.contains("Worker 12346: idle"));
-        assert!(!status.contains(&format!("Worker {}", std::process::id())));
+        assert!(
+            status.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
+        );
+        assert!(status.contains("bold-oak-7 (PID 12346): idle"));
+        assert!(!status.contains("my-branch"));
     }
 
     #[test]
