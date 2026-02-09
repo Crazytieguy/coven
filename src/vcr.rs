@@ -94,14 +94,13 @@ impl TestCase {
                 prompt: Some(ralph.prompt.clone()),
                 extra_args: ralph.claude_args.clone(),
                 append_system_prompt: Some(SessionRunner::ralph_system_prompt(&ralph.break_tag)),
-                resume: None,
+                ..Default::default()
             })
         } else if let Some(ref run) = self.run {
             Ok(SessionConfig {
                 prompt: Some(run.prompt.clone()),
                 extra_args: run.claude_args.clone(),
-                append_system_prompt: None,
-                resume: None,
+                ..Default::default()
             })
         } else {
             bail!("Test case must have either [run] or [ralph] section");

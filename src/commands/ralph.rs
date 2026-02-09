@@ -62,7 +62,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
             prompt: Some(config.prompt.clone()),
             extra_args: config.extra_args.clone(),
             append_system_prompt: Some(system_prompt.clone()),
-            resume: None,
+            ..Default::default()
         };
 
         let mut runner = SessionRunner::spawn(session_config, event_tx).await?;
@@ -124,6 +124,7 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
                                 extra_args: config.extra_args.clone(),
                                 append_system_prompt: Some(system_prompt.clone()),
                                 resume: Some(session_id),
+                                ..Default::default()
                             };
                             runner = SessionRunner::spawn(resume_config, new_tx).await?;
                             state = SessionState::default();

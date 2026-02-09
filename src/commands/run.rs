@@ -19,13 +19,11 @@ pub async fn run(
     show_thinking: bool,
 ) -> Result<()> {
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
-
     let mut renderer = Renderer::new();
     renderer.set_show_thinking(show_thinking);
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
     let mut term_events = EventStream::new();
-
     terminal::enable_raw_mode()?;
     renderer.render_help();
 
@@ -34,8 +32,7 @@ pub async fn run(
         let config = SessionConfig {
             prompt: Some(prompt),
             extra_args: extra_args.clone(),
-            append_system_prompt: None,
-            resume: None,
+            ..Default::default()
         };
         SessionRunner::spawn(config, event_tx).await?
     } else {
@@ -88,7 +85,6 @@ pub async fn run(
             SessionOutcome::Interrupted => {
                 runner.close_input();
                 let _ = runner.wait().await;
-
                 // If we have a session_id, offer to resume; otherwise just exit
                 if let Some(session_id) = state.session_id.take() {
                     renderer.render_interrupted();
@@ -106,8 +102,8 @@ pub async fn run(
                             let config = SessionConfig {
                                 prompt: Some(text),
                                 extra_args: extra_args.clone(),
-                                append_system_prompt: None,
                                 resume: Some(session_id),
+                                ..Default::default()
                             };
                             runner = SessionRunner::spawn(config, new_tx).await?;
                             state = SessionState::default();
@@ -125,7 +121,6 @@ pub async fn run(
     terminal::disable_raw_mode()?;
     runner.close_input();
     let _ = runner.wait().await;
-
     Ok(())
 }
 
@@ -147,8 +142,7 @@ async fn wait_for_initial_prompt(
                         let config = SessionConfig {
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
-                            append_system_prompt: None,
-                            resume: None,
+                            ..Default::default()
                         };
                         let runner = SessionRunner::spawn(config, event_tx.clone()).await?;
                         state.status = SessionStatus::Running;

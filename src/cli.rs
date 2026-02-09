@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -42,6 +44,25 @@ pub enum Command {
         /// Disable break tag detection (requires --iterations to prevent infinite loop).
         #[arg(long)]
         no_break: bool,
+
+        /// Stream thinking text inline in dim italic instead of collapsing.
+        #[arg(long)]
+        show_thinking: bool,
+
+        /// Extra arguments to pass through to claude (after --).
+        #[arg(last = true)]
+        claude_args: Vec<String>,
+    },
+
+    /// Start an orchestration worker (dispatch → agent → land loop).
+    Worker {
+        /// Branch name for the worktree (random if not specified).
+        #[arg(long)]
+        branch: Option<String>,
+
+        /// Base directory for worktrees. Default: ~/worktrees.
+        #[arg(long)]
+        worktree_base: Option<PathBuf>,
 
         /// Stream thinking text inline in dim italic instead of collapsing.
         #[arg(long)]

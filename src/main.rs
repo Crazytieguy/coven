@@ -1,6 +1,8 @@
 mod cli;
 mod commands;
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::Parser;
 
@@ -39,10 +41,35 @@ async fn main() -> Result<()> {
             })
             .await?;
         }
+        Some(Command::Worker {
+            branch,
+            worktree_base,
+            show_thinking,
+            claude_args,
+        }) => {
+            let base = match worktree_base {
+                Some(b) => b,
+                None => default_worktree_base()?,
+            };
+            commands::worker::worker(commands::worker::WorkerConfig {
+                show_thinking,
+                branch,
+                worktree_base: base,
+                extra_args: claude_args,
+            })
+            .await?;
+        }
         None => {
             commands::run::run(cli.prompt, cli.claude_args, cli.show_thinking).await?;
         }
     }
 
     Ok(())
+}
+
+fn default_worktree_base() -> Result<PathBuf> {
+    let home = std::env::var("HOME").map_err(|_| {
+        anyhow::anyhow!("HOME not set; use --worktree-base to specify worktree location")
+    })?;
+    Ok(PathBuf::from(home).join("worktrees"))
 }

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::Stdio;
 
 use anyhow::{Context, Result};
@@ -10,6 +11,7 @@ use crate::protocol::emit::format_user_message;
 use crate::protocol::parse::parse_line;
 
 /// Configuration for spawning a claude session.
+#[derive(Default)]
 pub struct SessionConfig {
     /// Initial prompt to send (if any).
     pub prompt: Option<String>,
@@ -19,6 +21,8 @@ pub struct SessionConfig {
     pub append_system_prompt: Option<String>,
     /// Resume an existing session by ID (uses `--resume`).
     pub resume: Option<String>,
+    /// Working directory for the claude process. If None, inherits from parent.
+    pub working_dir: Option<PathBuf>,
 }
 
 /// Manages a claude -p subprocess with bidirectional stream-json.
@@ -39,6 +43,10 @@ impl SessionRunner {
         let args = Self::build_args(&config);
         let mut cmd = tokio::process::Command::new("claude");
         cmd.args(&args);
+
+        if let Some(ref dir) = config.working_dir {
+            cmd.current_dir(dir);
+        }
 
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
