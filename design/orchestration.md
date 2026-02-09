@@ -6,114 +6,127 @@ Items are confirmed unless noted otherwise. Attribution is given for proposals t
 
 ## Core Mental Model
 
-Concurrency-inspired architecture with git worktrees for isolation. Single writer per file, explicit ownership transfers.
+Coven is a generic agent loop. It manages worktrees, runs Claude sessions, and lands commits. The workflow logic lives in customizable prompt files, not in coven's code.
 
 ### Principles
 
-- **Worktree-per-agent.** Each worker gets its own git worktree. Management + human share the main worktree. Worktree spawned on agent start, removed on agent exit. Solves codebase consistency — every agent sees a stable snapshot.
-- **Multiple execution agents.** No hard limit on concurrent execution. Management assigns work to minimize conflict risk, and can keep a worker idle if there's a blocking refactor.
-- **Generic workers.** The human starts "workers", not role-specific agents. Coven (with management) dynamically assigns each worker a role/task per iteration — could be planning one iteration, execution the next, discovery after that. Minimum viable setup: one management terminal + one worker terminal.
-- **Progressive adoption.** To get started, the human only needs to spin up management. Everything else is progressively introduced. Management recommends adding workers as needed.
-- **Management recommends, human decides.** Management suggests adding/removing workers, flags issues that need attention, etc. Human is never under time pressure.
-- **No file writable by more than one entity at the same time.** Ownership transfers are explicit. This is the core coordination rule.
+- **Worktree-per-worker.** Each worker gets its own git worktree. The human works on the main worktree. Worktree spawned on worker start, removed on worker exit.
+- **Multiple workers.** No hard limit on concurrent workers.
+- **Generic workers.** The human starts "workers", not role-specific agents. Coven dynamically assigns each worker an agent via the dispatch agent.
+- **Workflow is data, not code.** Agent types are defined by prompt files. The standard template includes dispatch, plan, implement, and audit. Users can modify prompts, add new agent types, or change the workflow entirely. Coven doesn't encode workflow logic beyond running the agent loop.
 - **Each Claude session should be as short as possible** — one atomic task. Stateless-by-default.
-- **Per-agent-type instruction files.** Each agent type gets its own instructions file (e.g., management.md, planning.md, execution.md, discovery.md). Human can see and modify them, or tell agents to update them. Auto-loaded into context via the prompt.
+- **Per-agent-type instruction files.** Each agent type gets its own prompt file. Human can see and modify them. Auto-loaded into context by coven.
 - **Avoid over-engineering.** See how far CLI + editable files can go before building a desktop UI.
 
 ### Superseded Decisions
 
-- ~~Single execution thread~~ → replaced by multiple execution agents with management-controlled concurrency.
-- ~~Four independent roles as subcommands~~ → replaced by generic worker model. Only two subcommands: management and worker.
+- ~~Single execution thread~~ → replaced by multiple workers.
+- ~~Four independent roles as subcommands~~ → replaced by generic worker model.
+- ~~Management agent + schedule.toml~~ → replaced by dispatch agent. No centralized scheduler — each worker dispatches itself, serialized by coven.
+- ~~Management + human share the main worktree~~ → only the human uses the main worktree.
 
-### Two Subcommands
+## Agent Types (Standard Template)
 
-No background processes. The human runs these manually in terminals:
+Four agent types ship with the default template. Each is defined by a prompt file in `.coven/agents/`. Each agent has a description field that tells the dispatch agent what it's for, and declares what arguments it requires.
 
-- **Management** — at most one per project. Organizes issues, prioritizes, queues tasks for workers, writes end-of-session status with recommended actions.
-- **Worker** — unlimited. Coven assigns it a role (planning, execution, discovery) and task each iteration based on management's queue.
+- **Dispatch** — Chooses what a worker should do next. Outputs an agent type + arguments (e.g. `plan issues/fix-scroll-bug.md`), or sleeps. Also outputs brief reasoning/status visible to the human. Only one dispatch agent runs at a time (serialized by coven).
+- **Plan** — Takes an issue file as argument. Writes a plan section in the issue, sets state to `review`, moves file to `review/`, commits. May create new issue files (splitting).
+- **Implement** — Takes an issue file as argument. Writes code, sets state to `done` or `needs-replan` (with notes), commits. May create new issue files for things it notices along the way.
+- **Audit** — Takes no arguments. Routine maintenance: code review, test gaps, quality issues. Creates new issue files for findings, commits.
 
-The UI should make it obvious what role and task each worker is currently working on.
+Coven injects the available agent types, their descriptions, their required arguments, and the dispatch output syntax into the dispatch prompt. This way the dispatch prompt doesn't need to be updated when agents are added or modified.
 
-Agent/subcommand naming TBD (bakery theme floated).
+The standard template also includes a `workflow.md` at the project root explaining the issue system. CLAUDE.md links to it so interactive Claude sessions understand the workflow too. The agent prompt files should be heavily inspired by the current `workflow.md`, which works well in practice.
+
+### Dispatch
+
+The dispatch agent's prompt includes:
+- A recommended command to run in order to view all issues and their states
+- What each other worker is currently doing (agent type + arguments), injected by coven
+- The available agent types, their descriptions, arguments, and dispatch syntax, injected by coven
+
+The dispatch agent understands the full workflow and makes intelligent decisions — priorities, codebase locality, throttling plans when the review queue is long, sleeping when outstanding work blocks everything. These concerns live in the prompt, not in coven's code.
 
 ### Interactive Design Sessions
 
-Not a coven concept — just a usage pattern. When a plan is in review and the human wants help iterating on it, they can start a regular interactive claude session and point it at the issue file. Coven doesn't need to know about this. Management may suggest this in its status message when an issue is particularly vague.
+Not a coven concept — just a usage pattern. When a plan is in review and the human wants help iterating on it, they can start a regular interactive claude session and point it at the issue file.
 
 ### Thread Visibility
 
-All agents are visible terminals the human can interact with. Both follow-up messages and steering messages work for all roles — follow-ups are more natural for management, steering is more natural for execution, but neither is restricted.
+All workers are visible terminals the human can interact with. Both follow-up messages and steering messages work for all agent types. The UI should make it obvious what agent and arguments each worker is currently working on.
 
 ### Target Audience
 
 Alignment researchers with academic backgrounds (MATS program). Interface must be friendly, simple, and steerable.
 
+## Worker Lifecycle
+
+1. Human starts a worker (`coven worker`)
+2. Coven creates a worktree, runs the **dispatch** agent (acquiring the dispatch lock first)
+3. Dispatch outputs an agent type + arguments (or sleep)
+4. Coven releases the dispatch lock
+5. If sleep → worker waits for a new commit on main, then back to step 2
+6. Coven starts the chosen agent session on the worktree
+7. Agent does work, commits
+8. Coven lands (rebase onto main + ff-merge main to worktree tip)
+9. If land fails (rebase conflict) → coven resumes the session for conflict resolution, retry land
+10. Back to step 2
+
 ## Issue Lifecycle
 
-### File States vs. Scheduling States
+### File States
 
-Some states live in the issue file's frontmatter. Others are scheduling concerns tracked by `schedule.toml` or coven's local state — they never appear in the issue file.
+States live in the issue file's YAML frontmatter and are reflected by filesystem location:
 
-**File states** (in YAML frontmatter, reflected by filesystem location):
-- `new` — issue exists in `.coven/issues/`, no plan yet
-- `review` — plan written, file moved to `.coven/review/` for human attention
-- `approved` / `changes-requested` — human has reviewed (file in `.coven/issues/`, moved back from `review/`)
-- `done` / `needs-replan` — execution finished
+- `new` — issue exists in `issues/`, no plan yet
+- `review` — plan written, file moved to `review/` for human attention
+- `approved` / `changes-requested` — human has reviewed (file in `issues/`, moved back from `review/`)
+- `needs-replan` — implementation failed, needs revised plan
 
-**Scheduling states** (not in frontmatter, implicit from `schedule.toml` and coven):
-- "planning-ready" — management has queued a planning task for this issue in `schedule.toml`
-- "being planned" — a worker is currently working on it
-- "queued for execution" — management has queued an execution task in `schedule.toml`
-- "being executed" — a worker is currently working on it
+Scheduling state (which worker is working on what) is tracked by coven, not in files.
 
-Open question: status names need reconsideration. "approved" makes sense for a plan but is awkward for an issue that skipped planning. (Noted for next session.)
+Open question: status names need reconsideration. "approved" is awkward as a general term for "ready to implement."
 
 ### State Transitions
 
 ```
 State              Who                What happens
 ─────              ───                ────────────
-new                management         triages, sets priority, queues planning task
-                                      for a specific worker in schedule.toml
-(being planned)    worker             writes plan section, sets state to review,
-                                      moves file to .coven/review/ (open question:
-                                      worker or coven does the move? leaning worker)
-review             human              reads plan, either approves or leaves comments,
-                                      sets status explicitly when done
-changes-requested  management         reads comments, decides: revise plan, split
-                                      issue, drop, etc. queues accordingly
-approved           management         decides execution order, queues execution task
-                                      for a specific worker in schedule.toml
-(being executed)   worker             writes code, sets state to done or needs-replan
-needs-replan       management         reads notes, queues re-planning
-done               —                  cleaned up (mechanism TBD)
+new                plan agent         writes plan section, sets state to review,
+                                      moves file to review/, commits.
+                                      may split into multiple issues.
+review             human              reads plan, approves or leaves comments,
+                                      sets status, moves file back to issues/,
+                                      commits
+changes-requested  plan agent         revises plan (may split the issue)
+approved           implement agent    writes code, deletes the issue file on success,
+                                      or sets state to needs-replan on failure
+needs-replan       plan agent         revises plan based on implementation notes
 ```
 
 ### Details
 
-- **Skip path**: human tells management (usually when creating the issue) that it doesn't need a plan. Management sets the issue state directly to `approved`. Only the human has this affordance, not management.
-- **Vague issues**: the planner should leave questions in the plan rather than guess. Can recommend the human iterate interactively. How detailed a plan vs. how many questions is a planning concern, not a management concern.
-- **Human review**: two actions only — approve or leave comments. No special statuses beyond that. Management reads comments and decides what to do (revise, split, drop, etc.). Keeps the human's mental model simple.
-- **Explicit status trigger**: human must explicitly set the status field when done reviewing. Management ignores the plan until then — no time pressure.
-- **Plans always route through management** after review or execution. Sometimes inefficient, but always safe.
-- **Human generally doesn't create issue files directly** — messages management instead.
-- **Management never writes plan content** — only triages, queues, and routes. Sometimes writes initial issue content, but not the plan section.
+- **Skip path**: human creates an issue and sets state directly to `approved`. Dispatch routes to implement.
+- **Vague issues**: the plan agent should leave questions in the plan rather than guess. Can recommend the human iterate interactively.
+- **Human review**: two actions only — approve or leave comments. No time pressure.
+- **Creating issues**: the human writes issue files and commits on the main worktree. Since the workflow is documented in CLAUDE.md, the human can also ask an interactive Claude session to create issues.
+- **Agents can create issues**: both plan (splitting) and implement (things noticed along the way) can create new issue files.
 
 ## File Structure
 
 ```
+workflow.md                  # explains the issue system (linked from CLAUDE.md)
+issues/                      # issues not currently in review
+  fix-scroll-bug.md
+  add-dark-mode.md
+review/                      # plans waiting for human review
+  refactor-renderer.md
 .coven/
-  schedule.toml              # worker queues (management is sole writer)
   agents/
-    management.md            # per-agent-type instructions
-    planning.md
-    execution.md
-    discovery.md
-  issues/                    # issues not currently in review
-    fix-scroll-bug.md
-    add-dark-mode.md
-  review/                    # plans waiting for human review
-    refactor-renderer.md
+    dispatch.md              # dispatch agent prompt
+    plan.md                  # plan agent prompt
+    implement.md             # implement agent prompt
+    audit.md                 # audit agent prompt
 ```
 
 ### Issue File Format
@@ -132,7 +145,7 @@ state: new
 Scroll position resets on resize.
 ```
 
-An issue in review (lives in `.coven/review/`):
+An issue in review (lives in `review/`):
 ```markdown
 ---
 priority: P1
@@ -156,116 +169,31 @@ Resize events fire rapidly...
 **Answer:**
 ```
 
-### schedule.toml
-
-Per-worker queues plus one backup queue (for when the human adds a new worker). Management can rebalance queues. Each queue item has an agent type and issue ID (if relevant). Management is the sole writer.
-
-Format likely needs changes — below is illustrative:
-
-```toml
-[[backup]]
-agent = "planning"
-issue = "add-dark-mode"
-
-[[workers.worker-1]]
-agent = "execution"
-issue = "fix-scroll-bug"
-
-[[workers.worker-1]]
-agent = "planning"
-issue = "refactor-renderer"
-
-[[workers.worker-2]]
-agent = "discovery"
-```
-
-### Superseded
-
-- ~~`board.toml` with issues, priorities, queue, agent status~~ → issues in their own files, schedule.toml is just worker queues.
-- ~~Separate plan files in `plans/`~~ → plan is a section in the issue file.
-- ~~`issues.md` as a flat list~~ → one file per issue in `.coven/issues/`.
-
 ## Worktree Model
 
-- **Worktree per worker.** Spawned on agent start (similar to `spawn-worktree` script), removed on agent exit. Persistent across sessions within the agent's lifetime.
+- **Worktree per worker.** Spawned on worker start, removed on worker exit. Persistent across sessions within the worker's lifetime.
 - **All local.** No pushing to remote by default.
-- **Management + human share the main worktree.**
-- **Main worktree only updated between management sessions.** During a management session, the main worktree sees a stable snapshot. Worker landings don't update the main worktree until the management session ends.
+- **Only the human uses the main worktree.**
 
 ### Landing Flow
 
-When a worker finishes a task, coven handles the git operations on the worker's worktree:
+When a worker finishes a task, coven handles the git operations (same as `land-worktree` script, but without removing the worktree):
 
-1. Worker's claude session ends (code/plan committed by the agent on the worktree branch)
-2. Coven rebases the worktree branch onto main (picking up any changes other workers have landed)
-3. If rebase conflicts → coven starts a conflict resolution claude session on the worker's worktree. Worker resolves conflicts and commits.
-4. Once clean → coven fast-forward merges main to the worktree branch tip. This just moves main's branch pointer forward — no merge commit, since the branch is already rebased on top of main.
-5. Coven picks up the worker's next task from schedule.toml
-
-Workers rebase and continue with their next task even during management sessions — but the fast-forward merge to main (step 4) is deferred until between management sessions. Workers don't block on management.
-
-Between management sessions, coven also updates the main worktree to match the (now advanced) main branch. If the main worktree has uncommitted changes from the human that conflict with landed commits, the update may need to abort and retry. (Details TBD — see notes for next session about management on a worktree.)
+1. Worker's Claude session ends (work committed on the worktree branch)
+2. Coven rebases the worktree branch onto main
+3. If rebase conflicts → coven resumes the Claude session for conflict resolution, then retries from step 2
+4. Once clean → coven fast-forward merges main to the worktree branch tip (moves main's pointer forward)
+5. Worker proceeds to next dispatch
 
 ### Coordination
 
-- **schedule.toml**: management is the sole writer. Workers/coven only read it. Coven tracks each worker's queue progress locally (in-memory).
-- **Management cleans up** completed items from schedule.toml on its next session.
-- **Workers that finish during a management session** rebase onto main and continue with their next queued task from the committed schedule.toml. Their commits stay unlanded until the management session ends.
-- **Two workers with conflicting commits**: first to land succeeds, second hits conflict during rebase on its own worktree, resolves via conflict resolution session, then lands.
-- **Discovery naming conflicts** (two workers create issue files with the same name): rare, worker resolves.
-
-## State Changes by Entity
-
-**Human (main worktree):**
-- Messages management to create issues, set priorities, flag issues as not needing plans, etc.
-- Reviews plans in `.coven/review/` — edits content, sets status to `approved` or `changes-requested`
-- Can start interactive claude sessions at any time to help iterate on plans or brainstorm
-
-**Management agent (main worktree):**
-- Triages issues: sets priority, queues planning tasks for specific workers
-- Pushes tasks onto worker queues in `schedule.toml`
-- Routes post-review issues (reads human comments, queues revision or execution accordingly)
-- Routes `needs-replan` back to planning
-- Creates initial issue content
-- Writes end-of-session status with recommended actions
-- Never writes plan content
-
-**Worker (own worktree):**
-- Planning: writes plan section in issue file, sets state to `review`, moves file to `.coven/review/`, commits
-- Execution: writes code, sets state to `done` or `needs-replan` (with notes), commits
-- Discovery: creates new issue files (state: `new`), commits
-- Conflict resolution: resolves merge conflicts on own worktree, commits
-
-**Coven (process-level):**
-- Manages worktree lifecycle (spawn on agent start, remove on exit)
-- Rebases worker worktree onto main between tasks
-- Fast-forward merges worker commits to main branch between management sessions
-- Updates main worktree between management sessions
-- Reads schedule.toml, tracks worker progress locally, picks next task
-- Starts claude sessions with appropriate prompt and agent-type instructions
-- State corruption recovery: if management leaves schedule.toml unparsable, coven should auto-follow-up to fix it (carried over, not re-discussed)
+- **Dispatch serialization**: coven ensures only one dispatch agent runs at a time. Eliminates races where two workers try to pick the same issue.
+- **Worker state**: coven tracks what each worker is doing (agent type + arguments) and injects this into dispatch prompts. Since each worker is its own `coven worker` process, this requires inter-process coordination.
+- **Two workers with conflicting commits**: first to land succeeds, second hits conflict during rebase on its own worktree. Coven resumes the session for conflict resolution, then lands.
+- **Workers wake up on new commits to main** when sleeping (waiting for work).
 
 ## Open Questions
 
-### Discovery
-- How are discovery threads configured per-project?
-- What kinds of discovery are supported? (QA, code review, test proposals, feature proposals — all mentioned but not specified.)
-- Discovery deduplication: management deduplicates issue suggestions. (Proposed, not confirmed.)
-
-### Management
-- How does management wake up? Events, polling, or both?
-- Intelligent cap on pending plans — too many queued plans go stale as the codebase changes.
-- End-of-session status format and content.
-
-### UI
-- How does the human distinguish which terminal they're typing in?
-- How does the human see what management has done without scrolling through terminal history?
-
-### Lifecycle
-- What "cleaned up" means for completed issues.
-- Issue status names need reconsideration — "approved" is awkward for issues that skip planning.
-
-## Notes for Next Session
-
-- **Should management be on its own worktree?** That way it never sees dirty working tree state as the human is editing. Need to consider what this means for syncing between management and the human.
-- **Should the worker pop from the schedule?** Currently coven tracks progress locally, but this means schedule.toml is "wrong" (shows completed items as still queued). Need to think about how this interacts with management rebalancing queues.
+- Issue status names need reconsideration — "approved" is awkward as a general term.
+- Exact mechanism for dispatch serialization and worker state sharing across `coven worker` processes.
+- "Audit" naming — should be a verb, and the exact scope of what it covers needs refinement.
