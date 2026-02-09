@@ -521,6 +521,12 @@ impl<W: Write> Renderer<W> {
         queue!(self.out, Print(text)).ok();
         self.out.flush().ok();
     }
+
+    /// Set the terminal window title via OSC escape sequence.
+    pub fn set_title(&mut self, title: &str) {
+        queue!(self.out, Print(format!("\x1b]2;{title}\x07"))).ok();
+        self.out.flush().ok();
+    }
 }
 
 /// Format tool detail based on tool name and input.

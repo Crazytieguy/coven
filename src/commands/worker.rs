@@ -57,6 +57,7 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
 
     worker_state::register(&spawn_result.worktree_path, &spawn_result.branch)?;
 
+    renderer.set_title(&format!("coven: {}", spawn_result.branch));
     renderer.write_raw(&format!(
         "\r\nWorker started: {} ({})\r\n",
         spawn_result.branch,
@@ -75,6 +76,7 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
     .await;
 
     terminal::disable_raw_mode()?;
+    renderer.set_title("");
 
     worker_state::deregister(&spawn_result.worktree_path);
 
@@ -96,12 +98,14 @@ struct DispatchResult {
 /// Run the dispatch phase: load agents, run dispatch session, parse decision.
 async fn run_dispatch(
     worktree_path: &Path,
+    branch: &str,
     extra_args: &[String],
     worker_status: &str,
     renderer: &mut Renderer,
     input: &mut InputHandler,
     term_events: &mut EventStream,
 ) -> Result<Option<DispatchResult>> {
+    renderer.set_title(&format!("coven: {branch} \u{2014} dispatch"));
     renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
 
     let agents_dir = worktree_path.join(agents::AGENTS_DIR);
@@ -169,6 +173,7 @@ async fn worker_loop(
 
         let Some(dispatch) = run_dispatch(
             worktree_path,
+            branch,
             &config.extra_args,
             &worker_status,
             renderer,
@@ -196,6 +201,7 @@ async fn worker_loop(
 
         match dispatch.decision {
             DispatchDecision::Sleep => {
+                renderer.set_title(&format!("coven: {branch} \u{2014} sleeping"));
                 renderer.write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
                 match wait_for_new_commits(worktree_path, renderer, input, term_events).await? {
                     WaitOutcome::NewCommits => {}
@@ -218,6 +224,12 @@ async fn worker_loop(
                     .with_context(|| format!("dispatch chose unknown agent: {agent}"))?;
 
                 let agent_prompt = agent_def.render(&args)?;
+                let title_suffix = if args_display.is_empty() {
+                    agent.clone()
+                } else {
+                    format!("{agent} {args_display}")
+                };
+                renderer.set_title(&format!("coven: {branch} \u{2014} {title_suffix}"));
                 renderer.write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
 
                 let agent_session_id = match run_phase_session(
