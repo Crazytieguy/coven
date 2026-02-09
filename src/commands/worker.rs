@@ -329,6 +329,11 @@ async fn worker_loop(
 
 /// Attempt to land and, on rebase conflict, resume the agent session to resolve.
 ///
+/// After successful conflict resolution, retries the full land (rebase + ff-merge)
+/// rather than just ff-merge. This handles the case where another worker landed
+/// while conflict resolution was in progress, which would cause a bare ff-merge
+/// to fail and silently lose the resolved work.
+///
 /// Returns true if the worker should exit (user interrupted during resolution).
 async fn land_or_resolve(
     worktree_path: &Path,
@@ -341,102 +346,94 @@ async fn land_or_resolve(
 ) -> Result<bool> {
     renderer.write_raw("\r\n=== Landing ===\r\n");
 
-    let conflict_files = match worktree::land(worktree_path) {
-        Ok(result) => {
-            renderer.write_raw(&format!(
-                "Landed {} onto {}\r\n",
-                result.branch, result.main_branch
-            ));
-            return Ok(false);
-        }
-        Err(worktree::WorktreeError::RebaseConflict(files)) => files,
-        Err(e) => {
-            renderer.write_raw(&format!("Land failed: {e}\r\n"));
-            renderer.write_raw("Resetting to main.\r\n");
+    // Track the session to resume for conflict resolution. Starts as the
+    // agent's session, then updated to the resolution session's ID so
+    // subsequent rounds of conflicts can be resolved in-context.
+    let mut resume_session_id = session_id.map(String::from);
+
+    loop {
+        let conflict_files = match worktree::land(worktree_path) {
+            Ok(result) => {
+                renderer.write_raw(&format!(
+                    "Landed {} onto {}\r\n",
+                    result.branch, result.main_branch
+                ));
+                return Ok(false);
+            }
+            Err(worktree::WorktreeError::RebaseConflict(files)) => files,
+            Err(e) => {
+                renderer.write_raw(&format!("Land failed: {e}\r\n"));
+                renderer.write_raw("Resetting to main.\r\n");
+                worktree::reset_to_main(worktree_path)?;
+                let _ = worktree::clean(worktree_path);
+                return Ok(false);
+            }
+        };
+
+        // Rebase is in progress with conflict markers. Resume the session
+        // to resolve, or abort if we don't have a session to resume.
+        let files_display = conflict_files.join(", ");
+
+        let Some(sid) = resume_session_id.as_deref() else {
+            renderer.write_raw(&format!("Rebase conflict in: {files_display}\r\n"));
+            renderer.write_raw("No session to resume — aborting rebase.\r\n");
+            worktree::abort_rebase(worktree_path)?;
             worktree::reset_to_main(worktree_path)?;
             let _ = worktree::clean(worktree_path);
             return Ok(false);
-        }
-    };
+        };
 
-    // Rebase is in progress with conflict markers. Resume the agent session
-    // to resolve, or abort if we don't have a session to resume.
-    let files_display = conflict_files.join(", ");
+        renderer.write_raw(&format!(
+            "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
+        ));
+        renderer.write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
 
-    let Some(sid) = session_id else {
-        renderer.write_raw(&format!("Rebase conflict in: {files_display}\r\n"));
-        renderer.write_raw("No session to resume — aborting rebase.\r\n");
-        worktree::abort_rebase(worktree_path)?;
-        worktree::reset_to_main(worktree_path)?;
-        let _ = worktree::clean(worktree_path);
-        return Ok(false);
-    };
+        let prompt = format!(
+            "The rebase onto main hit conflicts in: {files_display}\n\n\
+             Resolve the conflicts in those files, stage them with `git add`, \
+             and run `git rebase --continue`. If more conflicts appear after \
+             continuing, resolve those too until the rebase completes."
+        );
 
-    renderer.write_raw(&format!(
-        "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
-    ));
-    renderer.write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
+        match run_phase_session(
+            &prompt,
+            worktree_path,
+            extra_args,
+            Some(sid),
+            renderer,
+            input,
+            term_events,
+        )
+        .await?
+        {
+            PhaseOutcome::Completed {
+                cost, session_id, ..
+            } => {
+                *total_cost += cost;
+                let _ = worktree::clean(worktree_path);
 
-    let prompt = format!(
-        "The rebase onto main hit conflicts in: {files_display}\n\n\
-         Resolve the conflicts in those files, stage them with `git add`, \
-         and run `git rebase --continue`. If more conflicts appear after \
-         continuing, resolve those too until the rebase completes."
-    );
+                if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+                    renderer.write_raw("Rebase still in progress — resolution incomplete.\r\n");
+                    renderer.write_raw("Aborting rebase, resetting to main.\r\n");
+                    worktree::abort_rebase(worktree_path)?;
+                    worktree::reset_to_main(worktree_path)?;
+                    let _ = worktree::clean(worktree_path);
+                    return Ok(false);
+                }
 
-    match run_phase_session(
-        &prompt,
-        worktree_path,
-        extra_args,
-        Some(sid),
-        renderer,
-        input,
-        term_events,
-    )
-    .await?
-    {
-        PhaseOutcome::Completed { cost, .. } => {
-            *total_cost += cost;
-            complete_land_after_resolution(worktree_path, renderer)
-        }
-        PhaseOutcome::Exited => {
-            let _ = worktree::abort_rebase(worktree_path);
-            worktree::reset_to_main(worktree_path)?;
-            let _ = worktree::clean(worktree_path);
-            Ok(true)
-        }
-    }
-}
-
-/// After conflict resolution session completes, finish the land (ff-merge).
-fn complete_land_after_resolution(worktree_path: &Path, renderer: &mut Renderer) -> Result<bool> {
-    let _ = worktree::clean(worktree_path);
-
-    if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
-        renderer.write_raw("Rebase still in progress — resolution incomplete.\r\n");
-        renderer.write_raw("Aborting rebase, resetting to main.\r\n");
-        worktree::abort_rebase(worktree_path)?;
-        worktree::reset_to_main(worktree_path)?;
-        let _ = worktree::clean(worktree_path);
-        return Ok(false);
-    }
-
-    match worktree::ff_merge_main(worktree_path) {
-        Ok(result) => {
-            renderer.write_raw(&format!(
-                "Landed {} onto {} (after conflict resolution)\r\n",
-                result.branch, result.main_branch
-            ));
-        }
-        Err(e) => {
-            renderer.write_raw(&format!("Land failed after resolution: {e}\r\n"));
-            renderer.write_raw("Resetting to main.\r\n");
-            worktree::reset_to_main(worktree_path)?;
-            let _ = worktree::clean(worktree_path);
+                // Resolution complete. Retry the full land — main may have
+                // moved while the agent was resolving conflicts.
+                renderer.write_raw("Conflict resolution complete, retrying land...\r\n");
+                resume_session_id = session_id;
+            }
+            PhaseOutcome::Exited => {
+                let _ = worktree::abort_rebase(worktree_path);
+                worktree::reset_to_main(worktree_path)?;
+                let _ = worktree::clean(worktree_path);
+                return Ok(true);
+            }
         }
     }
-
-    Ok(false)
 }
 
 enum PhaseOutcome {
