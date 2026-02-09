@@ -166,6 +166,15 @@ async fn worker_loop(
             return Ok(());
         };
 
+        // Update worker state before releasing lock so the next dispatch sees it
+        match &dispatch.decision {
+            DispatchDecision::Sleep => {
+                worker_state::update(worktree_path, None, &HashMap::new())?;
+            }
+            DispatchDecision::RunAgent { agent, args } => {
+                worker_state::update(worktree_path, Some(agent), args)?;
+            }
+        }
         drop(lock);
 
         *total_cost += dispatch.cost;
@@ -173,7 +182,6 @@ async fn worker_loop(
 
         match dispatch.decision {
             DispatchDecision::Sleep => {
-                worker_state::update(worktree_path, None, &HashMap::new())?;
                 renderer.write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
                 match wait_for_new_commits(worktree_path, renderer, input, term_events).await? {
                     WaitOutcome::NewCommits => {}
@@ -181,8 +189,6 @@ async fn worker_loop(
                 }
             }
             DispatchDecision::RunAgent { agent, args } => {
-                worker_state::update(worktree_path, Some(&agent), &args)?;
-
                 let args_display = args
                     .iter()
                     .map(|(k, v)| format!("{k}={v}"))
