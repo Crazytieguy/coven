@@ -16,6 +16,7 @@ use coven::display::renderer::Renderer;
 use coven::event::AppEvent;
 use coven::session::runner::{SessionConfig, SessionRunner};
 use coven::session::state::SessionState;
+use coven::worker_state;
 use coven::worktree::{self, SpawnOptions};
 
 use super::session_loop::{self, SessionOutcome};
@@ -45,6 +46,8 @@ pub async fn worker(config: WorkerConfig) -> Result<()> {
     let mut term_events = EventStream::new();
     let mut total_cost = 0.0;
 
+    worker_state::register(&spawn_result.worktree_path)?;
+
     renderer.write_raw(&format!(
         "\r\nWorker started: {} ({})\r\n",
         spawn_result.branch,
@@ -62,6 +65,8 @@ pub async fn worker(config: WorkerConfig) -> Result<()> {
     .await;
 
     terminal::disable_raw_mode()?;
+
+    worker_state::deregister(&spawn_result.worktree_path);
 
     renderer.write_raw("\r\nRemoving worktree...\r\n");
     if let Err(e) = worktree::remove(&spawn_result.worktree_path) {
@@ -82,6 +87,7 @@ struct DispatchResult {
 async fn run_dispatch(
     worktree_path: &Path,
     extra_args: &[String],
+    worker_status: &str,
     renderer: &mut Renderer,
     input: &mut InputHandler,
     term_events: &mut EventStream,
@@ -102,10 +108,7 @@ async fn run_dispatch(
     let catalog = dispatch::format_agent_catalog(&agent_defs);
     let dispatch_args = HashMap::from([
         ("agent_catalog".to_string(), catalog),
-        (
-            "worker_status".to_string(),
-            "No other workers active.".to_string(),
-        ),
+        ("worker_status".to_string(), worker_status.to_string()),
     ]);
 
     let dispatch_prompt = dispatch_agent.render(&dispatch_args)?;
@@ -142,9 +145,15 @@ async fn worker_loop(
     total_cost: &mut f64,
 ) -> Result<()> {
     loop {
+        // === Phase 1: Dispatch (under lock) ===
+        let lock = worker_state::acquire_dispatch_lock(worktree_path)?;
+        let all_workers = worker_state::read_all(worktree_path)?;
+        let worker_status = worker_state::format_status(&all_workers);
+
         let Some(dispatch) = run_dispatch(
             worktree_path,
             &config.extra_args,
+            &worker_status,
             renderer,
             input,
             term_events,
@@ -154,11 +163,14 @@ async fn worker_loop(
             return Ok(());
         };
 
+        drop(lock);
+
         *total_cost += dispatch.cost;
         renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
         match dispatch.decision {
             DispatchDecision::Sleep => {
+                worker_state::update(worktree_path, None, &HashMap::new())?;
                 renderer.write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
                 match wait_for_new_commits(worktree_path, renderer, input, term_events).await? {
                     WaitOutcome::NewCommits => {}
@@ -166,6 +178,8 @@ async fn worker_loop(
                 }
             }
             DispatchDecision::RunAgent { agent, args } => {
+                worker_state::update(worktree_path, Some(&agent), &args)?;
+
                 let args_display = args
                     .iter()
                     .map(|(k, v)| format!("{k}={v}"))

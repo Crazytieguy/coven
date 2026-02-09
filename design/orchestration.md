@@ -195,11 +195,7 @@ When a worker finishes a task, coven handles the git operations (same as `land-w
 ## Open Questions
 
 - Issue status names need reconsideration — "approved" is awkward as a general term.
-- Exact mechanism for dispatch serialization and worker state sharing across `coven worker` processes. Options surfaced during implementation:
-  - **File lock** for dispatch serialization (e.g. `.coven/dispatch.lock` using `flock`). Simple, no daemon needed.
-  - **State directory** for worker status (e.g. `.coven/workers/<pid>.json` with agent type + args). Each worker writes its own file, dispatch reads all of them. Stale files cleaned up by PID liveness check.
-  - **Unix socket** — a `coven daemon` process manages state and serialization. More complex but cleaner API.
-  - Current implementation supports single-worker only (no serialization, hardcoded "no other workers active" status).
+- ~~Exact mechanism for dispatch serialization and worker state sharing~~ → resolved: **file lock + state directory** (see Coordination section). Implemented in `worker_state` module. Dispatch lock at `<git-common-dir>/coven/dispatch.lock` via `flock`. Worker state files at `<git-common-dir>/coven/workers/<pid>.json`. Stale files cleaned up by PID liveness check. Files live in the shared git directory so all worktrees can access them.
 - "Audit" naming — should be a verb, and the exact scope of what it covers needs refinement.
 - **Permission mode for worker sessions** (raised during implementation): agents need tool access (bash, file edit) to do real work. The default `acceptEdits` only allows file edits. Should `coven worker` default to a more permissive mode like `bypassPermissions`, or require the user to pass `--permission-mode` via extra args?
 - **Conflict resolution via session resume** (raised during implementation): when `land` hits a rebase conflict, the design says coven resumes the Claude session for conflict resolution. Current implementation aborts the rebase instead and lets dispatch re-evaluate. Implementing the resume path requires tracking the agent session ID across the land phase. Worth doing, or is abort-and-redispatch good enough?

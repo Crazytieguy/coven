@@ -11,6 +11,7 @@ pub mod event;
 pub mod protocol;
 pub mod session;
 pub mod vcr;
+pub mod worker_state;
 pub mod worktree;
 
 /// Handle an inbound Claude event, updating session state and rendering output.
