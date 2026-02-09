@@ -80,5 +80,5 @@ fn default_worktree_base() -> Result<PathBuf> {
     let home = std::env::var("HOME").map_err(|_| {
         anyhow::anyhow!("HOME not set; use --worktree-base to specify worktree location")
     })?;
-    Ok(PathBuf::from(home).join("worktrees"))
+    Ok(PathBuf::from(home).join(".coven").join("worktrees"))
 }

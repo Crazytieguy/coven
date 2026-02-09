@@ -30,12 +30,13 @@ pub struct WorkerConfig {
 
 /// Run a worker: spawn a worktree, loop dispatch → agent → land.
 pub async fn worker(mut config: WorkerConfig) -> Result<()> {
-    // Workers run unattended — agents need bash access for git, tests, linting.
-    // Default to bypassPermissions unless the user specified a permission mode.
+    // Default to acceptEdits (same as other commands) unless the user
+    // specified a permission mode. The user is expected to set up persistent
+    // permissions for their project so agents can run unattended.
     if !config.extra_args.iter().any(|a| a == "--permission-mode") {
         config.extra_args.extend([
             "--permission-mode".to_string(),
-            "bypassPermissions".to_string(),
+            "acceptEdits".to_string(),
         ]);
     }
 
