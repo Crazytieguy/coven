@@ -306,9 +306,10 @@ async fn worker_loop(
                 // their work; leftover files (test artifacts, temp files) must
                 // not block landing and cause committed work to be discarded.
                 let _ = worktree::clean(worktree_path);
-                let should_exit = land_or_resolve(
+
+                let commit_result = ensure_commits(
                     worktree_path,
-                    agent_session_id.as_deref(),
+                    agent_session_id,
                     &config.extra_args,
                     renderer,
                     input,
@@ -316,14 +317,95 @@ async fn worker_loop(
                     total_cost,
                 )
                 .await?;
-                if should_exit {
-                    return Ok(());
+
+                match commit_result {
+                    CommitCheck::HasCommits { session_id } => {
+                        let should_exit = land_or_resolve(
+                            worktree_path,
+                            session_id.as_deref(),
+                            &config.extra_args,
+                            renderer,
+                            input,
+                            term_events,
+                            total_cost,
+                        )
+                        .await?;
+                        if should_exit {
+                            return Ok(());
+                        }
+                    }
+                    CommitCheck::NoCommits => {
+                        renderer.write_raw("Agent produced no commits — skipping land.\r\n");
+                    }
+                    CommitCheck::Exited => return Ok(()),
                 }
 
                 // Clear state so other dispatchers don't see stale agent info
                 worker_state::update(worktree_path, branch, None, &HashMap::new())?;
             }
         }
+    }
+}
+
+enum CommitCheck {
+    /// Agent has commits ready to land, with the session ID to use for conflict resolution.
+    HasCommits { session_id: Option<String> },
+    /// Agent produced no commits even after being asked.
+    NoCommits,
+    /// User exited during the commit prompt.
+    Exited,
+}
+
+/// Check if the agent produced commits. If not, resume once to ask it to commit.
+async fn ensure_commits(
+    worktree_path: &Path,
+    agent_session_id: Option<String>,
+    extra_args: &[String],
+    renderer: &mut Renderer,
+    input: &mut InputHandler,
+    term_events: &mut EventStream,
+    total_cost: &mut f64,
+) -> Result<CommitCheck> {
+    if worktree::has_unique_commits(worktree_path)? {
+        return Ok(CommitCheck::HasCommits {
+            session_id: agent_session_id,
+        });
+    }
+
+    let Some(sid) = agent_session_id.as_deref() else {
+        renderer.write_raw("Agent produced no commits and no session to resume.\r\n");
+        return Ok(CommitCheck::NoCommits);
+    };
+
+    renderer.write_raw("Agent produced no commits — resuming session to ask for a commit.\r\n\r\n");
+
+    match run_phase_session(
+        "You finished without committing anything. \
+         If you have changes worth keeping, please commit them now. \
+         If there's nothing to commit, just confirm that.",
+        worktree_path,
+        extra_args,
+        Some(sid),
+        renderer,
+        input,
+        term_events,
+    )
+    .await?
+    {
+        PhaseOutcome::Completed {
+            cost, session_id, ..
+        } => {
+            *total_cost += cost;
+            renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+            let _ = worktree::clean(worktree_path);
+
+            if worktree::has_unique_commits(worktree_path)? {
+                Ok(CommitCheck::HasCommits { session_id })
+            } else {
+                Ok(CommitCheck::NoCommits)
+            }
+        }
+        PhaseOutcome::Exited => Ok(CommitCheck::Exited),
     }
 }
 

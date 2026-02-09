@@ -388,6 +388,20 @@ pub fn clean(worktree_path: &Path) -> Result<(), WorktreeError> {
     Ok(())
 }
 
+/// Check whether the worktree branch has any commits ahead of main.
+pub fn has_unique_commits(worktree_path: &Path) -> Result<bool, WorktreeError> {
+    let (_, main_branch) = find_main_worktree(worktree_path)?;
+    let output = git(
+        worktree_path,
+        &["rev-list", "--count", &format!("{main_branch}..HEAD")],
+    )?;
+    let count: u64 = output
+        .trim()
+        .parse()
+        .map_err(|e| WorktreeError::GitCommand(format!("failed to parse rev-list count: {e}")))?;
+    Ok(count > 0)
+}
+
 /// Check if a rebase is currently in progress in the worktree.
 pub fn is_rebase_in_progress(worktree_path: &Path) -> Result<bool, WorktreeError> {
     let git_dir_output = git(worktree_path, &["rev-parse", "--git-dir"])?;
@@ -905,6 +919,51 @@ mod tests {
         .unwrap();
 
         assert!(!is_rebase_in_progress(&spawned.worktree_path).unwrap());
+    }
+
+    #[test]
+    fn has_unique_commits_true_when_ahead() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("unique-commits"),
+        ))
+        .unwrap();
+
+        // No unique commits initially
+        assert!(!has_unique_commits(&spawned.worktree_path).unwrap());
+
+        // Make a commit in the worktree
+        commit_file(&spawned.worktree_path, "new.txt", "hello\n", "add file");
+
+        // Now has unique commits
+        assert!(has_unique_commits(&spawned.worktree_path).unwrap());
+    }
+
+    #[test]
+    fn has_unique_commits_false_after_land() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("unique-land"),
+        ))
+        .unwrap();
+
+        commit_file(&spawned.worktree_path, "new.txt", "hello\n", "add file");
+        assert!(has_unique_commits(&spawned.worktree_path).unwrap());
+
+        land(&spawned.worktree_path).unwrap();
+
+        // After landing, worktree branch and main are at the same tip
+        assert!(!has_unique_commits(&spawned.worktree_path).unwrap());
     }
 
     #[test]
