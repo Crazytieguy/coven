@@ -1,7 +1,7 @@
 - If there's a queued follow up message, don't print the Done line and session separator, just the follow up. And when a follow up is submitted, also don't display the separator (---) (plan: plans/followup-display-cleanup.md)
 - [P1] Orchestration next steps: core loop, templates, dispatch serialization, worker state, permission mode, conflict resolution, gc, and workflow documentation all implemented. Remaining: CLAUDE.md integration (open design question), end-to-end testing.
 - [P0] VCR + snapshot testing for concurrent worker sessions. Needs design — recording multiple interleaved sessions, snapshot format for parallel output, and how to make tests deterministic. (plan: plans/concurrent-worker-testing.md)
-- [P1] "Landed" message prints even when agent committed nothing. Agent should always commit something unless it's a dispatch agent. If a non-dispatch agent produces no commits, consider resuming the session to ask it to commit.
+- [P1] "Landed" message prints even when agent committed nothing. Agent should always commit something unless it's a dispatch agent. If a non-dispatch agent produces no commits, consider resuming the session to ask it to commit. (plan: plans/landed-message-no-commits.md)
 - [P1] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc.
 - [P1] `coven init` should ask the user if they'd like to update CLAUDE.md to reference the workflow.
 - [P1] Audit conflict resolution logic (worker.rs land_or_resolve). Complex nested loop with session resume, rebase retry, and multiple fallback paths — worth a careful review.
