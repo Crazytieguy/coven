@@ -39,6 +39,7 @@ To view all issues, list the `issues/` and `review/` directories. Read each file
 
 - Issue frontmatter has a `priority` field: `P0` > `P1` > `P2`.
 - Prefer implementing approved issues over planning new ones at the same priority.
+- If `review/` has several items, prefer implementing or sleeping over creating more plans. Don't overwhelm the human reviewer.
 - Don't assign work another worker is already doing.
 - If nothing is actionable (everything in review, or no issues), sleep.
 - Consider codebase locality — avoid conflicts with other workers.
