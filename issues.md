@@ -1,4 +1,5 @@
+- If there's a queued follow up message, don't print the Done line and session separator, just the follow up. And when a follow up is submitted, also don't display the separator (---)
+- [P0] Create small issues to implement the design in design/orchestration.md. Can be incremental, should converge to full implementation (plan: plans/orchestration-issues.md)
 - [P2] review all snapshots for correctness and UI quality
 - [P2] Concurrent subagent rendering: support displaying multiple concurrent claude Task subagents running in parallel. Exact rendering approach needs to be discussed
 - [P2] Big issue: support model-driven context forking via claude cli's `--fork` flag. Model outputs xml with definitions for some number of sub tasks (just an assistant message), coven parses it to find the sub tasks and creates a forked claude session per sub task using `--fork` with a simple follow up message like "you own subtask N" (each child gets the full parent context window — that's the value over native subagents), waits for all subtasks to complete, and then continues the original session, displaying to the model the final assistant message for each subtask. Blocked on: concurrent subagent rendering.
-- [P2] Big issue: integrate our workflow directly into a coven subcommand, based on workflow.md
