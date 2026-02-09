@@ -23,7 +23,7 @@ Issues are markdown files with YAML frontmatter:
 - `issues/` — active issues (states: `new`, `approved`, `changes-requested`, `needs-replan`)
 - `review/` — plans awaiting human review (state: `review`)
 
-Start by listing both directories to see what's available, then read relevant issue files.
+To view all issues, list the `issues/` and `review/` directories. Read each file's YAML frontmatter to check its `state` and `priority` fields.
 
 ### States and Routing
 
