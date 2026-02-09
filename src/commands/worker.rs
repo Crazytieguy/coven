@@ -239,9 +239,13 @@ fn land_worktree(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> {
             renderer.write_raw("Aborting rebase, resetting to main.\r\n");
             worktree::abort_rebase(worktree_path)?;
             worktree::reset_to_main(worktree_path)?;
+            let _ = worktree::clean(worktree_path);
         }
         Err(e) => {
             renderer.write_raw(&format!("Land failed: {e}\r\n"));
+            renderer.write_raw("Resetting to main.\r\n");
+            worktree::reset_to_main(worktree_path)?;
+            let _ = worktree::clean(worktree_path);
         }
     }
 

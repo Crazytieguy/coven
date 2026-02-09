@@ -331,6 +331,16 @@ pub fn abort_rebase(worktree_path: &Path) -> Result<(), WorktreeError> {
     Ok(())
 }
 
+/// Remove untracked, non-ignored files and directories from the worktree.
+///
+/// Runs `git clean -fd`. Gitignored files (build artifacts, etc.) are preserved.
+/// Used during land failure recovery to prevent stray files from blocking
+/// future land attempts.
+pub fn clean(worktree_path: &Path) -> Result<(), WorktreeError> {
+    git(worktree_path, &["clean", "-fd"])?;
+    Ok(())
+}
+
 // ── Private helpers ─────────────────────────────────────────────────────
 
 fn rsync_ignored(main_path: &Path, worktree_path: &Path) -> Result<(), WorktreeError> {
@@ -701,6 +711,70 @@ mod tests {
         // Worktree should now have main's version
         let content = fs::read_to_string(spawned.worktree_path.join("file.txt")).unwrap();
         assert_eq!(content, "main\n");
+    }
+
+    #[test]
+    fn clean_removes_untracked_files() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("clean-branch"),
+        ))
+        .unwrap();
+
+        // Create untracked files
+        fs::write(spawned.worktree_path.join("stray.txt"), "leftover\n").unwrap();
+        fs::create_dir_all(spawned.worktree_path.join("stray-dir")).unwrap();
+        fs::write(
+            spawned.worktree_path.join("stray-dir/nested.txt"),
+            "nested\n",
+        )
+        .unwrap();
+
+        assert!(spawned.worktree_path.join("stray.txt").exists());
+        assert!(spawned.worktree_path.join("stray-dir/nested.txt").exists());
+
+        clean(&spawned.worktree_path).unwrap();
+
+        assert!(!spawned.worktree_path.join("stray.txt").exists());
+        assert!(!spawned.worktree_path.join("stray-dir").exists());
+        // Tracked files should still be there
+        assert!(spawned.worktree_path.join("README.md").exists());
+    }
+
+    #[test]
+    fn clean_preserves_gitignored_files() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        // Add a .gitignore
+        fs::write(repo_dir.path().join(".gitignore"), "build/\n").unwrap();
+        git(repo_dir.path(), &["add", ".gitignore"]).unwrap();
+        git(repo_dir.path(), &["commit", "-m", "add gitignore"]).unwrap();
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("clean-ignore"),
+        ))
+        .unwrap();
+
+        // Create an ignored directory and an untracked file
+        fs::create_dir_all(spawned.worktree_path.join("build")).unwrap();
+        fs::write(spawned.worktree_path.join("build/output.bin"), "binary\n").unwrap();
+        fs::write(spawned.worktree_path.join("stray.txt"), "leftover\n").unwrap();
+
+        clean(&spawned.worktree_path).unwrap();
+
+        // Untracked file should be removed
+        assert!(!spawned.worktree_path.join("stray.txt").exists());
+        // Gitignored file should be preserved
+        assert!(spawned.worktree_path.join("build/output.bin").exists());
     }
 
     #[test]
