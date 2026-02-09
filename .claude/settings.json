@@ -128,6 +128,8 @@
       "Bash(hive-mind search *)",
       "Bash(cargo build)",
       "Bash(cargo build *)",
+      "Bash(cargo add *)",
+      "Bash(cargo remove *)",
       "Bash(cargo test)",
       "Bash(cargo test *)",
       "Bash(cargo run)",
