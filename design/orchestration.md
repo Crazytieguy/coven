@@ -1,8 +1,6 @@
-# Orchestration Design — Brainstorming State
+# Orchestration Design
 
-Status: early design, not ready for implementation.
-
-Items are confirmed unless noted otherwise. Attribution is given for proposals that haven't been confirmed or didn't originate from the human.
+Status: core implemented. Open design questions below.
 
 ## Core Mental Model
 
@@ -31,7 +29,7 @@ Four agent types ship with the default template. Each is defined by a prompt fil
 
 - **Dispatch** — Chooses what a worker should do next. Outputs an agent type + arguments (e.g. `plan issues/fix-scroll-bug.md`), or sleeps. Also outputs brief reasoning/status visible to the human. Only one dispatch agent runs at a time (serialized by coven).
 - **Plan** — Takes an issue file as argument. Writes a plan section in the issue, sets state to `review`, moves file to `review/`, commits. May create new issue files (splitting).
-- **Implement** — Takes an issue file as argument. Writes code, sets state to `done` or `needs-replan` (with notes), commits. May create new issue files for things it notices along the way.
+- **Implement** — Takes an issue file as argument. Writes code, deletes the issue file on success or sets state to `needs-replan` (with notes) on failure, commits. May create new issue files for things it notices along the way.
 - **Audit** — Takes no arguments. Routine maintenance: code review, test gaps, quality issues. Creates new issue files for findings, commits.
 
 Coven injects the available agent types, their descriptions, their required arguments, and the dispatch output syntax into the dispatch prompt. This way the dispatch prompt doesn't need to be updated when agents are added or modified.
@@ -194,9 +192,13 @@ When a worker finishes a task, coven handles the git operations (same as `land-w
 
 ## Open Questions
 
-- Issue status names need reconsideration — "approved" is awkward as a general term.
-- ~~Exact mechanism for dispatch serialization and worker state sharing~~ → resolved: **file lock + state directory** (see Coordination section). Implemented in `worker_state` module. Dispatch lock at `<git-common-dir>/coven/dispatch.lock` via `flock`. Worker state files at `<git-common-dir>/coven/workers/<pid>.json`. Stale files cleaned up by PID liveness check. Files live in the shared git directory so all worktrees can access them.
-- "Audit" naming — should be a verb, and the exact scope of what it covers needs refinement.
-- ~~**Permission mode for worker sessions**~~ → resolved: **option (a) — default all worker sessions to `bypassPermissions`**. Implemented in `worker.rs`: the worker prepends `--permission-mode bypassPermissions` to extra args unless the user specified one via `--claude-args`. Users can override per-run (e.g., `coven worker -- --permission-mode plan`). Revisit if finer granularity is needed (per-agent modes or allowedTools).
-- ~~**Conflict resolution via session resume**~~ → resolved: **implemented**. When `land` hits a rebase conflict, coven resumes the agent's Claude session (via `--resume`) with a prompt describing the conflicting files. The agent resolves conflicts, stages them, and runs `git rebase --continue`. After the session completes, coven verifies the rebase finished and fast-forward merges main. Falls back to abort-and-reset if: (a) no session ID available, (b) the agent fails to complete the rebase, or (c) the ff-merge fails.
-- **Workflow documentation** (raised during init implementation): the design says the standard template includes a `workflow.md` explaining the issue system, linked from CLAUDE.md. Currently `workflow.md` describes the ralph-mode workflow. Should `coven init` create/replace `workflow.md` with issue-system docs? Options: (a) init creates a separate file like `.coven/workflow.md` that CLAUDE.md links to, (b) init replaces the project-root `workflow.md`, (c) init doesn't touch workflow docs — the human writes them. Related: should init also update CLAUDE.md to reference the agent workflow?
+- **Issue status names**: "approved" is awkward as a general term for "ready to implement." Alternatives: `ready`, `accepted`, `planned`. The dispatch prompt, plan prompt, and implement prompt all reference `approved` — renaming requires updating all three agent templates in `init.rs`.
+- **"Audit" naming**: should be a verb, and the exact scope of what it covers needs refinement.
+- **Workflow documentation**: the design says the standard template includes a `workflow.md` explaining the issue system, linked from CLAUDE.md. Currently `workflow.md` describes the ralph-mode workflow. Should `coven init` create/replace `workflow.md` with issue-system docs? Options: (a) init creates a separate file like `.coven/workflow.md` that CLAUDE.md links to, (b) init replaces the project-root `workflow.md`, (c) init doesn't touch workflow docs — the human writes them. Related: should init also update CLAUDE.md to reference the agent workflow?
+- **Orphaned worktree cleanup**: if a worker is killed (SIGKILL), its worktree and branch remain on disk. Worker state files are cleaned up by PID liveness check, but worktrees aren't. Options: (a) `coven gc` command that removes orphaned worktrees, (b) worker startup checks for and cleans orphaned worktrees from dead PIDs, (c) don't automate — users can manually `git worktree remove`.
+
+## Resolved Decisions
+
+- **Dispatch serialization and worker state sharing**: file lock + state directory. Dispatch lock at `<git-common-dir>/coven/dispatch.lock` via `flock`. Worker state files at `<git-common-dir>/coven/workers/<pid>.json`. Stale files cleaned up by PID liveness check. Files live in the shared git directory so all worktrees can access them. (Implemented in `worker_state` module.)
+- **Permission mode for worker sessions**: default all worker sessions to `bypassPermissions`. Workers prepend `--permission-mode bypassPermissions` unless the user specified one via `--claude-args`. Users can override per-run. (Implemented in `worker.rs`.)
+- **Conflict resolution**: session resume. When `land` hits a rebase conflict, coven resumes the agent's Claude session with a conflict resolution prompt. Falls back to abort-and-reset if: (a) no session ID available, (b) the agent fails to complete the rebase, or (c) the ff-merge fails. (Implemented in `worker.rs` and `worktree.rs`.)
