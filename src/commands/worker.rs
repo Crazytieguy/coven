@@ -218,6 +218,10 @@ async fn worker_loop(
                 }
 
                 // === Phase 3: Land ===
+                // Clean untracked files before landing. Agents should commit
+                // their work; leftover files (test artifacts, temp files) must
+                // not block landing and cause committed work to be discarded.
+                let _ = worktree::clean(worktree_path);
                 land_worktree(worktree_path, renderer)?;
             }
         }
