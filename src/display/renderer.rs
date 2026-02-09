@@ -57,18 +57,7 @@ enum BlockKind {
 
 impl Default for Renderer<io::Stdout> {
     fn default() -> Self {
-        Self {
-            current_block: None,
-            text_streaming: false,
-            messages: Vec::new(),
-            tool_counter: 0,
-            current_tool: None,
-            current_thinking: None,
-            tool_line_open: false,
-            last_tool_is_subagent: false,
-            config: RendererConfig::default(),
-            out: io::stdout(),
-        }
+        Self::with_writer(io::stdout())
     }
 }
 
