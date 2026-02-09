@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, Write};
 
 use anyhow::{Context, Result};
 
@@ -318,12 +319,49 @@ pub fn init() -> Result<()> {
         }
     }
 
-    // Suggest adding a CLAUDE.md reference if workflow.md was created
-    if created.iter().any(|p| p.ends_with("workflow.md")) {
-        println!(
-            "\nTip: Add this to your CLAUDE.md so interactive sessions understand the workflow:"
-        );
-        println!("  See .coven/workflow.md for the issue-based development workflow.");
+    // Offer to add a CLAUDE.md reference to the workflow
+    let claude_md_path = project_root.join("CLAUDE.md");
+    let workflow_ref = "See @.coven/workflow.md for the issue-based development workflow.";
+    let existing_claude_md = if claude_md_path.exists() {
+        Some(fs::read_to_string(&claude_md_path).with_context(|| "failed to read CLAUDE.md")?)
+    } else {
+        None
+    };
+    let needs_reference = existing_claude_md
+        .as_ref()
+        .is_none_or(|c| !c.contains(".coven/workflow.md"));
+
+    if needs_reference {
+        print!("\nAdd a reference to .coven/workflow.md in CLAUDE.md? [Y/n] ");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
+
+        if input.is_empty() || input.eq_ignore_ascii_case("y") || input.eq_ignore_ascii_case("yes")
+        {
+            if let Some(mut contents) = existing_claude_md {
+                if !contents.ends_with('\n') {
+                    contents.push('\n');
+                }
+                contents.push('\n');
+                contents.push_str(workflow_ref);
+                contents.push('\n');
+                fs::write(&claude_md_path, contents)
+                    .with_context(|| "failed to update CLAUDE.md")?;
+                println!("Updated CLAUDE.md with workflow reference.");
+            } else {
+                let contents = format!("{workflow_ref}\n");
+                fs::write(&claude_md_path, contents)
+                    .with_context(|| "failed to create CLAUDE.md")?;
+                println!("Created CLAUDE.md with workflow reference.");
+            }
+        } else {
+            println!(
+                "\nTip: Add this to your CLAUDE.md so interactive sessions understand the workflow:"
+            );
+            println!("  {workflow_ref}");
+        }
     }
 
     Ok(())
