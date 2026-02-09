@@ -82,13 +82,21 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         .args(["init"])
         .current_dir(&tmp_dir)
         .output()?;
-    anyhow::ensure!(git_init.status.success(), "git init failed: {}", String::from_utf8_lossy(&git_init.stderr));
+    anyhow::ensure!(
+        git_init.status.success(),
+        "git init failed: {}",
+        String::from_utf8_lossy(&git_init.stderr)
+    );
 
     let git_add = std::process::Command::new("git")
         .args(["add", "."])
         .current_dir(&tmp_dir)
         .output()?;
-    anyhow::ensure!(git_add.status.success(), "git add failed: {}", String::from_utf8_lossy(&git_add.stderr));
+    anyhow::ensure!(
+        git_add.status.success(),
+        "git add failed: {}",
+        String::from_utf8_lossy(&git_add.stderr)
+    );
 
     let git_commit = std::process::Command::new("git")
         .args(["commit", "-m", "initial"])
@@ -98,7 +106,11 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         .env("GIT_COMMITTER_NAME", "test")
         .env("GIT_COMMITTER_EMAIL", "test@test.com")
         .output()?;
-    anyhow::ensure!(git_commit.status.success(), "git commit failed: {}", String::from_utf8_lossy(&git_commit.stderr));
+    anyhow::ensure!(
+        git_commit.status.success(),
+        "git commit failed: {}",
+        String::from_utf8_lossy(&git_commit.stderr)
+    );
 
     // Build VCR header
     let expected_command = case.expected_command()?;

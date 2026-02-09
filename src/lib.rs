@@ -9,6 +9,7 @@ pub mod event;
 pub mod protocol;
 pub mod session;
 pub mod vcr;
+pub mod worktree;
 
 /// Handle an inbound Claude event, updating session state and rendering output.
 pub fn handle_inbound<W: Write>(
