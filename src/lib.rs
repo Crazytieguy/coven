@@ -4,6 +4,7 @@ use display::renderer::Renderer;
 use protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
 use session::state::{SessionState, SessionStatus};
 
+pub mod agents;
 pub mod display;
 pub mod event;
 pub mod protocol;
