@@ -54,6 +54,9 @@ pub enum Command {
         claude_args: Vec<String>,
     },
 
+    /// Initialize project with default agent prompts and directory structure.
+    Init,
+
     /// Start an orchestration worker (dispatch → agent → land loop).
     Worker {
         /// Branch name for the worktree (random if not specified).

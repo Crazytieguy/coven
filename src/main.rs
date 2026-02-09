@@ -20,6 +20,9 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Some(Command::Init) => {
+            commands::init::init()?;
+        }
         Some(Command::Ralph {
             prompt,
             iterations,
