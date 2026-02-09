@@ -1,4 +1,4 @@
-- If there's a queued follow up message, don't print the Done line and session separator, just the follow up. And when a follow up is submitted, also don't display the separator (---)
+- If there's a queued follow up message, don't print the Done line and session separator, just the follow up. And when a follow up is submitted, also don't display the separator (---) (plan: plans/followup-display-cleanup.md)
 - [P0] Create small issues to implement the design in design/orchestration.md. Can be incremental, should converge to full implementation (plan: plans/orchestration-issues.md)
 - [P2] review all snapshots for correctness and UI quality
 - [P2] Concurrent subagent rendering: support displaying multiple concurrent claude Task subagents running in parallel. Exact rendering approach needs to be discussed
