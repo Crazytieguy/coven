@@ -145,6 +145,9 @@ async fn worker_loop(
     total_cost: &mut f64,
 ) -> Result<()> {
     loop {
+        // Sync worktree to latest main so dispatch sees current issue state
+        worktree::sync_to_main(worktree_path).context("failed to sync worktree to main")?;
+
         // === Phase 1: Dispatch (under lock) ===
         let lock = worker_state::acquire_dispatch_lock(worktree_path)?;
         let all_workers = worker_state::read_all(worktree_path)?;
@@ -233,8 +236,9 @@ fn land_worktree(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> {
         }
         Err(worktree::WorktreeError::RebaseConflict(files)) => {
             renderer.write_raw(&format!("Rebase conflict in: {}\r\n", files.join(", ")));
-            renderer.write_raw("Aborting rebase. Manual resolution needed.\r\n");
+            renderer.write_raw("Aborting rebase, resetting to main.\r\n");
             worktree::abort_rebase(worktree_path)?;
+            worktree::reset_to_main(worktree_path)?;
         }
         Err(e) => {
             renderer.write_raw(&format!("Land failed: {e}\r\n"));

@@ -302,6 +302,29 @@ pub fn remove(worktree_path: &Path) -> Result<(), WorktreeError> {
     Ok(())
 }
 
+/// Update the worktree branch to include the latest commits from main.
+///
+/// If the worktree has no unique commits (normal state after landing),
+/// this is a fast-forward. If the worktree has unique commits, they
+/// are rebased onto main.
+///
+/// Call this before dispatch so the agent sees the latest issue files.
+pub fn sync_to_main(worktree_path: &Path) -> Result<(), WorktreeError> {
+    let (_, main_branch) = find_main_worktree(worktree_path)?;
+    git(worktree_path, &["rebase", &main_branch])?;
+    Ok(())
+}
+
+/// Reset the worktree branch to main's tip, discarding any local commits.
+///
+/// Used after a failed land to put the worktree back in a clean state
+/// so the next dispatch can start fresh.
+pub fn reset_to_main(worktree_path: &Path) -> Result<(), WorktreeError> {
+    let (_, main_branch) = find_main_worktree(worktree_path)?;
+    git(worktree_path, &["reset", "--hard", &main_branch])?;
+    Ok(())
+}
+
 /// Abort a failed rebase in the given worktree.
 pub fn abort_rebase(worktree_path: &Path) -> Result<(), WorktreeError> {
     git(worktree_path, &["rebase", "--abort"])?;
@@ -573,6 +596,111 @@ mod tests {
 
         // Verify clean state — diff should be quiet
         assert!(git_status(&spawned.worktree_path, &["diff", "--quiet"]).unwrap());
+    }
+
+    #[test]
+    fn sync_to_main_picks_up_new_commits() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("sync-branch"),
+        ))
+        .unwrap();
+
+        // Commit on main after the worktree was spawned
+        commit_file(
+            repo_dir.path(),
+            "new-on-main.txt",
+            "from main\n",
+            "main commit",
+        );
+
+        // Worktree doesn't have the file yet
+        assert!(!spawned.worktree_path.join("new-on-main.txt").exists());
+
+        // Sync picks it up
+        sync_to_main(&spawned.worktree_path).unwrap();
+        assert!(spawned.worktree_path.join("new-on-main.txt").exists());
+    }
+
+    #[test]
+    fn sync_to_main_noop_when_up_to_date() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("sync-noop"),
+        ))
+        .unwrap();
+
+        // Sync when already up to date should succeed
+        sync_to_main(&spawned.worktree_path).unwrap();
+    }
+
+    #[test]
+    fn reset_to_main_discards_local_commits() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("reset-branch"),
+        ))
+        .unwrap();
+
+        // Make a commit in the worktree
+        commit_file(
+            &spawned.worktree_path,
+            "local.txt",
+            "local\n",
+            "local commit",
+        );
+        assert!(spawned.worktree_path.join("local.txt").exists());
+
+        // Reset to main
+        reset_to_main(&spawned.worktree_path).unwrap();
+
+        // Local file should be gone
+        assert!(!spawned.worktree_path.join("local.txt").exists());
+    }
+
+    #[test]
+    fn reset_to_main_after_conflict_abort() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("reset-conflict"),
+        ))
+        .unwrap();
+
+        // Create a conflict
+        commit_file(repo_dir.path(), "file.txt", "main\n", "main side");
+        commit_file(&spawned.worktree_path, "file.txt", "worktree\n", "wt side");
+
+        // Land fails with conflict
+        let result = land(&spawned.worktree_path);
+        assert!(matches!(result, Err(WorktreeError::RebaseConflict(_))));
+
+        // Abort rebase, then reset to main
+        abort_rebase(&spawned.worktree_path).unwrap();
+        reset_to_main(&spawned.worktree_path).unwrap();
+
+        // Worktree should now have main's version
+        let content = fs::read_to_string(spawned.worktree_path.join("file.txt")).unwrap();
+        assert_eq!(content, "main\n");
     }
 
     #[test]
