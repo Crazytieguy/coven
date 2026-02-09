@@ -150,6 +150,82 @@ You are the audit agent. Perform a routine review of the codebase.
 - Be specific: reference file paths, function names, line numbers
 - Prioritize actionable findings over stylistic preferences"#;
 
+const WORKFLOW_DOC: &str = r"# Orchestration Workflow
+
+This project uses [coven](https://github.com/yoavshapira/coven) for orchestrated development. Multiple workers run simultaneously, each picking up tasks from the issue queue.
+
+## Issue Files
+
+Issues are markdown files with YAML frontmatter in `issues/` or `review/`.
+
+```yaml
+---
+priority: P1
+state: new
+---
+
+# Fix scroll bug
+
+Scroll position resets on window resize.
+```
+
+### Priorities
+
+- `P0` — Critical, blocks other work
+- `P1` — Normal priority (default)
+- `P2` — Nice to have
+
+### States
+
+| State | Directory | Meaning |
+|-------|-----------|---------|
+| `new` | `issues/` | No plan yet — plan agent will pick it up |
+| `review` | `review/` | Plan written, waiting for human review |
+| `approved` | `issues/` | Human approved the plan, ready to implement |
+| `changes-requested` | `issues/` | Human left feedback on the plan |
+| `needs-replan` | `issues/` | Implementation failed, plan needs revision |
+
+### Lifecycle
+
+```
+new → review              Plan agent writes plan, moves file to review/
+review → approved         Human approves, moves file back to issues/
+review → changes-requested  Human requests changes, moves file back to issues/
+changes-requested → review  Plan agent revises, moves file to review/
+approved → (deleted)      Implement agent succeeds, deletes the issue
+approved → needs-replan   Implement agent fails, adds notes
+needs-replan → review     Plan agent revises based on failure notes
+```
+
+## Creating Issues
+
+Create a markdown file in `issues/` with the format above. Minimum fields: `state` and `priority` in frontmatter, plus a title and description. Commit the file.
+
+**Skip path**: To skip planning and go straight to implementation, set `state: approved`.
+
+## Reviewing Plans
+
+Plans appear in `review/`. To review one:
+
+1. Read the `## Plan` section and any `## Questions`
+2. Answer questions inline (fill in below `**Answer:**` markers)
+3. Update frontmatter: `state: approved` or `state: changes-requested`
+4. Move the file from `review/` back to `issues/`
+5. Commit
+
+There's no time pressure — workers will wait or work on other issues.
+
+## Directory Structure
+
+```
+issues/          Active issues (new, approved, changes-requested, needs-replan)
+review/          Plans awaiting human review
+.coven/
+  agents/        Agent prompt templates
+  workflow.md    This file
+```
+";
+
 struct TemplateFile {
     path: &'static str,
     content: &'static str,
@@ -174,6 +250,8 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
     },
 ];
 
+const COVEN_DIR: &str = ".coven";
+
 /// Initialize the project with default agent prompts and directory structure.
 pub fn init() -> Result<()> {
     let project_root = std::env::current_dir()?;
@@ -196,6 +274,16 @@ pub fn init() -> Result<()> {
                 .with_context(|| format!("failed to write {}", path.display()))?;
             created.push(format!("{AGENTS_DIR}/{}", template.path));
         }
+    }
+
+    // Write workflow documentation
+    let workflow_path = project_root.join(COVEN_DIR).join("workflow.md");
+    if workflow_path.exists() {
+        skipped.push(format!("{COVEN_DIR}/workflow.md"));
+    } else {
+        fs::write(&workflow_path, WORKFLOW_DOC)
+            .with_context(|| format!("failed to write {}", workflow_path.display()))?;
+        created.push(format!("{COVEN_DIR}/workflow.md"));
     }
 
     // Create issues/ and review/ directories with .gitkeep
@@ -227,6 +315,14 @@ pub fn init() -> Result<()> {
         for path in &skipped {
             println!("  {path}");
         }
+    }
+
+    // Suggest adding a CLAUDE.md reference if workflow.md was created
+    if created.iter().any(|p| p.ends_with("workflow.md")) {
+        println!(
+            "\nTip: Add this to your CLAUDE.md so interactive sessions understand the workflow:"
+        );
+        println!("  See .coven/workflow.md for the issue-based development workflow.");
     }
 
     Ok(())
