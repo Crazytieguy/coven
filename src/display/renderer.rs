@@ -255,18 +255,7 @@ impl<W: Write> Renderer<W> {
             text = extract_result_text(block);
         }
 
-        // Store result text on the most recent tool message
-        if !text.is_empty()
-            && let Some(msg) = self.messages.last_mut()
-        {
-            msg.result = Some(text.clone());
-        }
-
-        if is_error {
-            self.render_error_line(&text);
-        } else {
-            self.close_tool_line();
-        }
+        self.apply_tool_result(&text, is_error);
         self.out.flush().ok();
     }
 
@@ -287,24 +276,12 @@ impl<W: Write> Renderer<W> {
             if item.get("type").and_then(Value::as_str) != Some("tool_result") {
                 continue;
             }
-
-            // Store result text on the most recent tool message
             let text = extract_result_text(item);
-            if !text.is_empty()
-                && let Some(msg) = self.messages.last_mut()
-            {
-                msg.result = Some(text.clone());
-            }
-
             let is_error = item
                 .get("is_error")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
-            if is_error {
-                self.render_error_line(&text);
-            } else {
-                self.close_tool_line();
-            }
+            self.apply_tool_result(&text, is_error);
         }
         self.out.flush().ok();
     }
@@ -396,6 +373,20 @@ impl<W: Write> Renderer<W> {
         });
 
         self.tool_line_open = true;
+    }
+
+    /// Store result text on the most recent message and render error or close the tool line.
+    fn apply_tool_result(&mut self, text: &str, is_error: bool) {
+        if !text.is_empty()
+            && let Some(msg) = self.messages.last_mut()
+        {
+            msg.result = Some(text.to_string());
+        }
+        if is_error {
+            self.render_error_line(text);
+        } else {
+            self.close_tool_line();
+        }
     }
 
     /// Render an error line beneath a tool call: `✗ <first line of error text>`.
