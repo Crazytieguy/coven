@@ -25,9 +25,10 @@ You are an agent that works on {{issue}}.
 
 The file stem (e.g. `reviewer` from `reviewer.md`) becomes the agent name.
 
-### New dependency
+### New dependencies
 
-Add `serde_yaml` for YAML frontmatter parsing. It's the standard Rust YAML library and `serde` is already in the dependency tree.
+- `serde_yaml` for YAML frontmatter parsing. It's the standard Rust YAML library and `serde` is already in the dependency tree.
+- `handlebars` for template rendering. Mature crate (v6.x, actively maintained), already uses the `{{var}}` and `{{#if var}}` syntax shown in the file format above. Only dependency is `serde`. Supports custom helpers if we need them later.
 
 ### New module: `src/agents.rs`
 
@@ -66,8 +67,19 @@ pub struct AgentDef {
 
 - `load_agent(path: &Path) -> Result<AgentDef>` — parse a single `.md` file. Splits on `---` delimiters, deserializes frontmatter with `serde_yaml`, captures the remainder as `prompt_template`.
 - `load_agents(dir: &Path) -> Result<Vec<AgentDef>>` — glob `dir/*.md`, call `load_agent` on each, return all definitions sorted by name. Returns an empty vec (not an error) if the directory doesn't exist.
+- `AgentDef::render(&self, args: &HashMap<String, String>) -> Result<String>` — renders the prompt template with the given arguments using `handlebars`. Validates that all required args (per `frontmatter.args`) are present before rendering. Returns an error if a required arg is missing.
 
 No registry struct — a `Vec<AgentDef>` is sufficient for now since there's no behavioral integration.
+
+### Template rendering details
+
+Use `handlebars::Handlebars` to render templates. The `render` method:
+
+1. Checks that all args marked `required: true` in `frontmatter.args` are present in the provided map. Returns an error naming the missing arg(s) if not.
+2. Creates a `Handlebars` instance with `strict_mode(false)` so that optional args that aren't provided simply render as empty rather than erroring.
+3. Calls `handlebars.render_template(&self.prompt_template, &args)` to produce the final prompt string.
+
+This gives us full Handlebars syntax: `{{var}}` for substitution, `{{#if var}}...{{/if}}` for conditionals, `{{#each items}}...{{/each}}` if needed later. The Handlebars instance is created per-render (not cached) since agent rendering is infrequent — we can optimize later if needed.
 
 ### Frontmatter parsing
 
@@ -86,19 +98,12 @@ Unit tests in `src/agents.rs`:
 3. `parse_missing_frontmatter` — file without `---` delimiters returns an error.
 4. `load_agents_missing_dir` — `load_agents` on a nonexistent directory returns empty vec.
 5. `load_agents_from_dir` — write temp files, load them, verify names and count.
+6. `render_with_all_args` — render a template with all args provided, verify substitution works.
+7. `render_missing_required_arg` — render without a required arg returns an error.
+8. `render_missing_optional_arg` — render without an optional arg succeeds, optional content omitted.
+9. `render_conditional` — render a template using `{{#if var}}...{{/if}}`, verify conditional blocks work.
 
 ## Questions
-
-### Should argument substitution be part of this module?
-
-The issue says "no behavioral integration yet." We could either:
-
-- **Template-only (recommended):** Store `prompt_template` as a raw string. Argument substitution is a future concern when we actually use agents. This keeps the module focused on loading/parsing.
-- **Include substitution:** Add a `render(args: &HashMap<String, String>) -> Result<String>` method now. Would require a templating library or manual `{{arg}}` replacement.
-
-I'd go with template-only — keep it simple and defer substitution to the integration issue.
-
-Answer:
 
 ### Should the agents directory path be configurable?
 
@@ -109,7 +114,7 @@ The issue specifies `.coven/agents/*.md`. Options:
 
 I'd go with hardcoded, using a constant like `AGENTS_DIR = ".coven/agents"`.
 
-Answer:
+Answer: Constant is fine for now
 
 ## Review
 
