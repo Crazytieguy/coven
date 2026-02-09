@@ -322,28 +322,24 @@ impl<W: Write> Renderer<W> {
 
     // --- User message indicators ---
 
-    /// Render a steering message indicator: `⤷ steering: <text>`.
+    /// Render a dim status line: `<prefix>: <text>`.
+    fn render_dim_status_line(&mut self, prefix: &str, text: &str) {
+        self.ensure_new_line();
+        let line = format!("{prefix}: {text}");
+        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
     pub fn render_steering_sent(&mut self, text: &str) {
-        self.ensure_new_line();
-        let line = format!("⤷ steering: {text}");
-        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
-        self.out.flush().ok();
+        self.render_dim_status_line("⤷ steering", text);
     }
 
-    /// Render a queued follow-up indicator: `⏳ queued: <text>`.
     pub fn render_followup_queued(&mut self, text: &str) {
-        self.ensure_new_line();
-        let line = format!("⏳ queued: {text}");
-        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
-        self.out.flush().ok();
+        self.render_dim_status_line("⏳ queued", text);
     }
 
-    /// Render a follow-up dispatched indicator: `⤷ follow-up: <text>`.
     pub fn render_followup_sent(&mut self, text: &str) {
-        self.ensure_new_line();
-        let line = format!("⤷ follow-up: {text}");
-        queue!(self.out, Print(theme::dim().apply(line)), Print("\r\n")).ok();
-        self.out.flush().ok();
+        self.render_dim_status_line("⤷ follow-up", text);
     }
 
     // --- Prompt ---
