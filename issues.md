@@ -1,4 +1,4 @@
-- [P1] Orchestration next steps: core loop, templates, dispatch serialization, worker state, permission mode, conflict resolution, gc, and workflow documentation all implemented. Remaining: CLAUDE.md integration (open design question), end-to-end testing.
+- [P1] Orchestration next steps: core loop, templates, dispatch serialization, worker state, permission mode, conflict resolution, gc, and workflow documentation all implemented. Remaining: CLAUDE.md integration (open design question), end-to-end testing. (plan: plans/orchestration-next-steps.md)
 - [P0] VCR + snapshot testing for concurrent worker sessions. Needs design — recording multiple interleaved sessions, snapshot format for parallel output, and how to make tests deterministic. (plan: plans/concurrent-worker-testing.md)
 - [P1] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc. (plan: plans/plan-status-naming.md)
 - [P1] Add snapshot testing for the :N output (plan: plans/snapshot-view-message.md)
