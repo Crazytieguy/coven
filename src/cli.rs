@@ -57,6 +57,9 @@ pub enum Command {
     /// Initialize project with default agent prompts and directory structure.
     Init,
 
+    /// Show status of all active workers.
+    Status,
+
     /// Start an orchestration worker (dispatch → agent → land loop).
     Worker {
         /// Branch name for the worktree (random if not specified).
