@@ -29,7 +29,16 @@ pub struct WorkerConfig {
 }
 
 /// Run a worker: spawn a worktree, loop dispatch → agent → land.
-pub async fn worker(config: WorkerConfig) -> Result<()> {
+pub async fn worker(mut config: WorkerConfig) -> Result<()> {
+    // Workers run unattended — agents need bash access for git, tests, linting.
+    // Default to bypassPermissions unless the user specified a permission mode.
+    if !config.extra_args.iter().any(|a| a == "--permission-mode") {
+        config.extra_args.extend([
+            "--permission-mode".to_string(),
+            "bypassPermissions".to_string(),
+        ]);
+    }
+
     let project_root = std::env::current_dir()?;
 
     let spawn_result = worktree::spawn(&SpawnOptions {
