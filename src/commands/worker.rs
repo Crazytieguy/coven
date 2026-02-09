@@ -126,13 +126,16 @@ async fn run_dispatch(
         &dispatch_prompt,
         worktree_path,
         extra_args,
+        None,
         renderer,
         input,
         term_events,
     )
     .await?
     {
-        PhaseOutcome::Completed { result_text, cost } => {
+        PhaseOutcome::Completed {
+            result_text, cost, ..
+        } => {
             let decision = dispatch::parse_decision(&result_text)
                 .context("failed to parse dispatch decision")?;
             Ok(Some(DispatchResult {
@@ -215,29 +218,45 @@ async fn worker_loop(
                 let agent_prompt = agent_def.render(&args)?;
                 renderer.write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
 
-                match run_phase_session(
+                let agent_session_id = match run_phase_session(
                     &agent_prompt,
                     worktree_path,
                     &config.extra_args,
+                    None,
                     renderer,
                     input,
                     term_events,
                 )
                 .await?
                 {
-                    PhaseOutcome::Completed { cost, .. } => {
+                    PhaseOutcome::Completed {
+                        cost, session_id, ..
+                    } => {
                         *total_cost += cost;
                         renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+                        session_id
                     }
                     PhaseOutcome::Exited => return Ok(()),
-                }
+                };
 
                 // === Phase 3: Land ===
                 // Clean untracked files before landing. Agents should commit
                 // their work; leftover files (test artifacts, temp files) must
                 // not block landing and cause committed work to be discarded.
                 let _ = worktree::clean(worktree_path);
-                land_worktree(worktree_path, renderer)?;
+                let should_exit = land_or_resolve(
+                    worktree_path,
+                    agent_session_id.as_deref(),
+                    &config.extra_args,
+                    renderer,
+                    input,
+                    term_events,
+                    total_cost,
+                )
+                .await?;
+                if should_exit {
+                    return Ok(());
+                }
 
                 // Clear state so other dispatchers don't see stale agent info
                 worker_state::update(worktree_path, None, &HashMap::new())?;
@@ -246,44 +265,136 @@ async fn worker_loop(
     }
 }
 
-fn land_worktree(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> {
+/// Attempt to land and, on rebase conflict, resume the agent session to resolve.
+///
+/// Returns true if the worker should exit (user interrupted during resolution).
+async fn land_or_resolve(
+    worktree_path: &Path,
+    session_id: Option<&str>,
+    extra_args: &[String],
+    renderer: &mut Renderer,
+    input: &mut InputHandler,
+    term_events: &mut EventStream,
+    total_cost: &mut f64,
+) -> Result<bool> {
     renderer.write_raw("\r\n=== Landing ===\r\n");
 
-    match worktree::land(worktree_path) {
+    let conflict_files = match worktree::land(worktree_path) {
         Ok(result) => {
             renderer.write_raw(&format!(
                 "Landed {} onto {}\r\n",
                 result.branch, result.main_branch
             ));
+            return Ok(false);
         }
-        Err(worktree::WorktreeError::RebaseConflict(files)) => {
-            renderer.write_raw(&format!("Rebase conflict in: {}\r\n", files.join(", ")));
-            renderer.write_raw("Aborting rebase, resetting to main.\r\n");
-            worktree::abort_rebase(worktree_path)?;
-            worktree::reset_to_main(worktree_path)?;
-            let _ = worktree::clean(worktree_path);
-        }
+        Err(worktree::WorktreeError::RebaseConflict(files)) => files,
         Err(e) => {
             renderer.write_raw(&format!("Land failed: {e}\r\n"));
+            renderer.write_raw("Resetting to main.\r\n");
+            worktree::reset_to_main(worktree_path)?;
+            let _ = worktree::clean(worktree_path);
+            return Ok(false);
+        }
+    };
+
+    // Rebase is in progress with conflict markers. Resume the agent session
+    // to resolve, or abort if we don't have a session to resume.
+    let files_display = conflict_files.join(", ");
+
+    let Some(sid) = session_id else {
+        renderer.write_raw(&format!("Rebase conflict in: {files_display}\r\n"));
+        renderer.write_raw("No session to resume — aborting rebase.\r\n");
+        worktree::abort_rebase(worktree_path)?;
+        worktree::reset_to_main(worktree_path)?;
+        let _ = worktree::clean(worktree_path);
+        return Ok(false);
+    };
+
+    renderer.write_raw(&format!(
+        "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
+    ));
+    renderer.write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
+
+    let prompt = format!(
+        "The rebase onto main hit conflicts in: {files_display}\n\n\
+         Resolve the conflicts in those files, stage them with `git add`, \
+         and run `git rebase --continue`. If more conflicts appear after \
+         continuing, resolve those too until the rebase completes."
+    );
+
+    match run_phase_session(
+        &prompt,
+        worktree_path,
+        extra_args,
+        Some(sid),
+        renderer,
+        input,
+        term_events,
+    )
+    .await?
+    {
+        PhaseOutcome::Completed { cost, .. } => {
+            *total_cost += cost;
+            complete_land_after_resolution(worktree_path, renderer)
+        }
+        PhaseOutcome::Exited => {
+            let _ = worktree::abort_rebase(worktree_path);
+            worktree::reset_to_main(worktree_path)?;
+            let _ = worktree::clean(worktree_path);
+            Ok(true)
+        }
+    }
+}
+
+/// After conflict resolution session completes, finish the land (ff-merge).
+fn complete_land_after_resolution(worktree_path: &Path, renderer: &mut Renderer) -> Result<bool> {
+    let _ = worktree::clean(worktree_path);
+
+    if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+        renderer.write_raw("Rebase still in progress — resolution incomplete.\r\n");
+        renderer.write_raw("Aborting rebase, resetting to main.\r\n");
+        worktree::abort_rebase(worktree_path)?;
+        worktree::reset_to_main(worktree_path)?;
+        let _ = worktree::clean(worktree_path);
+        return Ok(false);
+    }
+
+    match worktree::ff_merge_main(worktree_path) {
+        Ok(result) => {
+            renderer.write_raw(&format!(
+                "Landed {} onto {} (after conflict resolution)\r\n",
+                result.branch, result.main_branch
+            ));
+        }
+        Err(e) => {
+            renderer.write_raw(&format!("Land failed after resolution: {e}\r\n"));
             renderer.write_raw("Resetting to main.\r\n");
             worktree::reset_to_main(worktree_path)?;
             let _ = worktree::clean(worktree_path);
         }
     }
 
-    Ok(())
+    Ok(false)
 }
 
 enum PhaseOutcome {
-    Completed { result_text: String, cost: f64 },
+    Completed {
+        result_text: String,
+        cost: f64,
+        session_id: Option<String>,
+    },
     Exited,
 }
 
 /// Run an interactive claude session for a worker phase (dispatch or agent).
+///
+/// If `resume` is provided, the session is resumed from the given session ID
+/// rather than starting fresh. Used for conflict resolution.
 async fn run_phase_session(
     prompt: &str,
     working_dir: &Path,
     extra_args: &[String],
+    resume: Option<&str>,
     renderer: &mut Renderer,
     input: &mut InputHandler,
     term_events: &mut EventStream,
@@ -293,6 +404,7 @@ async fn run_phase_session(
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
         extra_args: extra_args.to_vec(),
+        resume: resume.map(String::from),
         working_dir: Some(working_dir.to_path_buf()),
         ..Default::default()
     };
@@ -319,6 +431,7 @@ async fn run_phase_session(
                 return Ok(PhaseOutcome::Completed {
                     result_text,
                     cost: state.total_cost_usd,
+                    session_id: state.session_id.clone(),
                 });
             }
             SessionOutcome::Interrupted => {
