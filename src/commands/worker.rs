@@ -264,7 +264,6 @@ async fn worker_loop(
                     .join(" ");
                 renderer.write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
 
-                // === Phase 2: Run Agent ===
                 let agent_def = dispatch
                     .agent_defs
                     .iter()
@@ -272,44 +271,17 @@ async fn worker_loop(
                     .with_context(|| format!("dispatch chose unknown agent: {agent}"))?;
 
                 let agent_prompt = agent_def.render(&args)?;
+                renderer.write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
                 let title_suffix = if args_display.is_empty() {
-                    agent.clone()
+                    agent
                 } else {
                     format!("{agent} {args_display}")
                 };
                 renderer.set_title(&format!("coven: {branch} \u{2014} {title_suffix}"));
-                renderer.write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
 
-                let agent_session_id = match run_phase_session(
+                let should_exit = run_agent(
                     &agent_prompt,
                     worktree_path,
-                    &config.extra_args,
-                    None,
-                    renderer,
-                    input,
-                    term_events,
-                )
-                .await?
-                {
-                    PhaseOutcome::Completed {
-                        cost, session_id, ..
-                    } => {
-                        *total_cost += cost;
-                        renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-                        session_id
-                    }
-                    PhaseOutcome::Exited => return Ok(()),
-                };
-
-                // === Phase 3: Land ===
-                // Clean untracked files before landing. Agents should commit
-                // their work; leftover files (test artifacts, temp files) must
-                // not block landing and cause committed work to be discarded.
-                let _ = worktree::clean(worktree_path);
-
-                let commit_result = ensure_commits(
-                    worktree_path,
-                    agent_session_id,
                     &config.extra_args,
                     renderer,
                     input,
@@ -317,27 +289,8 @@ async fn worker_loop(
                     total_cost,
                 )
                 .await?;
-
-                match commit_result {
-                    CommitCheck::HasCommits { session_id } => {
-                        let should_exit = land_or_resolve(
-                            worktree_path,
-                            session_id.as_deref(),
-                            &config.extra_args,
-                            renderer,
-                            input,
-                            term_events,
-                            total_cost,
-                        )
-                        .await?;
-                        if should_exit {
-                            return Ok(());
-                        }
-                    }
-                    CommitCheck::NoCommits => {
-                        renderer.write_raw("Agent produced no commits — skipping land.\r\n");
-                    }
-                    CommitCheck::Exited => return Ok(()),
+                if should_exit {
+                    return Ok(());
                 }
 
                 // Clear state so other dispatchers don't see stale agent info
@@ -345,6 +298,80 @@ async fn worker_loop(
             }
         }
     }
+}
+
+/// Run the agent phase: execute the agent session, ensure commits, and land.
+/// Returns true if the worker should exit (user interrupted).
+async fn run_agent(
+    prompt: &str,
+    worktree_path: &Path,
+    extra_args: &[String],
+    renderer: &mut Renderer,
+    input: &mut InputHandler,
+    term_events: &mut EventStream,
+    total_cost: &mut f64,
+) -> Result<bool> {
+    let agent_session_id = match run_phase_session(
+        prompt,
+        worktree_path,
+        extra_args,
+        None,
+        renderer,
+        input,
+        term_events,
+    )
+    .await?
+    {
+        PhaseOutcome::Completed {
+            cost, session_id, ..
+        } => {
+            *total_cost += cost;
+            renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+            session_id
+        }
+        PhaseOutcome::Exited => return Ok(true),
+    };
+
+    // === Phase 3: Land ===
+    // Clean untracked files before landing. Agents should commit
+    // their work; leftover files (test artifacts, temp files) must
+    // not block landing and cause committed work to be discarded.
+    let _ = worktree::clean(worktree_path);
+
+    let commit_result = ensure_commits(
+        worktree_path,
+        agent_session_id,
+        extra_args,
+        renderer,
+        input,
+        term_events,
+        total_cost,
+    )
+    .await?;
+
+    match commit_result {
+        CommitCheck::HasCommits { session_id } => {
+            let should_exit = land_or_resolve(
+                worktree_path,
+                session_id.as_deref(),
+                extra_args,
+                renderer,
+                input,
+                term_events,
+                total_cost,
+            )
+            .await?;
+            if should_exit {
+                return Ok(true);
+            }
+        }
+        CommitCheck::NoCommits => {
+            renderer.write_raw("Agent produced no commits — skipping land.\r\n");
+        }
+        CommitCheck::Exited => return Ok(true),
+    }
+
+    Ok(false)
 }
 
 enum CommitCheck {
