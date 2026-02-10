@@ -3,6 +3,5 @@
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P0] `runner.kill()` uses SIGKILL which doesn't give Claude time to persist the conversation. Resume after Ctrl+C fails with "No conversation found with session ID". Consider using SIGTERM or closing stdin instead. (plan: plans/graceful-ctrl-c.md)
 - [P1] VCR test snapshots show title escape sequence leakage: OSC title sequences partially render as visible text (e.g., "oven:" instead of invisible title, "emoving worktree" instead of "Removing worktree"). The test output capture doesn't fully strip OSC sequences. (plan: plans/osc-title-leakage.md)
-- [P0] Consider deduplicating the vcr recording infrastructure: don't have separate code paths for the different coven commands. Plan should either include an implementation plan or clear reasoning why duplication is better. (plan: plans/dedup-vcr-recording.md)
 - [P1] Consider removing the explicit "mode" system for test case toml files. Instead, just support key combinations generically, ideally using a library. Plan file should either include an implementation plan or a convincing reason not to do this. (plan: plans/remove-mode-system.md)
-- [P1] Remove unit tests that are redundant with the snapshot testing. Think carefully about each unit test, go over all of them one by one. No plan required
+
