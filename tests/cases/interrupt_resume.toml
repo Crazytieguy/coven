@@ -1,9 +1,13 @@
 [run]
-prompt = "What is 2+2? Answer in one sentence."
+prompt = "Read the file hello.txt and tell me what it says."
 
-# When the first content_block_start arrives (model starts thinking/responding),
-# inject Ctrl+C to interrupt, then "Continue where you left off" as resume text.
+[files]
+"hello.txt" = "Hello from the test file!\n"
+
+# Interrupt after the first tool result comes back — at this point the session
+# is persisted and can be resumed. The "type": "user" event in the stream
+# represents a tool result, not the initial user message (which goes via launch).
 [[messages]]
 content = "Continue where you left off"
-trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start"}}}}}'
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "user"}}}}'
 mode = "interrupt"
