@@ -39,8 +39,15 @@ async fn run_vcr_test(name: &str) -> String {
     let mut io = Io::dummy();
     let mut output = Vec::new();
 
+    // Default to haiku, matching what record-vcr uses during recording.
+    let default_model = "claude-haiku-4-5-20251001";
+
     if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
+        let mut extra_args = ralph_config.claude_args.clone();
+        if !extra_args.iter().any(|a| a == "--model") {
+            extra_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
         coven::commands::ralph::ralph(
             coven::commands::ralph::RalphConfig {
                 prompt: ralph_config.prompt.clone(),
@@ -48,7 +55,7 @@ async fn run_vcr_test(name: &str) -> String {
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
                 show_thinking: case.display.show_thinking,
-                extra_args: ralph_config.claude_args.clone(),
+                extra_args,
             },
             &mut io,
             &vcr,
@@ -58,9 +65,13 @@ async fn run_vcr_test(name: &str) -> String {
         .expect("Command failed during VCR replay");
     } else {
         let run_config = case.run.as_ref().unwrap();
+        let mut claude_args = run_config.claude_args.clone();
+        if !claude_args.iter().any(|a| a == "--model") {
+            claude_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
         coven::commands::run::run(
             Some(run_config.prompt.clone()),
-            run_config.claude_args.clone(),
+            claude_args,
             case.display.show_thinking,
             &mut io,
             &vcr,

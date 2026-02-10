@@ -3,11 +3,13 @@ source: tests/vcr_test.rs
 expression: clean
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e194a68d-73b8-41c4-b3f0-0f1a495d6de1 (claude-opus-4-6)
+Session 0dcdd3a8-57cb-4f3f-91f1-7da30a2b9f64 (claude-haiku-4-5-20251001)
 
-[1] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-Done. Created `hello.txt` with the text "Hello, world!".
+[1] Thinking...
+[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
+[3] Thinking...
+Done! I've created the file `hello.txt` with the content "Hello, world!".
 
 
-Done  $0.05 · 8.4s · 2 turns  (:N to view)
+Done  $0.01 · 6.3s · 2 turns  (:N to view)
 >

@@ -1,3 +1,2 @@
 [run]
 prompt = "Write a hello world script to hello.py and change the greeting to hi"
-claude_args = ["--model", "claude-sonnet-4-5-20250929"]

@@ -3,11 +3,18 @@ source: tests/vcr_test.rs
 expression: clean
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session fb2b50c1-a3cf-4046-8a79-43824bd3648c (claude-opus-4-6)
+Session 396ff698-54f3-4150-b36c-f99a5abdc2b9 (claude-haiku-4-5-20251001)
 
-[1] ▶ Bash  ls /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
-The current directory is empty (aside from the git repository metadata).
+[1] Thinking...
+[2] ▶ Bash  ls -la
+[3] Thinking...
+The current directory is a git repository with minimal contents:
+
+- `.claude/` - configuration directory
+- `.git/` - git repository metadata
+
+The working directory is otherwise empty with no files or additional folders at the root level.
 
 
-Done  $0.05 · 6.2s · 2 turns  (:N to view)
+Done  $0.01 · 6.6s · 2 turns  (:N to view)
 >

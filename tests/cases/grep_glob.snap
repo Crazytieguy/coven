@@ -3,14 +3,15 @@ source: tests/vcr_test.rs
 expression: clean
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 535e97f7-2425-42fd-9a0b-221d42b30156 (claude-opus-4-6)
+Session 0e9fc047-8e85-4bd2-a76e-ebb01d82ec06 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Grep  fn main
+[3] Thinking...
 Found 1 Rust file containing `fn main`:
 
 - `src/main.rs`
 
 
-Done  $0.05 · 6.2s · 2 turns  (:N to view)
+Done  $0.01 · 5.6s · 2 turns  (:N to view)
 >

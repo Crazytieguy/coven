@@ -122,9 +122,16 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let vcr = VcrContext::record_with_triggers(controller);
     let mut io = Io::new(event_rx, term_rx);
 
-    // Run the real command function
+    // Run the real command function.
+    // Default to haiku for recording unless the test case specifies a model.
+    let default_model = "claude-haiku-4-5-20251001";
+
     if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
+        let mut extra_args = ralph_config.claude_args.clone();
+        if !extra_args.iter().any(|a| a == "--model") {
+            extra_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
         commands::ralph::ralph(
             commands::ralph::RalphConfig {
                 prompt: ralph_config.prompt.clone(),
@@ -132,7 +139,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
                 show_thinking: case.display.show_thinking,
-                extra_args: ralph_config.claude_args.clone(),
+                extra_args,
             },
             &mut io,
             &vcr,
@@ -141,9 +148,13 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         .await?;
     } else {
         let run_config = case.run.as_ref().unwrap();
+        let mut claude_args = run_config.claude_args.clone();
+        if !claude_args.iter().any(|a| a == "--model") {
+            claude_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
         commands::run::run(
             Some(run_config.prompt.clone()),
-            run_config.claude_args.clone(),
+            claude_args,
             case.display.show_thinking,
             &mut io,
             &vcr,
