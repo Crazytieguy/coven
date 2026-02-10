@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use crossterm::event::Event;
-use crossterm::terminal;
 
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::{Renderer, StoredMessage};
@@ -12,6 +11,7 @@ use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
 
+use super::RawModeGuard;
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
 pub struct RunConfig {
@@ -33,9 +33,7 @@ pub async fn run<W: Write>(
     renderer.set_show_thinking(config.show_thinking);
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
-    if vcr.is_live() {
-        terminal::enable_raw_mode()?;
-    }
+    let _raw = RawModeGuard::acquire(vcr.is_live())?;
     renderer.render_help();
 
     let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
@@ -52,9 +50,6 @@ pub async fn run<W: Write>(
     )
     .await?
     else {
-        if vcr.is_live() {
-            terminal::disable_raw_mode()?;
-        }
         return Ok(vec![]);
     };
     loop {
@@ -112,9 +107,6 @@ pub async fn run<W: Write>(
         }
     }
 
-    if vcr.is_live() {
-        terminal::disable_raw_mode()?;
-    }
     runner.close_input();
     let _ = runner.wait().await;
     Ok(renderer.into_messages())

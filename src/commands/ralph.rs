@@ -2,7 +2,6 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use crossterm::terminal;
 
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
@@ -11,6 +10,7 @@ use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
 
+use super::RawModeGuard;
 use super::session_loop::{self, SessionOutcome};
 
 pub struct RalphConfig {
@@ -48,9 +48,7 @@ pub async fn ralph<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
-    if vcr.is_live() {
-        terminal::enable_raw_mode()?;
-    }
+    let _raw = RawModeGuard::acquire(vcr.is_live())?;
 
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
@@ -146,9 +144,6 @@ pub async fn ralph<W: Write>(
         }
     }
 
-    if vcr.is_live() {
-        terminal::disable_raw_mode()?;
-    }
     Ok(renderer.into_messages())
 }
 

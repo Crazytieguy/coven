@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use crossterm::terminal;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
@@ -20,6 +19,7 @@ use crate::vcr::{Io, IoEvent, VcrContext};
 use crate::worker_state;
 use crate::worktree::{self, SpawnOptions};
 
+use super::RawModeGuard;
 use super::session_loop::{self, SessionOutcome};
 
 /// Shared mutable context threaded through worker phases.
@@ -99,9 +99,7 @@ pub async fn worker<W: Write>(
         })
         .await??;
 
-    if vcr.is_live() {
-        terminal::enable_raw_mode()?;
-    }
+    let raw = RawModeGuard::acquire(vcr.is_live())?;
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
@@ -147,9 +145,7 @@ pub async fn worker<W: Write>(
     )
     .await;
 
-    if vcr.is_live() {
-        terminal::disable_raw_mode()?;
-    }
+    drop(raw);
     renderer.set_title("");
 
     vcr.call(
