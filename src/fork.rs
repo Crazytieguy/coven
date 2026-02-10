@@ -142,13 +142,7 @@ pub async fn run_fork<W: Write>(
 /// </fork>
 /// ```
 pub fn parse_fork_tag(text: &str) -> Option<Vec<String>> {
-    let open = "<fork>";
-    let close = "</fork>";
-
-    let start = text.find(open)?;
-    let after_open = start + open.len();
-    let end = text[after_open..].find(close)?;
-    let inner = &text[after_open..after_open + end];
+    let inner = crate::protocol::parse::extract_tag_inner(text, "fork")?;
 
     let tasks: Vec<String> = inner
         .lines()

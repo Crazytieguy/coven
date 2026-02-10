@@ -113,16 +113,9 @@ pub fn format_agent_catalog(agents: &[AgentDef]) -> String {
 
 /// Extract content between `<tag>` and `</tag>`.
 fn extract_tag_content(text: &str, tag: &str) -> Result<String> {
-    let open = format!("<{tag}>");
-    let close = format!("</{tag}>");
-    let start = text
-        .find(&open)
-        .with_context(|| format!("no <{tag}> tag found in dispatch output"))?;
-    let after_open = start + open.len();
-    let end = text[after_open..]
-        .find(&close)
-        .with_context(|| format!("no </{tag}> closing tag found in dispatch output"))?;
-    Ok(text[after_open..after_open + end].trim().to_string())
+    crate::protocol::parse::extract_tag_inner(text, tag)
+        .map(|s| s.trim().to_string())
+        .with_context(|| format!("no <{tag}>...</{tag}> found in dispatch output"))
 }
 
 #[cfg(test)]
@@ -191,7 +184,7 @@ issue: issues/fix-scroll-bug.md
         let text = "I think we should work on the scroll bug.";
         let err = parse_decision(text).unwrap_err();
         assert!(
-            err.to_string().contains("no <dispatch> tag"),
+            err.to_string().contains("<dispatch>"),
             "unexpected error: {err}"
         );
     }
@@ -201,7 +194,7 @@ issue: issues/fix-scroll-bug.md
         let text = "<dispatch>\nagent: plan\n";
         let err = parse_decision(text).unwrap_err();
         assert!(
-            err.to_string().contains("no </dispatch> closing tag"),
+            err.to_string().contains("<dispatch>"),
             "unexpected error: {err}"
         );
     }

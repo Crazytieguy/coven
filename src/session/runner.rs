@@ -167,14 +167,7 @@ impl SessionRunner {
     /// so the user can see exactly what Claude emitted. The clean "Loop complete: reason"
     /// line is added separately after the stats display (see ralph.rs).
     pub fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
-        let open = format!("<{tag}>");
-        let close = format!("</{tag}>");
-
-        let start = text.find(&open)?;
-        let after_open = start + open.len();
-        let end = text[after_open..].find(&close)?;
-        let reason = text[after_open..after_open + end].trim().to_string();
-        Some(reason)
+        crate::protocol::parse::extract_tag_inner(text, tag).map(|s| s.trim().to_string())
     }
 
     /// Build the ralph system prompt for the given break tag.
