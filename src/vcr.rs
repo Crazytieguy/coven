@@ -443,13 +443,14 @@ struct PendingTrigger {
     fired: bool,
 }
 
-/// Whether a triggered message is a steering (Enter) or follow-up (Alt+Enter).
+/// Whether a triggered message is a steering (Enter), follow-up (Alt+Enter), or exit (Ctrl+D).
 #[derive(Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum TriggerInputMode {
     #[default]
     Followup,
     Steering,
+    Exit,
 }
 
 impl TriggerController {
@@ -496,7 +497,10 @@ impl TriggerController {
 
         let any_fired_this_call = !to_inject.is_empty();
         for (text, mode) in &to_inject {
-            inject_text(&self.term_tx, text, *mode);
+            match mode {
+                TriggerInputMode::Exit => inject_exit(&self.term_tx),
+                _ => inject_text(&self.term_tx, text, *mode),
+            }
         }
 
         // Auto-exit: if all triggers have fired, none fired THIS call, and this
@@ -523,6 +527,7 @@ fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: Trigger
     let enter_modifiers = match mode {
         TriggerInputMode::Followup => KeyModifiers::ALT,
         TriggerInputMode::Steering => KeyModifiers::NONE,
+        TriggerInputMode::Exit => unreachable!("Exit triggers are handled in check(), not inject_text()"),
     };
     let enter = Event::Key(KeyEvent {
         code: KeyCode::Enter,
@@ -564,6 +569,8 @@ pub struct TestCase {
     pub run: Option<RunConfig>,
     /// Configuration for ralph loop mode.
     pub ralph: Option<RalphConfig>,
+    /// Configuration for worker mode.
+    pub worker: Option<WorkerTestConfig>,
     /// Display/renderer configuration for test replay.
     #[serde(default)]
     pub display: DisplayConfig,
@@ -613,6 +620,14 @@ fn default_break_tag() -> String {
     "break".to_string()
 }
 
+/// CLI configuration for worker mode (mirrors coven's worker subcommand args).
+#[derive(Deserialize)]
+pub struct WorkerTestConfig {
+    /// Extra arguments to pass through to claude.
+    #[serde(default)]
+    pub claude_args: Vec<String>,
+}
+
 /// A message to send during a recording session.
 #[derive(Deserialize)]
 pub struct TestMessage {
@@ -629,5 +644,10 @@ impl TestCase {
     /// Whether this is a ralph test case.
     pub fn is_ralph(&self) -> bool {
         self.ralph.is_some()
+    }
+
+    /// Whether this is a worker test case.
+    pub fn is_worker(&self) -> bool {
+        self.worker.is_some()
     }
 }

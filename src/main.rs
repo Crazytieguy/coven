@@ -75,6 +75,7 @@ async fn main() -> Result<()> {
                     branch,
                     worktree_base: base,
                     extra_args: claude_args,
+                    working_dir: None,
                 },
                 &mut io,
                 &vcr,

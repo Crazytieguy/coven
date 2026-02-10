@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use coven::display::renderer::{StoredMessage, format_message};
 use coven::vcr::{Io, TestCase, VcrContext};
@@ -50,7 +50,31 @@ async fn run_vcr_test(name: &str) -> TestResult {
     // Default to haiku, matching what record-vcr uses during recording.
     let default_model = coven::vcr::DEFAULT_TEST_MODEL;
 
-    let messages = if case.is_ralph() {
+    let messages = if case.is_worker() {
+        let worker_config = case.worker.as_ref().unwrap();
+        let mut extra_args = worker_config.claude_args.clone();
+        if !extra_args.iter().any(|a| a == "--model") {
+            extra_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
+        // Dummy path — never touched on disk since all worktree ops are VCR stubs during replay.
+        let worktree_base = PathBuf::from("/tmp/coven-vcr-replay-worktrees");
+        coven::commands::worker::worker(
+            coven::commands::worker::WorkerConfig {
+                show_thinking: case.display.show_thinking,
+                branch: None,
+                worktree_base,
+                extra_args,
+                working_dir: None,
+            },
+            &mut io,
+            &vcr,
+            &mut output,
+        )
+        .await
+        .expect("Command failed during VCR replay");
+        // Worker doesn't return StoredMessages; return empty vec.
+        Vec::new()
+    } else if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
         let mut extra_args = ralph_config.claude_args.clone();
         if !extra_args.iter().any(|a| a == "--model") {

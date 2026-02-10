@@ -34,6 +34,8 @@ pub struct WorkerConfig {
     pub branch: Option<String>,
     pub worktree_base: PathBuf,
     pub extra_args: Vec<String>,
+    /// Override for the project root directory (used by test recording).
+    pub working_dir: Option<PathBuf>,
 }
 
 /// Serializable args for VCR-recording `worktree::spawn`.
@@ -69,7 +71,10 @@ pub async fn worker<W: Write>(
             .extend(["--permission-mode".to_string(), "acceptEdits".to_string()]);
     }
 
-    let project_root = std::env::current_dir()?;
+    let project_root = match config.working_dir {
+        Some(ref dir) => dir.clone(),
+        None => std::env::current_dir()?,
+    };
 
     let spawn_args = SpawnArgs {
         repo_path: project_root.display().to_string(),

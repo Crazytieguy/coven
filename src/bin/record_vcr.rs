@@ -140,7 +140,9 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
 
     let mut controller = TriggerController::new(&case.messages, term_tx)?;
-    if !case.is_ralph() {
+    // Auto-exit for run mode: inject Ctrl+D after all triggers fire and result is seen.
+    // Ralph and worker modes handle exit differently (break tag / explicit exit trigger).
+    if !case.is_ralph() && !case.is_worker() {
         controller = controller.with_auto_exit();
     }
     let vcr = VcrContext::record_with_triggers(controller);
@@ -153,7 +155,31 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     // Capture output to a buffer (stdout would interleave in parallel).
     let mut output = Vec::new();
 
-    if case.is_ralph() {
+    if case.is_worker() {
+        let worker_config = case.worker.as_ref().context("worker config missing")?;
+        let mut extra_args = worker_config.claude_args.clone();
+        if !extra_args.iter().any(|a| a == "--model") {
+            extra_args.extend(["--model".to_string(), default_model.to_string()]);
+        }
+        // Worker needs a worktree base directory (sibling of the test repo).
+        let worktree_base = tmp_dir.with_file_name(format!("coven-vcr-{name}-worktrees"));
+        std::fs::create_dir_all(&worktree_base)?;
+        commands::worker::worker(
+            commands::worker::WorkerConfig {
+                show_thinking: case.display.show_thinking,
+                branch: None,
+                worktree_base: worktree_base.clone(),
+                extra_args,
+                working_dir: Some(tmp_dir.clone()),
+            },
+            &mut io,
+            &vcr,
+            &mut output,
+        )
+        .await?;
+        // Clean up worktree base
+        std::fs::remove_dir_all(&worktree_base).ok();
+    } else if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().context("ralph config missing")?;
         let mut extra_args = ralph_config.claude_args.clone();
         if !extra_args.iter().any(|a| a == "--model") {
