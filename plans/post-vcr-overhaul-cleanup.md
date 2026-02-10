@@ -1,6 +1,7 @@
 Issue: [P0] Post-VCR-overhaul audit and cleanup
 Status: approved
 
+
 ## Approach
 
 Thorough cleanup pass over all files touched by the VCR system overhaul. The sections below capture known issues, but this is an audit — read each file carefully and fix anything that looks rough, not just what's listed here. Work through in order:

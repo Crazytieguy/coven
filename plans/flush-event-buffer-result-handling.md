@@ -1,6 +1,7 @@
 Issue: [P0] flush_event_buffer mishandles Result and ProcessExit events — Done line shown with pending followups, followup queue order violated, dead-process send on buffered exit
 Status: approved
 
+
 ## Approach
 
 The root cause is that `flush_event_buffer` in `session_loop.rs` processes events differently from `process_claude_event`:

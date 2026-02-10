@@ -494,12 +494,34 @@ async fn land_or_resolve<W: Write>(
                 return Ok(false);
             }
             Err(worktree::WorktreeError::RebaseConflict(files)) => files,
+            Err(worktree::WorktreeError::FastForwardFailed) => {
+                attempts += 1;
+                if attempts > MAX_ATTEMPTS {
+                    renderer.write_raw(&format!(
+                        "Fast-forward failed after {MAX_ATTEMPTS} attempts \
+                         — pausing worker. Press Enter to retry.\r\n",
+                    ));
+                    if wait_for_enter_or_exit(io).await? {
+                        return Ok(true);
+                    }
+                    attempts = 0;
+                    continue;
+                }
+                renderer.write_raw("Main advanced during land — retrying...\r\n");
+                continue;
+            }
             Err(e) => {
-                renderer.write_raw(&format!("Land failed: {e}\r\n"));
-                renderer.write_raw("Resetting to main.\r\n");
-                worktree::reset_to_main(worktree_path)?;
-                warn_clean(worktree_path, renderer);
-                return Ok(false);
+                // Abort any in-progress rebase (harmless no-op if rebase hasn't started).
+                let _ = worktree::abort_rebase(worktree_path);
+                // No attempts counter — user manually presses Enter each time,
+                // so they can inspect the worktree and fix the issue before retrying.
+                renderer.write_raw(&format!(
+                    "Land failed: {e} — pausing worker. Press Enter to retry.\r\n",
+                ));
+                if wait_for_enter_or_exit(io).await? {
+                    return Ok(true);
+                }
+                continue;
             }
         };
 
