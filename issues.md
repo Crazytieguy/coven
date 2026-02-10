@@ -1,5 +1,5 @@
 - [P1] Orchestration next steps: core loop, templates, dispatch serialization, worker state, permission mode, conflict resolution, gc, and workflow documentation all implemented. Remaining: CLAUDE.md integration (open design question), end-to-end testing. (plan: plans/orchestration-next-steps.md)
-- [P0] VCR testing: steps 1-11 complete (infrastructure, command refactoring, test harness, all 13 test cases re-recorded). Remaining: step 12 — first worker test case (dispatch → agent → land). (plan: plans/overhaul-vcr-testing.md)
+- [P1] Add first `coven worker` VCR test case: single worker dispatch → agent → land pipeline. Worker's git operations (worktree::land, worktree::spawn, etc.) are not yet wrapped with vcr.call() — only session spawning is. Will need to wrap those, create test agent definitions and issue files, and iterate until the snapshot looks correct.
 - [P2] worker.rs too_many_arguments clippy warnings: adding `W: Write` + renderer parameter pushed 7 functions from 7 to 8 args. Consider grouping related params into a context struct.
 - [P1] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc. (plan: plans/plan-status-naming.md)
 - [P1] Add snapshot testing for the :N output (plan: plans/snapshot-view-message.md)
