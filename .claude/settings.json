@@ -178,8 +178,7 @@
       "Bash(xargs -I{} bash *)",
       "Bash(cat)",
       "Bash(rustc *)",
-      "Bash(git -C *)",
-      "Edit(**/*.vcr)"
+      "Bash(git -C *)"
     ]
   }
 }

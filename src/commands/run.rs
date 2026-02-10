@@ -53,7 +53,7 @@ pub async fn run<W: Write>(
             &mut renderer,
             &mut state,
             &extra_args,
-            &working_dir,
+            working_dir.as_ref(),
             io,
             vcr,
         )
@@ -140,7 +140,7 @@ async fn wait_for_initial_prompt<W: Write>(
     renderer: &mut Renderer<W>,
     state: &mut SessionState,
     extra_args: &[String],
-    working_dir: &Option<PathBuf>,
+    working_dir: Option<&PathBuf>,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
@@ -156,7 +156,7 @@ async fn wait_for_initial_prompt<W: Write>(
                         let config = SessionConfig {
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
-                            working_dir: working_dir.clone(),
+                            working_dir: working_dir.cloned(),
                             ..Default::default()
                         };
                         let runner = vcr

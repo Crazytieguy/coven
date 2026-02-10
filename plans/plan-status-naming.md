@@ -1,4 +1,4 @@
-Issue: [P1] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc.
+Issue: [P2] Brainstorm alternatives to "approved" for plan status naming. "Approved" is awkward — consider: ready, accepted, go, etc.
 Status: draft
 
 ## Approach

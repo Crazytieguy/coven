@@ -1,5 +1,5 @@
-Issue: [P1] land_or_resolve discards agent work on FastForwardFailed instead of retrying
-Status: draft
+Issue: [P0] land_or_resolve discards agent work on FastForwardFailed instead of retrying
+Status: approve
 
 ## Approach
 
@@ -40,6 +40,6 @@ For the remaining unrecoverable errors (GitCommand, DirtyWorkingTree, etc.), the
 Pros: prevents permanent work loss in any error path.
 Cons: accumulates tags that need cleanup; these errors are rare and usually indicate something fundamentally wrong.
 
-Answer:
+Answer: For now I want to never automatically discard work. If we're not able to reach a clean state, just pause and notify the user
 
 ## Review

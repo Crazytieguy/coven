@@ -130,7 +130,6 @@ pub async fn ralph<W: Write>(
                                 append_system_prompt: Some(system_prompt.clone()),
                                 resume: Some(session_id),
                                 working_dir: config.working_dir.clone(),
-                                ..Default::default()
                             };
                             runner = vcr
                                 .call("spawn", resume_config, async |c: &SessionConfig| {

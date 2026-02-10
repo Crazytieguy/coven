@@ -368,6 +368,7 @@ impl TriggerController {
     }
 
     /// Enable auto-exit: inject Ctrl+D after all triggers fired and result seen.
+    #[must_use]
     pub fn with_auto_exit(mut self) -> Self {
         self.auto_exit = true;
         self
@@ -425,7 +426,7 @@ fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: Trigger
     let _ = term_tx.send(enter);
 }
 
-/// Inject Ctrl+D (EndSession signal) into the terminal channel.
+/// Inject Ctrl+D (`EndSession` signal) into the terminal channel.
 fn inject_exit(term_tx: &mpsc::UnboundedSender<Event>) {
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     let exit = Event::Key(KeyEvent {

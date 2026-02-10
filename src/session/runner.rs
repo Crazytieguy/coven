@@ -31,7 +31,7 @@ pub struct SessionConfig {
 /// Manages a claude -p subprocess with bidirectional stream-json.
 ///
 /// The `child` field is optional to support VCR replay mode, where a stub
-/// SessionRunner is constructed without a real process.
+/// `SessionRunner` is constructed without a real process.
 pub struct SessionRunner {
     child: Option<Child>,
     stdin: Option<ChildStdin>,
@@ -86,8 +86,8 @@ impl SessionRunner {
         })
     }
 
-    /// Create a stub SessionRunner for VCR replay mode.
-    /// Has no real process — methods like close_input/wait/kill are no-ops.
+    /// Create a stub `SessionRunner` for VCR replay mode.
+    /// Has no real process — methods like `close_input`/`wait`/`kill` are no-ops.
     pub fn stub() -> Self {
         Self {
             child: None,

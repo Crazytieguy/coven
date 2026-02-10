@@ -1,4 +1,4 @@
-Issue: Add snapshot testing for the :N output
+Issue: [P1] Add snapshot testing for the :N output
 Status: draft
 
 ## Approach

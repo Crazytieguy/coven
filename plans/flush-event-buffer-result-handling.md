@@ -1,5 +1,5 @@
-Issue: [P1] flush_event_buffer mishandles Result and ProcessExit events — Done line shown with pending followups, followup queue order violated, dead-process send on buffered exit
-Status: draft
+Issue: [P0] flush_event_buffer mishandles Result and ProcessExit events — Done line shown with pending followups, followup queue order violated, dead-process send on buffered exit
+Status: approved
 
 ## Approach
 
@@ -43,7 +43,7 @@ Dispatching a queued followup during the flush requires calling `runner.send_mes
 
 Option B is simpler and keeps the flush function focused on rendering. The caller already has access to `runner`.
 
-Answer:
+Answer: B
 
 ## Review
 
