@@ -6,4 +6,5 @@
 - [P2] Status formatting duplication: `commands/status.rs` duplicates the worker-formatting logic from `worker_state::format_status`. The two differ in minor formatting details (prefix, separator) but share the same structure. Consolidate into a single parameterized formatter. (plan: plans/status-formatting-duplication.md)
 - [P2] README overhaul: add usage guidelines, document worker/fork/agents/init/status/gc commands, update features list, add a commands section. Currently only covers basic features. (plan: plans/readme-overhaul.md)
 - [P2] Windows support: uses Unix-specific APIs (libc::tcflush, /dev/null, kill command, rsync). Need platform abstractions or #[cfg] guards to support x86_64-pc-windows-msvc target. (plan: plans/windows-support.md)
+- [P2] Missing test coverage for `init`, `gc`, and `status` commands — these have no VCR test cases. All other commands have at least basic coverage. (plan: plans/test-coverage-init-gc-status.md)
 
