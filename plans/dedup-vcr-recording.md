@@ -5,32 +5,21 @@ Status: draft
 
 Add a `TestCase::run_command()` method that encapsulates the branching logic, so both `record_vcr.rs` and `vcr_test.rs` call one function instead of duplicating the same if/else chain.
 
-### Step 1: Give `run()` a config struct
+No new config structs are needed — `run()` keeps its positional args, and `run_command()` constructs the existing `RalphConfig`/`WorkerConfig` structs directly.
 
-`ralph()` and `worker()` take config structs, but `run()` takes positional args:
+### Why not reuse the clap structs?
 
-```rust
-pub async fn run(prompt: Option<String>, extra_args: Vec<String>,
-                 show_thinking: bool, working_dir: Option<PathBuf>,
-                 io: &mut Io, vcr: &VcrContext, writer: W)
-```
+The clap CLI types can't be reused for test dispatch because:
+1. `Cli` carries `command: Option<Command>` which is irrelevant to any single command function
+2. Subcommand args (`Ralph`, `Worker`) are enum variants, not standalone structs — can't be passed to functions
+3. None of the clap types have `working_dir` (test-only; always `None` from CLI, `Some(tmp_dir)` during recording)
+4. `Worker.worktree_base` is `Option<PathBuf>` in clap (defaulted in `main.rs`) but `PathBuf` in `WorkerConfig`
 
-Introduce `RunConfig` (the runtime config, distinct from the existing test-TOML `vcr::RunConfig`):
+The existing `RalphConfig` and `WorkerConfig` already bridge this gap for their commands. `run()` currently takes positional args — this is fine and doesn't need a config struct just for symmetry.
 
-```rust
-pub struct RunConfig {
-    pub prompt: Option<String>,
-    pub show_thinking: bool,
-    pub extra_args: Vec<String>,
-    pub working_dir: Option<PathBuf>,
-}
-```
+### Step 1: Add `TestCase::run_command()`
 
-Update `run()` to take `RunConfig` and update `main.rs` callsite.
-
-### Step 2: Add `TestCase::run_command()`
-
-Add a method on `TestCase` (in `vcr.rs`) that builds the appropriate runtime config and calls the right command function. Signature:
+Add a method on `TestCase` (in `vcr.rs`) that builds the appropriate config and calls the right command function. Signature:
 
 ```rust
 impl TestCase {
@@ -48,12 +37,11 @@ This method:
 1. Determines which command to run (`is_worker()` / `is_ralph()` / default)
 2. Extracts the command-specific test config
 3. Injects `--model` default if not present
-4. Builds the runtime config struct
-5. For worker: creates worktree_base dir (as sibling of `working_dir`) and cleans up after
-6. Calls the command function
-7. Returns `Vec<StoredMessage>` (empty vec for worker, which returns `()`)
+4. For worker: creates worktree_base dir (as sibling of `working_dir` or a temp path) and cleans up after
+5. Calls the command function (`run()` with positional args, `ralph()` with `RalphConfig`, `worker()` with `WorkerConfig`)
+6. Returns `Vec<StoredMessage>` (empty vec for worker, which returns `()`)
 
-### Step 3: Simplify callers
+### Step 2: Simplify callers
 
 **`record_vcr.rs`** (lines 151-212) becomes:
 ```rust
@@ -66,9 +54,9 @@ let messages = case.run_command(&mut io, &vcr, &mut output, None).await
     .expect("Command failed during VCR replay");
 ```
 
-### Step 4: Move auto-exit logic into `run_command` or alongside it
+### Auto-exit logic (no change needed)
 
-The auto-exit decision (lines 138-139 of record_vcr.rs) is only relevant during recording, not replay. It stays in `record_vcr.rs` since it configures the `TriggerController` before `run_command` is called. No change needed here.
+The auto-exit decision (lines 138-139 of `record_vcr.rs`) is recording-only. It stays in `record_vcr.rs` since it configures the `TriggerController` before `run_command` is called.
 
 ## Questions
 
@@ -77,18 +65,6 @@ The auto-exit decision (lines 138-139 of record_vcr.rs) is only relevant during 
 `TestCase` already has `is_worker()`, `is_ralph()`, and holds the config data, so a method seems natural. The alternative is a free function `run_test_command(case, io, vcr, writer, working_dir)` — functionally equivalent but less discoverable.
 
 I lean toward the method since it keeps the dispatch logic next to the config types.
-
-Answer:
-
-### Naming collision: `vcr::RunConfig` vs `commands::run::RunConfig`
-
-There's already a `RunConfig` in `vcr.rs` (the TOML deserialization struct). The new runtime config in `commands::run.rs` would also be `RunConfig`. These are in different modules so there's no Rust conflict, but it could be confusing. Options:
-
-1. Keep both as `RunConfig` — module paths disambiguate (`vcr::RunConfig` vs `commands::run::RunConfig`)
-2. Rename the TOML one to `RunTestConfig` to match `WorkerTestConfig`
-3. Rename the runtime one to `RunParams` or similar
-
-I lean toward option 2 since `WorkerTestConfig` already sets this convention (the test TOML struct for worker is `WorkerTestConfig`, not `WorkerConfig`).
 
 Answer:
 
