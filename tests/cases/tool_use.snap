@@ -1,19 +1,19 @@
 ---
 source: tests/vcr_test.rs
-expression: clean
+expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session bdb30a5a-3fe2-4ceb-9c7e-d37029f7be7d (claude-haiku-4-5-20251001)
+Session 9908c444-c4bd-4697-b2a5-20348a3d8798 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Bash  ls -la
 [3] Thinking...
 The current directory contains:
-- `.claude/` - Claude Code configuration directory
-- `.git/` - Git repository
+- `.claude/` - Claude configuration directory
+- `.git/` - Git repository directory
 
-The working directory appears to be a fresh or empty git repository. Would you like me to explore what's inside the `.claude` directory or help you with something specific?
+The working directory is mostly empty. This appears to be a newly initialized git repository with Claude Code configuration.
 
 
-Done  $0.01 · 7.9s · 2 turns  (:N to view)
+Done  $0.01 · 4.3s · 2 turns  (:N to view)
 >

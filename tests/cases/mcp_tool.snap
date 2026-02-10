@@ -1,31 +1,26 @@
 ---
 source: tests/vcr_test.rs
-expression: clean
+expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session f46c015a-5dca-4432-90d3-943d62525ef0 (claude-haiku-4-5-20251001)
+Session f67dfc2a-66cd-42d9-9399-b815494aca09 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ llms-fetch-mcp:llms-fetch:fetch  https://docs.rs/tokio
 [3] Thinking...
-I've fetched the tokio documentation from https://docs.rs/tokio. It's been saved locally and converted to markdown.
+I've successfully fetched the tokio documentation from https://docs.rs/tokio. The documentation is now cached locally with 363 lines covering:
 
-The documentation includes sections on:
 - **A Tour of Tokio** - Introduction and examples
-- **Authoring libraries** - How to build libraries with Tokio
-- **Working With Tasks** - Task spawning and management
+- **Authoring libraries** - How to create libraries with tokio
+- **Working With Tasks** - Task management and spawning
 - **CPU-bound tasks and blocking code** - Handling blocking operations
 - **Asynchronous IO** - Async I/O patterns
 - **Examples** - Code examples
-- **Feature flags** - Available feature configurations
-- **Unstable features** - Experimental APIs
-- **Supported platforms** - Platform compatibility
-- **WASM support** - WebAssembly support details
+- **Feature flags** - Available Cargo features
+- **Platform support** - Including WASM support
 
-The documentation is cached locally at: `/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-mcp_tool/.llms-fetch-mcp/docs.rs/tokio/index`
-
-What would you like to know about Tokio?
+You can now reference the documentation for specific information. Would you like me to fetch any specific section or help with something specific related to tokio?
 
 
-Done  $0.01 · 8.9s · 2 turns  (:N to view)
+Done  $0.01 · 5.3s · 2 turns  (:N to view)
 >

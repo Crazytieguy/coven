@@ -5,27 +5,6 @@ expression: views
 :2  [2] Bash
 
 {
-  "command": "ls -la",
-  "description": "List files in current directory"
-}
-
---- :next ---
-
-:3  [3] Read
-
-{
-  "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling"
-}
-
---- Result ---
-
-Sibling tool call errored
-
---- :next ---
-
-:9  [9] Bash
-
-{
   "command": "bash test.sh",
   "description": "Run the test script"
 }
@@ -37,7 +16,13 @@ Running tests...
 
 --- :next ---
 
-:11  [11] Edit
+:3  [3] Thinking
+
+The test script ran but exited with code 1 (failure) and gave us "Running tests..." as output. Let me look at the test script to understand what it's testing.
+
+--- :next ---
+
+:14  [14] Edit
 
 {
   "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh",
@@ -48,3 +33,16 @@ Running tests...
 --- Result ---
 
 The file /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh has been updated successfully.
+
+--- :next ---
+
+:16  [16] Bash
+
+{
+  "command": "bash test.sh",
+  "description": "Run the test script again"
+}
+
+--- Result ---
+
+Running tests...

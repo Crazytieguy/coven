@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Create a temp directory with test files, `.claude/settings.json`, and an initial git commit.
+/// Create a temp directory with test files and an initial git commit.
 fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
     let tmp_dir = std::env::temp_dir().join(format!("coven-vcr-{name}"));
     if tmp_dir.exists() {
@@ -94,17 +94,10 @@ fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
         std::fs::write(&file_path, content)?;
     }
 
-    let claude_dir = tmp_dir.join(".claude");
-    std::fs::create_dir_all(&claude_dir)?;
-    std::fs::write(
-        claude_dir.join("settings.json"),
-        r#"{"permissions":{"allow":["Bash(*)","WebFetch","WebSearch","mcp__plugin_llms-fetch-mcp_llms-fetch__fetch"]}}"#,
-    )?;
-
     for (cmd, args) in [
         ("init", vec![]),
         ("add", vec!["."]),
-        ("commit", vec!["-m", "initial"]),
+        ("commit", vec!["-m", "initial", "--allow-empty"]),
     ] {
         let output = std::process::Command::new("git")
             .arg(cmd)

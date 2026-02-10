@@ -1,17 +1,32 @@
 ---
 source: tests/vcr_test.rs
-expression: clean
+expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 33f24e8a-f9a6-4060-8f73-9a499246d7ba (claude-haiku-4-5-20251001)
+Session cba43075-0ecd-405b-9a30-99b44ef19c7e (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Grep  fn main
 [3] Thinking...
-Found 1 Rust file containing `fn main`:
+No Rust files containing 'fn main' were found in the current directory. Let me check what files are available:
 
-- **src/main.rs**
+[4] ▶ Glob  **/*.rs
+[5] Thinking...
+Found 2 Rust files. Let me search for 'fn main' with content:
+
+[6] ▶ Grep  fn main
+[7] Thinking...
+Let me check the contents of these files to see what's in them:
+
+[8] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[9] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[10] Thinking...
+**Result:** There is **1 Rust file** containing `fn main`:
+
+- `src/main.rs` (contains `fn main()` at line 1)
+
+The other Rust file found (`src/lib.rs`) does not contain a `fn main` function—it only has a library function `add`.
 
 
-Done  $0.01 · 12.6s · 2 turns  (:N to view)
+Done  $0.02 · 20.4s · 6 turns  (:N to view)
 >

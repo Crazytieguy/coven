@@ -3,12 +3,12 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-oven: light-bear-48
-Worker started: light-bear-48 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-worker_basic-worktrees/coven-vcr-worker_basic/light-bear-48)
-oven: light-bear-48 — dispatch
+oven: clever-ember-51
+Worker started: clever-ember-51 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-worker_basic-worktrees/coven-vcr-worker_basic/clever-ember-51)
+oven: clever-ember-51 — dispatch
 === Dispatch ===
 
-Session 177a4834-1985-4578-82db-97e16b7e3b04 (claude-haiku-4-5-20251001)
+Session f9a944ef-9d76-4a90-8bbf-5276e3963252 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Glob  hello.txt
@@ -18,47 +18,47 @@ agent: greet
 </dispatch>
 
 
-Done  $0.01 · 5.1s · 2 turns  (:N to view)
+Done  $0.01 · 5.6s · 2 turns  (:N to view)
   Total cost: $0.01
 
 Dispatch: greet 
 
 === Agent: greet ===
 
-oven: light-bear-48 — greetSession ab7969a4-4e25-4f60-a920-ae38d6166722 (claude-haiku-4-5-20251001)
+oven: clever-ember-51 — greetSession 046978aa-2872-4203-86ef-95b3ae23d729 (claude-haiku-4-5-20251001)
 
 [4] Thinking...
 [5] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 [6] Thinking...
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-Done! I've created the `hello.txt` file with the content "Hello from coven worker!" and committed it with the message "Add hello.txt". The commit hash is `e246833`.
+Done! I've created `hello.txt` with the content "Hello from coven worker!" and committed it with the message "Add hello.txt". The commit was successful on branch clever-ember-51 (commit b99f749).
 
 
-Done  $0.02 · 16.2s · 3 turns  (:N to view)
+Done  $0.02 · 8.3s · 3 turns  (:N to view)
   Total cost: $0.03
 
 === Landing ===
-Landed light-bear-48 onto main
-oven: light-bear-48 — dispatch
+Landed clever-ember-51 onto main
+oven: clever-ember-51 — dispatch
 === Dispatch ===
 
-Session cd4b008a-b7bd-47d6-9d7c-c8a5d5fdea3c (claude-haiku-4-5-20251001)
+Session ae21b6da-3423-4f4c-ae26-ad8f71de772f (claude-haiku-4-5-20251001)
 
 [9] Thinking...
 [10] ▶ Glob  hello.txt
 [11] Thinking...
-hello.txt exists in the project root. All work is complete.
-
 ```
 <dispatch>
 sleep: true
 </dispatch>
 ```
 
+The hello.txt file already exists in the project root, so all work is complete.
 
-Done  $0.01 · 4.4s · 2 turns  (:N to view)
+
+Done  $0.01 · 3.5s · 2 turns  (:N to view)
   Total cost: $0.04
-oven: light-bear-48 — sleeping
+oven: clever-ember-51 — sleeping
 Dispatch: sleep — waiting for new commits...
 emoving worktree...

@@ -1,6 +1,7 @@
 [worker]
 
 [files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)"]}}'
 ".coven/agents/dispatch.md" = '''---
 description: "Chooses the next task for a worker"
 args:

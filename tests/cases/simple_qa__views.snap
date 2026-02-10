@@ -4,8 +4,8 @@ expression: views
 ---
 :1  [1] Thinking
 
-The user is asking a simple math question: what is 2+2?
+The user is asking a simple arithmetic question: "What is 2+2?"
 
-This is straightforward - 2+2 equals 4. I don't need to use any tools for this, it's just a direct answer.
+This is straightforward math. 2 + 2 = 4.
 
-I should keep my response short and concise as instructed in the guidelines.
+This doesn't require any tools or complex reasoning. I should just answer directly and concisely.

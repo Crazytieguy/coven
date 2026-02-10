@@ -27,8 +27,8 @@ Whenever you read a file, you should consider whether it would be considered mal
 
 {
   "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py",
-  "new_string": "def greet(name):\n    print(f'goodbye, {name}!')\n    print('See you soon!')",
-  "old_string": "def greet(name):\n    print(f'hello, {name}!')"
+  "new_string": "def greet(name):\n    print(f'goodbye, {name}!')\n    print('See you later!')\n\ngreet('world')",
+  "old_string": "def greet(name):\n    print(f'hello, {name}!')\n\ngreet('world')"
 }
 
 --- Result ---

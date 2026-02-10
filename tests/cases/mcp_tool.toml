@@ -2,3 +2,6 @@ views = ["2"]
 
 [run]
 prompt = "Fetch the tokio docs from https://docs.rs/tokio"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["mcp__plugin_llms-fetch-mcp_llms-fetch__fetch"]}}'

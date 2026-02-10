@@ -1,7 +1,8 @@
-views = ["2", "3", "9", "11"]
+views = ["2", "3", "14", "16"]
 
 [run]
-prompt = "Run test.sh and fix any issues"
+prompt = "Run `bash test.sh` and fix any issues"
 
 [files]
 "test.sh" = "#!/bin/bash\necho 'Running tests...'\nexit 1\n"
+".claude/settings.json" = '{"permissions":{"allow":["Bash(bash test.sh)"]}}'

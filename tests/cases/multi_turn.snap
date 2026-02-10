@@ -1,90 +1,89 @@
 ---
 source: tests/vcr_test.rs
-expression: clean
+expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session b11e12f2-fa92-4b50-8ee7-c4072a06a859 (claude-haiku-4-5-20251001)
+Session 896c9b71-b583-4451-9b9e-c78922986426 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-Rust is a modern systems programming language designed to provide three main guarantees:
+Rust is a modern systems programming language that prioritizes three key goals:
 
-**Safety**: Rust prevents common bugs like null pointer dereferences, buffer overflows, and data races at compile time, without needing a garbage collector.
+1. **Safety** - Rust prevents common memory errors like null pointer dereferences and buffer overflows at compile time through its ownership system and borrow checker. You can't accidentally access memory unsafely without explicit, clearly marked `unsafe` blocks.
 
-**Performance**: It runs as fast as C/C++ with minimal runtime overhead, making it suitable for performance-critical systems.
+2. **Speed** - Rust compiles to machine code with zero runtime overhead, making it as fast as C and C++. There's no garbage collector or runtime penalty.
 
-**Concurrency**: Rust's ownership system makes it easier to write safe, concurrent code. It prevents data races at compile time.
+3. **Concurrency** - Rust's ownership system makes it easier to write correct concurrent code. The compiler catches many concurrency bugs at compile time rather than at runtime.
 
-**Key features**:
-- **Ownership system**: Unique approach to memory management that ensures memory safety without garbage collection
-- **Borrow checker**: Enforces that references don't outlive the data they point to
-- **No null pointers**: Uses `Option<T>` and `Result<T, E>` types instead
-- **Pattern matching**: Powerful syntax for handling different cases
-- **Strong type system**: Expressive types that catch many bugs at compile time
+**Key features:**
 
-**Common uses**:
-- Systems programming (operating systems, embedded systems)
-- WebAssembly
-- CLI tools
-- Game engines
+- **Ownership system** - Memory is managed automatically without garbage collection. Rust's compiler tracks ownership of values and automatically frees memory when it's no longer needed.
+- **Pattern matching** - Powerful syntax for breaking down and analyzing data structures.
+- **Type system** - Strong, static typing with excellent type inference so you don't have to write types everywhere.
+- **No null pointers** - Uses `Option<T>` and `Result<T, E>` types instead of nullable references, catching null-related bugs at compile time.
+- **Expressive error handling** - The `?` operator and `Result` type make error handling ergonomic.
+
+**Common use cases:**
+
+- Systems software (operating systems, embedded systems, game engines)
+- Web servers and backend services
+- Command-line tools
+- WebAssembly applications
 - Blockchain and cryptography
-- High-performance server applications
 
-**Why it's popular**:
-- Catches bugs at compile time that other languages would catch at runtime (or not at all)
-- Fast execution without garbage collection pauses
-- Growing ecosystem with package manager Cargo and registry crates.io
-- Modern language design with lessons learned from C, C++, and functional languages
-
-Are you interested in learning Rust, or did you have a specific question about it?
+Rust has been growing in popularity as companies like Google, Microsoft, and Meta adopt it for performance-critical and safety-sensitive components.
 
 
-Done  $0.01 · 5.4s · 1 turn  (:N to view)
+Done  $0.01 · 5.9s · 1 turn  (:N to view)
 > > How does ownership work?
 [2] Thinking...
-Rust's ownership system is built on three core rules:
+Rust's ownership system is the core mechanism that makes memory safety possible without garbage collection. Here's how it works:
 
-**The Three Rules**:
-1. Each value has exactly one owner
-2. When the owner is dropped (goes out of scope), the value is freed
-3. You can borrow values, but borrows have rules
+**The Three Rules of Ownership:**
 
-**Example 1: Ownership Transfer (Move)**
+1. **Each value has exactly one owner** - Only one variable can own a piece of data at any time.
+
+2. **When the owner goes out of scope, the value is dropped** - Memory is automatically freed when the owner variable leaves scope (like when a function returns).
+
+3. **You can transfer ownership** - Ownership can be moved from one variable to another, but only one owner exists at a time.
+
+**Example:**
+
 ```rust
-let s1 = String::from("hello");
-let s2 = s1;  // s1's value MOVES to s2
-// println!("{}", s1);  // ERROR: s1 is no longer valid
-println!("{}", s2);     // OK: s2 owns the data
+fn main() {
+    let s1 = String::from("hello");  // s1 owns the string
+    let s2 = s1;                      // ownership moves to s2
+    
+    // println!("{}", s1);            // ERROR! s1 no longer owns the string
+    println!("{}", s2);               // OK - s2 is the owner
+}
 ```
 
-When you assign `s1` to `s2`, ownership transfers. `s1` becomes invalid—Rust prevents use-after-free bugs.
+**Borrowing (References):**
 
-**Example 2: Borrowing (References)**
+Instead of transferring ownership, you can *borrow* a reference. This lets multiple variables access the same data:
+
 ```rust
-let s1 = String::from("hello");
-let s2 = &s1;  // s2 BORROWS s1
-println!("{}", s1);  // OK: s1 still owns the data
-println!("{}", s2);  // OK: s2 can read it
+fn main() {
+    let s1 = String::from("hello");
+    let len = calculate_length(&s1);  // borrow s1 (immutable reference)
+    
+    println!("'{}' has length {}", s1, len);  // s1 still owns the string
+}
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
+}  // s goes out of scope, but it doesn't own the string, so nothing happens
 ```
 
-References let you use a value without taking ownership. They're automatically returned when out of scope.
+**Two types of references:**
 
-**Example 3: Mutable Borrowing**
-```rust
-let mut s = String::from("hello");
-let r1 = &mut s;  // mutable borrow
-r1.push_str(" world");
-// let r2 = &mut s;  // ERROR: can't have two mutable borrows
-```
+- **Immutable references** (`&T`) - Read-only access, many can exist at once
+- **Mutable references** (`&mut T`) - Can modify the data, but only one can exist at a time in a given scope
 
-Key constraint: **you can have either multiple immutable borrows OR one mutable borrow at a time** (prevents data races).
+This prevents data races: you can't have multiple mutable references to the same data, and you can't have mutable and immutable references together.
 
-**Why it matters**:
-- No garbage collector needed—memory is freed automatically when out of scope
-- No data races—the compiler enforces that mutable data isn't accessed from multiple places simultaneously
-- No null pointer crashes—values are guaranteed valid
-
-This is what makes Rust "safe by default" without sacrificing performance.
+The compiler enforces these rules at compile time, so there's zero runtime cost.
 
 
-Done  $0.02 · 7.3s · 1 turn  (:N to view)
+Done  $0.02 · 5.0s · 1 turn  (:N to view)
 >
