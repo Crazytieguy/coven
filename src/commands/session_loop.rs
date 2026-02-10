@@ -168,10 +168,9 @@ async fn handle_session_key_event<W: Write>(
             if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
                 return Ok(action);
             }
-            if state.status == SessionStatus::WaitingForInput {
-                renderer.show_prompt();
-                input.activate();
-            }
+            // Don't re-activate input — it was deactivated when the user submitted
+            // the :N command. The user returns to inactive state and can type a
+            // character to start new input naturally (via Activated(c)).
         }
         InputAction::Interrupt => {
             runner.kill().await?;
@@ -387,8 +386,6 @@ async fn wait_for_text_input<W: Write>(
                     }
                     InputAction::ViewMessage(ref query) => {
                         view_message(renderer, query);
-                        renderer.show_prompt();
-                        input.activate();
                     }
                     InputAction::Cancel => {
                         renderer.show_prompt();
@@ -397,7 +394,11 @@ async fn wait_for_text_input<W: Write>(
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(None);
                     }
-                    InputAction::Activated(_) | InputAction::None => {}
+                    InputAction::Activated(c) => {
+                        renderer.begin_input_line();
+                        renderer.write_raw(&c.to_string());
+                    }
+                    InputAction::None => {}
                 }
             }
             IoEvent::Claude(AppEvent::ProcessExit(_)) => return Ok(None),
@@ -434,5 +435,10 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) {
         child.wait().ok();
     }
 
+    // Discard any keystrokes buffered in the kernel's terminal input queue
+    // while the pager was active — prevents stale keys from leaking into the prompt.
+    // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
+    // discards buffered input bytes — no memory or resource safety concerns.
+    unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
     terminal::enable_raw_mode().ok();
 }
