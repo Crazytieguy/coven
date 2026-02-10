@@ -14,7 +14,7 @@ use crate::dispatch::{self, DispatchDecision};
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
 use crate::fork::{self, ForkConfig};
-use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::session::runner::SessionConfig;
 use crate::session::state::SessionState;
 use crate::vcr::{Io, IoEvent, VcrContext};
 use crate::worker_state;
@@ -887,13 +887,7 @@ async fn run_phase_session<W: Write>(
         working_dir: Some(working_dir.to_path_buf()),
     };
 
-    let mut runner = ctx
-        .vcr
-        .call("spawn", session_config, async |c: &SessionConfig| {
-            let tx = ctx.io.replace_event_channel();
-            SessionRunner::spawn(c.clone(), tx).await
-        })
-        .await?;
+    let mut runner = session_loop::spawn_session(session_config, ctx.io, ctx.vcr).await?;
     let mut state = SessionState::default();
 
     loop {
@@ -939,13 +933,8 @@ async fn run_phase_session<W: Write>(
                             resume: Some(session_id),
                             working_dir: Some(working_dir.to_path_buf()),
                         };
-                        runner = ctx
-                            .vcr
-                            .call("spawn", resume_config, async |c: &SessionConfig| {
-                                let tx = ctx.io.replace_event_channel();
-                                SessionRunner::spawn(c.clone(), tx).await
-                            })
-                            .await?;
+                        runner =
+                            session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
                         state = SessionState::default();
                     }
                     None => return Ok(PhaseOutcome::Exited),
