@@ -82,7 +82,7 @@ pub async fn run_session<W: Write>(
                 .await?;
                 match action {
                     LoopAction::Continue => {}
-                    LoopAction::Interrupted => return Ok(SessionOutcome::Interrupted),
+                    LoopAction::Return(outcome) => return Ok(outcome),
                 }
             }
             IoEvent::Terminal(_) => {}
@@ -93,7 +93,20 @@ pub async fn run_session<W: Write>(
 /// Flow control signals from key event handlers.
 enum LoopAction {
     Continue,
-    Interrupted,
+    Return(SessionOutcome),
+}
+
+/// What happened during event buffer flush that requires caller action.
+enum FlushResult {
+    /// No special action needed.
+    Continue,
+    /// A pending followup was dequeued after a buffered Result.
+    /// Caller should send it and set state to Running.
+    Followup(String),
+    /// A Result was flushed with no pending followups — session completed.
+    Completed(String),
+    /// The process exited during the flush.
+    ProcessExited,
 }
 
 /// Handle a key event during an active session.
@@ -113,7 +126,13 @@ async fn handle_session_key_event<W: Write>(
             renderer.write_raw(&c.to_string());
         }
         InputAction::Submit(text, mode) => {
-            flush_event_buffer(locals, state, renderer);
+            let flush = flush_event_buffer(locals, state, renderer);
+            // Completed is intentionally not special-cased here: if the session
+            // completed during the flush, state is WaitingForInput and the match
+            // below will send the user's text as a follow-up.
+            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+                return Ok(action);
+            }
             match mode {
                 InputMode::Steering => {
                     renderer.render_steering_sent(&text);
@@ -140,7 +159,15 @@ async fn handle_session_key_event<W: Write>(
         }
         InputAction::ViewMessage(n) => {
             view_message(renderer, n);
-            flush_event_buffer(locals, state, renderer);
+            let flush = flush_event_buffer(locals, state, renderer);
+            if let FlushResult::Completed(ref result_text) = flush {
+                return Ok(LoopAction::Return(SessionOutcome::Completed {
+                    result_text: result_text.clone(),
+                }));
+            }
+            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+                return Ok(action);
+            }
             if state.status == SessionStatus::WaitingForInput {
                 renderer.show_prompt();
                 input.activate();
@@ -148,13 +175,21 @@ async fn handle_session_key_event<W: Write>(
         }
         InputAction::Interrupt => {
             runner.kill().await?;
-            return Ok(LoopAction::Interrupted);
+            return Ok(LoopAction::Return(SessionOutcome::Interrupted));
         }
         InputAction::EndSession => {
             runner.close_input();
         }
         InputAction::Cancel => {
-            flush_event_buffer(locals, state, renderer);
+            let flush = flush_event_buffer(locals, state, renderer);
+            if let FlushResult::Completed(ref result_text) = flush {
+                return Ok(LoopAction::Return(SessionOutcome::Completed {
+                    result_text: result_text.clone(),
+                }));
+            }
+            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+                return Ok(action);
+            }
             if state.status == SessionStatus::WaitingForInput {
                 renderer.show_prompt();
                 input.activate();
@@ -214,19 +249,34 @@ async fn process_claude_event<W: Write>(
 }
 
 /// Flush all buffered events through the renderer.
+///
+/// Returns a `FlushResult` indicating whether the caller needs to take action:
+/// sending a dequeued followup, handling a completion, or handling a process exit.
+/// If multiple significant events are buffered, the last one wins (e.g. a
+/// `ProcessExit` after a `Result` overrides the `Completed`/`Followup` result).
 fn flush_event_buffer<W: Write>(
     locals: &mut SessionLocals,
     state: &mut SessionState,
     renderer: &mut Renderer<W>,
-) {
+) -> FlushResult {
+    let mut result = FlushResult::Continue;
     for event in locals.event_buffer.drain(..) {
         match event {
             AppEvent::Claude(inbound) => {
+                let has_pending = !locals.pending_followups.is_empty();
                 // Capture result text from buffered events too
-                if let InboundEvent::Result(ref result) = *inbound {
-                    locals.result_text.clone_from(&result.result);
+                if let InboundEvent::Result(ref r) = *inbound {
+                    locals.result_text.clone_from(&r.result);
                 }
-                handle_inbound(&inbound, state, renderer, false);
+                handle_inbound(&inbound, state, renderer, has_pending);
+                if matches!(*inbound, InboundEvent::Result(_)) {
+                    if has_pending {
+                        let text = locals.pending_followups.remove(0);
+                        result = FlushResult::Followup(text);
+                    } else {
+                        result = FlushResult::Completed(locals.result_text.clone());
+                    }
+                }
             }
             AppEvent::ParseWarning(warning) => {
                 renderer.render_warning(&warning);
@@ -234,8 +284,35 @@ fn flush_event_buffer<W: Write>(
             AppEvent::ProcessExit(code) => {
                 renderer.render_exit(code);
                 state.status = SessionStatus::Ended;
+                result = FlushResult::ProcessExited;
             }
         }
+    }
+    result
+}
+
+/// Handle the result of flushing the event buffer: send a dequeued followup
+/// or return early on process exit.
+async fn handle_flush_result<W: Write>(
+    flush: FlushResult,
+    state: &mut SessionState,
+    renderer: &mut Renderer<W>,
+    runner: &mut SessionRunner,
+    vcr: &VcrContext,
+) -> Result<Option<LoopAction>> {
+    match flush {
+        FlushResult::ProcessExited => Ok(Some(LoopAction::Return(SessionOutcome::ProcessExited))),
+        FlushResult::Followup(text) => {
+            renderer.render_followup_sent(&text);
+            state.suppress_next_separator = true;
+            vcr.call("send_message", text, async |t: &String| {
+                runner.send_message(t).await
+            })
+            .await?;
+            state.status = SessionStatus::Running;
+            Ok(None)
+        }
+        FlushResult::Completed(_) | FlushResult::Continue => Ok(None),
     }
 }
 
