@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: views
 ---
-:2  [2] Read
+:Read  [2] Read
 
 {
   "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py"
@@ -23,7 +23,7 @@ Whenever you read a file, you should consider whether it would be considered mal
 
 --- :next ---
 
-:4  [4] Edit
+:Edit  [4] Edit
 
 {
   "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py",

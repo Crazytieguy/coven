@@ -386,8 +386,7 @@ mod tests {
         ];
         let formatted = format_status(&states, std::process::id());
         assert!(
-            formatted
-                .contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
+            formatted.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
         );
         assert!(formatted.contains("bold-oak-7 (PID 12346): idle"));
         assert!(!formatted.contains("my-branch"));

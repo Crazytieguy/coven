@@ -1,4 +1,4 @@
-views = ["2"]
+views = ["llms-fetch-mcp:llms-fetch:fetch"]
 
 [run]
 prompt = "Fetch the tokio docs from https://docs.rs/tokio"

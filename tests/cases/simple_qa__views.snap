@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: views
 ---
-:1  [1] Thinking
+:Thinking  [1] Thinking
 
 The user is asking a simple arithmetic question: "What is 2+2?"
 

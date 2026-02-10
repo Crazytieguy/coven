@@ -9,7 +9,7 @@ use unicode_width::UnicodeWidthChar;
 use super::theme;
 use crate::protocol::types::StreamEvent;
 
-/// Stores a completed message for later viewing via `:N`.
+/// Stores a completed message for later viewing via `:N` or `:Label[index]`.
 #[derive(Debug)]
 pub struct StoredMessage {
     pub label: String,
@@ -20,14 +20,14 @@ pub struct StoredMessage {
 
 /// Format the content of a message for display, looking it up by label query.
 ///
-/// The `query` is matched against the bracketed prefix of stored labels:
-/// - `"3"` matches a message labeled `[3] Thinking`
-/// - `"2/1"` matches a message labeled `[2/1] Read`
+/// Supports two query forms:
+/// - Numeric: `"3"` or `"2/1"` — matches `[3]` or `[2/1]` label prefix
+/// - Label-based: `"Bash[0]"`, `"Edit[-1]"`, or plain `"Bash"` — matches
+///   the tool name portion of labels, then indexes into matches
 ///
 /// Returns `None` if no message matches.
 pub fn format_message(messages: &[StoredMessage], query: &str) -> Option<String> {
-    let prefix = format!("[{query}]");
-    let msg = messages.iter().find(|m| m.label.starts_with(&prefix))?;
+    let msg = resolve_query(messages, query)?;
     Some(match &msg.result {
         Some(result) => format!(
             "{}\n\n{}\n\n--- Result ---\n\n{}",
@@ -35,6 +35,42 @@ pub fn format_message(messages: &[StoredMessage], query: &str) -> Option<String>
         ),
         None => format!("{}\n\n{}", msg.label, msg.content),
     })
+}
+
+/// Resolve a view query to a stored message.
+fn resolve_query<'a>(messages: &'a [StoredMessage], query: &str) -> Option<&'a StoredMessage> {
+    // Numeric/P-C: starts with a digit → bracket-prefix match
+    if query.starts_with(|c: char| c.is_ascii_digit()) {
+        let prefix = format!("[{query}]");
+        return messages.iter().find(|m| m.label.starts_with(&prefix));
+    }
+
+    // Label-based: parse Name[index] or plain Name (defaults to index 0)
+    let (name, index) = if let Some(bracket) = query.find('[') {
+        let index_str = query[bracket + 1..].strip_suffix(']')?;
+        let index: isize = index_str.parse().ok()?;
+        (&query[..bracket], index)
+    } else {
+        (query, 0)
+    };
+
+    if name.is_empty() {
+        return None;
+    }
+
+    let matches: Vec<_> = messages
+        .iter()
+        .filter(|m| tool_name_from_label(&m.label) == name)
+        .collect();
+
+    let len = matches.len().cast_signed();
+    let resolved = if index < 0 { len + index } else { index };
+    matches.get(usize::try_from(resolved).ok()?).copied()
+}
+
+/// Extract the tool name from a stored label like `"[2] Bash"` → `"Bash"`.
+fn tool_name_from_label(label: &str) -> &str {
+    label.find("] ").map_or(label, |pos| &label[pos + 2..])
 }
 
 /// Tracks an active subagent (Task tool call) for concurrent rendering.

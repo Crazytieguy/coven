@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: views
 ---
-:2  [2] llms-fetch-mcp:llms-fetch:fetch
+:llms-fetch-mcp:llms-fetch:fetch  [2] llms-fetch-mcp:llms-fetch:fetch
 
 {
   "url": "https://docs.rs/tokio"

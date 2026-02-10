@@ -7,5 +7,4 @@
 - [P1] VCR test snapshots show title escape sequence leakage: OSC title sequences partially render as visible text (e.g., "oven:" instead of invisible title, "emoving worktree" instead of "Removing worktree"). The test output capture doesn't fully strip OSC sequences.
 - [P0] Consider deduplicating the vcr recording infrastructure: don't have separate code paths for the different coven commands. Plan should either include an implementation plan or clear reasoning why duplication is better.
 - [P1] Consider removing the explicit "mode" system for test case toml files. Instead, just support key combinations generically, ideally using a library. Plan file should either include an implementation plan or a convincing reason not to do this.
-- [P1] VCR test view queries use fragile numeric indices that break on re-recording. Replace with label-based queries using Python-style indexing (e.g. `Bash[0]`, `Edit[-1]`). (plan: plans/view-query-language.md)
 - [P1] Remove unit tests that are redundant with the snapshot testing. Think carefully about each unit test, go over all of them one by one. No plan required

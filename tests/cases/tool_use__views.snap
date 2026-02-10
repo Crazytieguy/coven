@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: views
 ---
-:1  [1] Thinking
+:Thinking  [1] Thinking
 
 The user wants to see the files in the current directory. I should use the Bash tool to list the files. The working directory is /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-tool_use
 
@@ -10,7 +10,7 @@ I'll use `ls -la` to show all files including hidden ones with details.
 
 --- :next ---
 
-:2  [2] Bash
+:Bash  [2] Bash
 
 {
   "command": "ls -la",

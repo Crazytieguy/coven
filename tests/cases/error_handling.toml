@@ -1,4 +1,4 @@
-views = ["2", "3", "14", "16"]
+views = ["Bash[0]", "Thinking[1]", "Edit", "Bash[-1]"]
 
 [run]
 prompt = "Run `bash test.sh` and fix any issues"

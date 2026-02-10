@@ -13,7 +13,7 @@ pub enum InputAction {
     Activated(char),
     /// User submitted text (Enter = steering, Alt+Enter = follow-up).
     Submit(String, InputMode),
-    /// User wants to view a message by label (e.g. "3" or "2/1").
+    /// User wants to view a message (e.g. ":3", ":2/1", ":Bash", ":Edit[-1]").
     ViewMessage(String),
     /// User cancelled input (Escape).
     Cancel,
@@ -119,7 +119,7 @@ impl InputHandler {
                     return InputAction::None;
                 }
 
-                // Check for :N or :P/C view command
+                // Check for view command (:N, :P/C, :Label, :Label[index])
                 if let Some(query) = parse_view_command(&text) {
                     return InputAction::ViewMessage(query);
                 }
@@ -150,24 +150,48 @@ impl InputHandler {
     }
 }
 
-/// Parse `:N` or `:P/C` view commands. Returns the label query (e.g. "3" or "2/1").
+/// Parse view commands. Returns the label query string.
+///
+/// Accepted forms:
+/// - `:N` or `:P/C` — numeric (e.g. `:3` → `"3"`, `:2/1` → `"2/1"`)
+/// - `:Label` or `:Label[index]` — label-based (e.g. `:Bash` → `"Bash"`, `:Edit[-1]` → `"Edit[-1]"`)
 fn parse_view_command(text: &str) -> Option<String> {
     let rest = text.trim().strip_prefix(':')?;
-    // Accept "N" or "P/C" where N, P, C are positive integers
-    if let Some((left, right)) = rest.split_once('/') {
-        let p: usize = left.parse().ok()?;
-        let c: usize = right.parse().ok()?;
-        if p == 0 || c == 0 {
-            return None;
-        }
-        Some(format!("{p}/{c}"))
-    } else {
-        let n: usize = rest.parse().ok()?;
-        if n == 0 {
-            return None;
-        }
-        Some(n.to_string())
+    if rest.is_empty() {
+        return None;
     }
+
+    // Numeric: "N" or "P/C"
+    if let Some((left, right)) = rest.split_once('/')
+        && let (Ok(p), Ok(c)) = (left.parse::<usize>(), right.parse::<usize>())
+    {
+        if p > 0 && c > 0 {
+            return Some(format!("{p}/{c}"));
+        }
+        return None;
+    }
+    if let Ok(n) = rest.parse::<usize>() {
+        return if n > 0 { Some(n.to_string()) } else { None };
+    }
+
+    // Label-based: validate Name or Name[index]
+    let (name, tail) = if let Some(bracket) = rest.find('[') {
+        let after = rest[bracket + 1..].strip_suffix(']')?;
+        let _: isize = after.parse().ok()?;
+        (&rest[..bracket], &rest[bracket..])
+    } else {
+        (rest, "")
+    };
+
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '-' | ':' | '_'))
+    {
+        return None;
+    }
+
+    Some(format!("{name}{tail}"))
 }
 
 #[cfg(test)]
@@ -175,9 +199,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_view_command_valid() {
+    fn parse_view_command_numeric() {
         assert_eq!(parse_view_command(":1"), Some("1".to_string()));
         assert_eq!(parse_view_command(":42"), Some("42".to_string()));
+        assert_eq!(parse_view_command(":0"), None);
         assert_eq!(parse_view_command(": 3"), None); // space not allowed
     }
 
@@ -185,15 +210,36 @@ mod tests {
     fn parse_view_command_slash_notation() {
         assert_eq!(parse_view_command(":2/1"), Some("2/1".to_string()));
         assert_eq!(parse_view_command(":10/3"), Some("10/3".to_string()));
-        assert_eq!(parse_view_command(":0/1"), None); // zero not allowed
-        assert_eq!(parse_view_command(":1/0"), None); // zero not allowed
+        assert_eq!(parse_view_command(":0/1"), None);
+        assert_eq!(parse_view_command(":1/0"), None);
         assert_eq!(parse_view_command(":a/1"), None);
+    }
+
+    #[test]
+    fn parse_view_command_label() {
+        assert_eq!(parse_view_command(":Bash"), Some("Bash".to_string()));
+        assert_eq!(parse_view_command(":Bash[0]"), Some("Bash[0]".to_string()));
+        assert_eq!(
+            parse_view_command(":Edit[-1]"),
+            Some("Edit[-1]".to_string())
+        );
+        assert_eq!(
+            parse_view_command(":Thinking[2]"),
+            Some("Thinking[2]".to_string())
+        );
+        // MCP tool names with hyphens and colons
+        assert_eq!(
+            parse_view_command(":llms-fetch:fetch"),
+            Some("llms-fetch:fetch".to_string())
+        );
     }
 
     #[test]
     fn parse_view_command_invalid() {
         assert_eq!(parse_view_command("hello"), None);
-        assert_eq!(parse_view_command(":abc"), None);
         assert_eq!(parse_view_command(""), None);
+        assert_eq!(parse_view_command(":"), None);
+        assert_eq!(parse_view_command(":[0]"), None); // empty name
+        assert_eq!(parse_view_command(":Bash[abc]"), None); // non-integer index
     }
 }

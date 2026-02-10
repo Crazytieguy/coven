@@ -1,4 +1,4 @@
-views = ["1", "2"]
+views = ["Thinking", "Bash"]
 
 [run]
 prompt = "List files in the current directory"

@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: views
 ---
-:2  [2] Bash
+:Bash[0]  [2] Bash
 
 {
   "command": "bash test.sh",
@@ -16,13 +16,13 @@ Running tests...
 
 --- :next ---
 
-:3  [3] Thinking
+:Thinking[1]  [3] Thinking
 
 The test script ran but exited with code 1 (failure) and gave us "Running tests..." as output. Let me look at the test script to understand what it's testing.
 
 --- :next ---
 
-:14  [14] Edit
+:Edit  [14] Edit
 
 {
   "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh",
@@ -36,7 +36,7 @@ The file /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-erro
 
 --- :next ---
 
-:16  [16] Bash
+:Bash[-1]  [16] Bash
 
 {
   "command": "bash test.sh",
