@@ -9,42 +9,36 @@ The `interrupt_resume` test case interrupts during the **first** message respons
 
 ### Fix
 
-Change the test case so the interrupt happens during the **second** message, after the first has completed and been persisted:
+Use a prompt that triggers tool calls within a single turn. Claude persists the session file after every message, so after the first tool call round-trip completes, the session is resumable. No need for multiple user turns.
 
-1. **Adjust the prompt**: Use a prompt that naturally completes in one turn, e.g. "What is 2+2? Answer in one sentence."
-2. **Add a follow-up message**: After the first response completes, send a follow-up like "Now what is 3+3? Answer in one sentence."
-3. **Move the interrupt**: Trigger the interrupt on `content_block_start` during the second response (after the follow-up).
-4. **Resume**: The resume message "Continue where you left off" follows the interrupt as before.
+1. **Prompt**: Something like "List the files in the current directory, then read README.md" — this naturally causes a chain of tool calls within one turn.
+2. **Interrupt trigger**: Fire on a stream event that occurs *after* at least one tool call has completed (e.g., the second `content_block_start`, or a `tool_use` event after the first tool result). The exact trigger will depend on what events flow through after the first tool round-trip.
+3. **Resume**: "Continue where you left off" as before.
 
 The test case TOML would look roughly like:
 
 ```toml
 [run]
-prompt = "What is 2+2? Answer in one sentence."
+prompt = "List the files in the current directory, then read README.md"
 
-# First follow-up completes normally
-[[messages]]
-content = "Now what is 3+3? Answer in one sentence."
-trigger = "result"
-
-# When the second response starts, interrupt and resume
+# Interrupt after the first tool call completes and Claude starts its next action
 [[messages]]
 content = "Continue where you left off"
-trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start"}}}}}'
+trigger = '<event indicating second tool call or post-tool-result response>'
 mode = "interrupt"
 ```
 
-This ensures the session has at least one completed turn before the interrupt, so there's actually something to resume.
+The exact trigger event needs to be determined during implementation by inspecting the VCR recording to find an event that reliably fires after the first tool call round-trip.
 
 ### If this still fails
 
-If resume still fails even with a persisted first turn, then we revisit changing `runner.kill()` to use SIGINT with a timeout. But the hypothesis is that the current kill mechanism is fine — we just need the session to have persisted state.
+If resume still fails even with a persisted tool call turn, then we revisit changing `runner.kill()` to use SIGINT with a timeout.
 
 ### Changes
 
-- **`tests/cases/interrupt_resume.toml`**: Restructure as described above
+- **`tests/cases/interrupt_resume.toml`**: New prompt and trigger as described above
 - **`tests/cases/interrupt_resume.vcr`**: Re-record with `cargo run --bin record-vcr interrupt_resume`
-- **`tests/cases/interrupt_resume.snap`**: Accept new snapshot after verifying it shows the expected flow (first response, interrupt, resume, second response)
+- **`tests/cases/interrupt_resume.snap`**: Accept new snapshot after verifying it shows interrupt + successful resume
 
 ## Review
 
