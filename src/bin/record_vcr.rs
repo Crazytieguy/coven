@@ -149,7 +149,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
 
-    let mut controller = TriggerController::new(&case.messages, term_tx);
+    let mut controller = TriggerController::new(&case.messages, term_tx)?;
     if !case.is_ralph() {
         controller = controller.with_auto_exit();
     }

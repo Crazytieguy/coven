@@ -23,8 +23,8 @@ pub const DEFAULT_TEST_MODEL: &str = "claude-haiku-4-5-20251001";
 /// handles) to work with `vcr.call()`.
 pub trait Recordable: Sized {
     type Recorded: Serialize + DeserializeOwned;
-    fn to_recorded(&self) -> Self::Recorded;
-    fn from_recorded(recorded: Self::Recorded) -> Self;
+    fn to_recorded(&self) -> Result<Self::Recorded>;
+    fn from_recorded(recorded: Self::Recorded) -> Result<Self>;
 }
 
 /// Blanket implementation for any type implementing `Serialize + DeserializeOwned`.
@@ -33,12 +33,12 @@ pub trait Recordable: Sized {
 impl<T: Serialize + DeserializeOwned> Recordable for T {
     type Recorded = Value;
 
-    fn to_recorded(&self) -> Value {
-        serde_json::to_value(self).expect("serialization should not fail for Recordable types")
+    fn to_recorded(&self) -> Result<Value> {
+        Ok(serde_json::to_value(self)?)
     }
 
-    fn from_recorded(v: Value) -> Self {
-        serde_json::from_value(v).expect("deserialization should not fail for recorded values")
+    fn from_recorded(v: Value) -> Result<Self> {
+        Ok(serde_json::from_value(v)?)
     }
 }
 
@@ -50,10 +50,12 @@ impl<T: Serialize + DeserializeOwned> Recordable for T {
 impl Recordable for SessionRunner {
     type Recorded = ();
 
-    fn to_recorded(&self) {}
+    fn to_recorded(&self) -> Result<()> {
+        Ok(())
+    }
 
-    fn from_recorded((): ()) -> Self {
-        SessionRunner::stub()
+    fn from_recorded((): ()) -> Result<Self> {
+        Ok(SessionRunner::stub())
     }
 }
 
@@ -172,15 +174,13 @@ impl VcrContext {
             VcrMode::Record(entries) => {
                 let result = f(&args).await;
                 let recorded_result: std::result::Result<T::Recorded, String> = match &result {
-                    Ok(t) => Ok(t.to_recorded()),
+                    Ok(t) => Ok(t.to_recorded()?),
                     Err(e) => Err(format!("{e:#}")),
                 };
                 let entry = VcrEntry {
                     label: label.to_string(),
-                    args: serde_json::to_value(args.to_recorded())
-                        .expect("args serialization should not fail"),
-                    result: serde_json::to_value(&recorded_result)
-                        .expect("result serialization should not fail"),
+                    args: serde_json::to_value(args.to_recorded()?)?,
+                    result: serde_json::to_value(&recorded_result)?,
                 };
                 let result_value = entry.result.clone();
                 entries.borrow_mut().push(entry);
@@ -193,7 +193,7 @@ impl VcrContext {
             VcrMode::Replay(state) => {
                 let (entry_label, entry_args, entry_result, pos) = {
                     let mut state = state.borrow_mut();
-                    assert!(
+                    anyhow::ensure!(
                         state.position < state.entries.len(),
                         "VCR replay exhausted: expected more entries after position {}",
                         state.position
@@ -210,21 +210,22 @@ impl VcrContext {
                     result
                 };
 
-                assert_eq!(entry_label, label, "VCR label mismatch at position {pos}");
+                anyhow::ensure!(
+                    entry_label == label,
+                    "VCR label mismatch at position {pos}: expected '{label}', got '{entry_label}'"
+                );
 
-                let recorded_args: A::Recorded = serde_json::from_value(entry_args)
-                    .expect("VCR args deserialization should not fail");
-                let actual_args = args.to_recorded();
-                assert_eq!(
-                    recorded_args, actual_args,
-                    "VCR args mismatch for '{label}' at position {pos}"
+                let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
+                let actual_args = args.to_recorded()?;
+                anyhow::ensure!(
+                    recorded_args == actual_args,
+                    "VCR args mismatch for '{label}' at position {pos}: expected {actual_args:?}, got {recorded_args:?}"
                 );
 
                 let recorded_result: std::result::Result<T::Recorded, String> =
-                    serde_json::from_value(entry_result)
-                        .expect("VCR result deserialization should not fail");
+                    serde_json::from_value(entry_result)?;
                 match recorded_result {
-                    Ok(t) => Ok(T::from_recorded(t)),
+                    Ok(t) => Ok(T::from_recorded(t)?),
                     Err(msg) => Err(anyhow::anyhow!("{msg}")),
                 }
             }
@@ -346,25 +347,24 @@ pub enum TriggerInputMode {
 
 impl TriggerController {
     /// Create a new trigger controller from test case messages.
-    pub fn new(messages: &[TestMessage], term_tx: mpsc::UnboundedSender<Event>) -> Self {
+    pub fn new(messages: &[TestMessage], term_tx: mpsc::UnboundedSender<Event>) -> Result<Self> {
         let triggers = messages
             .iter()
             .map(|m| {
-                let condition: Value = serde_json::from_str(&m.trigger)
-                    .expect("trigger should be a valid JSON subset pattern");
-                PendingTrigger {
+                let condition: Value = serde_json::from_str(&m.trigger)?;
+                Ok(PendingTrigger {
                     condition,
                     text: m.content.clone(),
                     mode: m.mode,
                     fired: false,
-                }
+                })
             })
-            .collect();
-        Self {
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Self {
             triggers,
             term_tx,
             auto_exit: false,
-        }
+        })
     }
 
     /// Enable auto-exit: inject Ctrl+D after all triggers fired and result seen.
