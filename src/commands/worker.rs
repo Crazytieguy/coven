@@ -20,6 +20,14 @@ use crate::worktree::{self, SpawnOptions};
 
 use super::session_loop::{self, SessionOutcome};
 
+/// Shared mutable context threaded through worker phases.
+struct PhaseContext<'a, W: Write> {
+    renderer: &'a mut Renderer<W>,
+    input: &'a mut InputHandler,
+    io: &'a mut Io,
+    vcr: &'a VcrContext,
+}
+
 pub struct WorkerConfig {
     pub show_thinking: bool,
     pub branch: Option<String>,
@@ -69,14 +77,18 @@ pub async fn worker<W: Write>(
         spawn_result.worktree_path.display()
     ));
 
+    let mut ctx = PhaseContext {
+        renderer: &mut renderer,
+        input: &mut input,
+        io,
+        vcr,
+    };
+
     let result = worker_loop(
         &config,
         &spawn_result.worktree_path,
         &spawn_result.branch,
-        &mut renderer,
-        &mut input,
-        io,
-        vcr,
+        &mut ctx,
         &mut total_cost,
     )
     .await;
@@ -109,13 +121,11 @@ async fn run_dispatch<W: Write>(
     branch: &str,
     extra_args: &[String],
     worker_status: &str,
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<DispatchResult>> {
-    renderer.set_title(&format!("coven: {branch} \u{2014} dispatch"));
-    renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
+    ctx.renderer
+        .set_title(&format!("coven: {branch} \u{2014} dispatch"));
+    ctx.renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
 
     let agents_dir = worktree_path.join(agents::AGENTS_DIR);
     let agent_defs = agents::load_agents(&agents_dir)?;
@@ -141,17 +151,7 @@ async fn run_dispatch<W: Write>(
         result_text,
         cost,
         session_id,
-    } = run_phase_session(
-        &dispatch_prompt,
-        worktree_path,
-        extra_args,
-        None,
-        renderer,
-        input,
-        io,
-        vcr,
-    )
-    .await?
+    } = run_phase_session(&dispatch_prompt, worktree_path, extra_args, None, ctx).await?
     else {
         return Ok(None);
     };
@@ -169,7 +169,7 @@ async fn run_dispatch<W: Write>(
                 return Err(parse_err).context("failed to parse dispatch decision");
             };
 
-            renderer.write_raw(&format!(
+            ctx.renderer.write_raw(&format!(
                 "\r\nDispatch output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
             ));
 
@@ -191,10 +191,7 @@ async fn run_dispatch<W: Write>(
                 worktree_path,
                 extra_args,
                 Some(&session_id),
-                renderer,
-                input,
-                io,
-                vcr,
+                ctx,
             )
             .await?
             else {
@@ -216,10 +213,7 @@ async fn worker_loop<W: Write>(
     config: &WorkerConfig,
     worktree_path: &Path,
     branch: &str,
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<()> {
     loop {
@@ -236,10 +230,7 @@ async fn worker_loop<W: Write>(
             branch,
             &config.extra_args,
             &worker_status,
-            renderer,
-            input,
-            io,
-            vcr,
+            ctx,
         )
         .await?
         else {
@@ -258,13 +249,16 @@ async fn worker_loop<W: Write>(
         drop(lock);
 
         *total_cost += dispatch.cost;
-        renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+        ctx.renderer
+            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
         match dispatch.decision {
             DispatchDecision::Sleep => {
-                renderer.set_title(&format!("coven: {branch} \u{2014} sleeping"));
-                renderer.write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
-                match wait_for_new_commits(worktree_path, renderer, input, io).await? {
+                ctx.renderer
+                    .set_title(&format!("coven: {branch} \u{2014} sleeping"));
+                ctx.renderer
+                    .write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
+                match wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io).await? {
                     WaitOutcome::NewCommits => {}
                     WaitOutcome::Exited => return Ok(()),
                 }
@@ -275,7 +269,8 @@ async fn worker_loop<W: Write>(
                     .map(|(k, v)| format!("{k}={v}"))
                     .collect::<Vec<_>>()
                     .join(" ");
-                renderer.write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
+                ctx.renderer
+                    .write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
 
                 let agent_def = dispatch
                     .agent_defs
@@ -284,22 +279,21 @@ async fn worker_loop<W: Write>(
                     .with_context(|| format!("dispatch chose unknown agent: {agent}"))?;
 
                 let agent_prompt = agent_def.render(&args)?;
-                renderer.write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
+                ctx.renderer
+                    .write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
                 let title_suffix = if args_display.is_empty() {
                     agent
                 } else {
                     format!("{agent} {args_display}")
                 };
-                renderer.set_title(&format!("coven: {branch} \u{2014} {title_suffix}"));
+                ctx.renderer
+                    .set_title(&format!("coven: {branch} \u{2014} {title_suffix}"));
 
                 let should_exit = run_agent(
                     &agent_prompt,
                     worktree_path,
                     &config.extra_args,
-                    renderer,
-                    input,
-                    io,
-                    vcr,
+                    ctx,
                     total_cost,
                 )
                 .await?;
@@ -320,51 +314,30 @@ async fn run_agent<W: Write>(
     prompt: &str,
     worktree_path: &Path,
     extra_args: &[String],
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<bool> {
-    let agent_session_id = match run_phase_session(
-        prompt,
-        worktree_path,
-        extra_args,
-        None,
-        renderer,
-        input,
-        io,
-        vcr,
-    )
-    .await?
-    {
-        PhaseOutcome::Completed {
-            cost, session_id, ..
-        } => {
-            *total_cost += cost;
-            renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-            session_id
-        }
-        PhaseOutcome::Exited => return Ok(true),
-    };
+    let agent_session_id =
+        match run_phase_session(prompt, worktree_path, extra_args, None, ctx).await? {
+            PhaseOutcome::Completed {
+                cost, session_id, ..
+            } => {
+                *total_cost += cost;
+                ctx.renderer
+                    .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+                session_id
+            }
+            PhaseOutcome::Exited => return Ok(true),
+        };
 
     // === Phase 3: Land ===
     // Clean untracked files before landing. Agents should commit
     // their work; leftover files (test artifacts, temp files) must
     // not block landing and cause committed work to be discarded.
-    warn_clean(worktree_path, renderer);
+    warn_clean(worktree_path, ctx.renderer);
 
-    let commit_result = ensure_commits(
-        worktree_path,
-        agent_session_id,
-        extra_args,
-        renderer,
-        input,
-        io,
-        vcr,
-        total_cost,
-    )
-    .await?;
+    let commit_result =
+        ensure_commits(worktree_path, agent_session_id, extra_args, ctx, total_cost).await?;
 
     match commit_result {
         CommitCheck::HasCommits { session_id } => {
@@ -372,10 +345,7 @@ async fn run_agent<W: Write>(
                 worktree_path,
                 session_id.as_deref(),
                 extra_args,
-                renderer,
-                input,
-                io,
-                vcr,
+                ctx,
                 total_cost,
             )
             .await?;
@@ -384,7 +354,8 @@ async fn run_agent<W: Write>(
             }
         }
         CommitCheck::NoCommits => {
-            renderer.write_raw("Agent produced no commits — skipping land.\r\n");
+            ctx.renderer
+                .write_raw("Agent produced no commits — skipping land.\r\n");
         }
         CommitCheck::Exited => return Ok(true),
     }
@@ -406,10 +377,7 @@ async fn ensure_commits<W: Write>(
     worktree_path: &Path,
     agent_session_id: Option<String>,
     extra_args: &[String],
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<CommitCheck> {
     if worktree::has_unique_commits(worktree_path)? {
@@ -419,11 +387,13 @@ async fn ensure_commits<W: Write>(
     }
 
     let Some(sid) = agent_session_id.as_deref() else {
-        renderer.write_raw("Agent produced no commits and no session to resume.\r\n");
+        ctx.renderer
+            .write_raw("Agent produced no commits and no session to resume.\r\n");
         return Ok(CommitCheck::NoCommits);
     };
 
-    renderer.write_raw("Agent produced no commits — resuming session to ask for a commit.\r\n\r\n");
+    ctx.renderer
+        .write_raw("Agent produced no commits — resuming session to ask for a commit.\r\n\r\n");
 
     match run_phase_session(
         "You finished without committing anything. \
@@ -432,10 +402,7 @@ async fn ensure_commits<W: Write>(
         worktree_path,
         extra_args,
         Some(sid),
-        renderer,
-        input,
-        io,
-        vcr,
+        ctx,
     )
     .await?
     {
@@ -443,8 +410,9 @@ async fn ensure_commits<W: Write>(
             cost, session_id, ..
         } => {
             *total_cost += cost;
-            renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-            warn_clean(worktree_path, renderer);
+            ctx.renderer
+                .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+            warn_clean(worktree_path, ctx.renderer);
 
             if worktree::has_unique_commits(worktree_path)? {
                 Ok(CommitCheck::HasCommits { session_id })
@@ -468,15 +436,12 @@ async fn land_or_resolve<W: Write>(
     worktree_path: &Path,
     session_id: Option<&str>,
     extra_args: &[String],
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<bool> {
     const MAX_ATTEMPTS: u32 = 5;
 
-    renderer.write_raw("\r\n=== Landing ===\r\n");
+    ctx.renderer.write_raw("\r\n=== Landing ===\r\n");
 
     // Track the session to resume for conflict resolution. Starts as the
     // agent's session, then updated to the resolution session's ID so
@@ -487,7 +452,7 @@ async fn land_or_resolve<W: Write>(
     loop {
         let conflict_files = match worktree::land(worktree_path) {
             Ok(result) => {
-                renderer.write_raw(&format!(
+                ctx.renderer.write_raw(&format!(
                     "Landed {} onto {}\r\n",
                     result.branch, result.main_branch
                 ));
@@ -497,17 +462,18 @@ async fn land_or_resolve<W: Write>(
             Err(worktree::WorktreeError::FastForwardFailed) => {
                 attempts += 1;
                 if attempts > MAX_ATTEMPTS {
-                    renderer.write_raw(&format!(
+                    ctx.renderer.write_raw(&format!(
                         "Fast-forward failed after {MAX_ATTEMPTS} attempts \
                          — pausing worker. Press Enter to retry.\r\n",
                     ));
-                    if wait_for_enter_or_exit(io).await? {
+                    if wait_for_enter_or_exit(ctx.io).await? {
                         return Ok(true);
                     }
                     attempts = 0;
                     continue;
                 }
-                renderer.write_raw("Main advanced during land — retrying...\r\n");
+                ctx.renderer
+                    .write_raw("Main advanced during land — retrying...\r\n");
                 continue;
             }
             Err(e) => {
@@ -515,10 +481,10 @@ async fn land_or_resolve<W: Write>(
                 let _ = worktree::abort_rebase(worktree_path);
                 // No attempts counter — user manually presses Enter each time,
                 // so they can inspect the worktree and fix the issue before retrying.
-                renderer.write_raw(&format!(
+                ctx.renderer.write_raw(&format!(
                     "Land failed: {e} — pausing worker. Press Enter to retry.\r\n",
                 ));
-                if wait_for_enter_or_exit(io).await? {
+                if wait_for_enter_or_exit(ctx.io).await? {
                     return Ok(true);
                 }
                 continue;
@@ -531,11 +497,11 @@ async fn land_or_resolve<W: Write>(
         // (e.g. after other workers quiesce). Abort rebase but keep branch commits.
         if attempts > MAX_ATTEMPTS {
             worktree::abort_rebase(worktree_path)?;
-            renderer.write_raw(&format!(
+            ctx.renderer.write_raw(&format!(
                 "Conflict resolution failed after {MAX_ATTEMPTS} attempts \
                  — pausing worker. Press Enter to retry.\r\n",
             ));
-            if wait_for_enter_or_exit(io).await? {
+            if wait_for_enter_or_exit(ctx.io).await? {
                 return Ok(true);
             }
             attempts = 0;
@@ -554,10 +520,11 @@ async fn land_or_resolve<W: Write>(
             );
         };
 
-        renderer.write_raw(&format!(
+        ctx.renderer.write_raw(&format!(
             "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
         ));
-        renderer.write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
+        ctx.renderer
+            .write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
 
         let prompt = format!(
             "The rebase onto main hit conflicts in: {files_display}\n\n\
@@ -566,26 +533,16 @@ async fn land_or_resolve<W: Write>(
              continuing, resolve those too until the rebase completes."
         );
 
-        match resolve_conflict(
-            &prompt,
-            worktree_path,
-            sid,
-            extra_args,
-            renderer,
-            input,
-            io,
-            vcr,
-        )
-        .await?
-        {
+        match resolve_conflict(&prompt, worktree_path, sid, extra_args, ctx).await? {
             ResolveOutcome::Resolved { session_id, cost } => {
                 *total_cost += cost;
-                renderer.write_raw("Conflict resolution complete, retrying land...\r\n");
+                ctx.renderer
+                    .write_raw("Conflict resolution complete, retrying land...\r\n");
                 resume_session_id = session_id;
             }
             ResolveOutcome::Incomplete { session_id, cost } => {
                 *total_cost += cost;
-                renderer.write_raw("Retrying land...\r\n");
+                ctx.renderer.write_raw("Retrying land...\r\n");
                 resume_session_id = session_id;
             }
             ResolveOutcome::Exited => return Ok(true),
@@ -614,34 +571,21 @@ async fn resolve_conflict<W: Write>(
     worktree_path: &Path,
     sid: &str,
     extra_args: &[String],
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
 ) -> Result<ResolveOutcome> {
     let PhaseOutcome::Completed {
         cost, session_id, ..
-    } = run_phase_session(
-        prompt,
-        worktree_path,
-        extra_args,
-        Some(sid),
-        renderer,
-        input,
-        io,
-        vcr,
-    )
-    .await?
+    } = run_phase_session(prompt, worktree_path, extra_args, Some(sid), ctx).await?
     else {
-        abort_and_reset(worktree_path, renderer)?;
+        abort_and_reset(worktree_path, ctx.renderer)?;
         return Ok(ResolveOutcome::Exited);
     };
 
-    warn_clean(worktree_path, renderer);
+    warn_clean(worktree_path, ctx.renderer);
 
     if !worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
         if session_id.as_deref() != Some(sid) {
-            renderer.write_raw(
+            ctx.renderer.write_raw(
                 "Warning: resolution session returned a different session ID than expected.\r\n",
             );
         }
@@ -649,7 +593,8 @@ async fn resolve_conflict<W: Write>(
     }
 
     // Nudge Claude to complete the rebase
-    renderer.write_raw("Rebase still in progress — nudging session to complete it.\r\n\r\n");
+    ctx.renderer
+        .write_raw("Rebase still in progress — nudging session to complete it.\r\n\r\n");
     let nudge_sid = session_id.as_deref().unwrap_or(sid);
 
     let PhaseOutcome::Completed {
@@ -661,22 +606,20 @@ async fn resolve_conflict<W: Write>(
         worktree_path,
         extra_args,
         Some(nudge_sid),
-        renderer,
-        input,
-        io,
-        vcr,
+        ctx,
     )
     .await?
     else {
-        abort_and_reset(worktree_path, renderer)?;
+        abort_and_reset(worktree_path, ctx.renderer)?;
         return Ok(ResolveOutcome::Exited);
     };
 
     let total_cost = cost + nudge_cost;
-    warn_clean(worktree_path, renderer);
+    warn_clean(worktree_path, ctx.renderer);
 
     if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
-        renderer.write_raw("Rebase still in progress after nudge — aborting this attempt.\r\n");
+        ctx.renderer
+            .write_raw("Rebase still in progress after nudge — aborting this attempt.\r\n");
         worktree::abort_rebase(worktree_path)?;
         return Ok(ResolveOutcome::Incomplete {
             session_id: nudge_session_id,
@@ -739,10 +682,7 @@ async fn run_phase_session<W: Write>(
     working_dir: &Path,
     extra_args: &[String],
     resume: Option<&str>,
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut PhaseContext<'_, W>,
 ) -> Result<PhaseOutcome> {
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
@@ -752,17 +692,25 @@ async fn run_phase_session<W: Write>(
         ..Default::default()
     };
 
-    let mut runner = vcr
+    let mut runner = ctx
+        .vcr
         .call("spawn", session_config, async |c: &SessionConfig| {
-            let tx = io.replace_event_channel();
+            let tx = ctx.io.replace_event_channel();
             SessionRunner::spawn(c.clone(), tx).await
         })
         .await?;
     let mut state = SessionState::default();
 
     loop {
-        let outcome =
-            session_loop::run_session(&mut runner, &mut state, renderer, input, io, vcr).await?;
+        let outcome = session_loop::run_session(
+            &mut runner,
+            &mut state,
+            ctx.renderer,
+            ctx.input,
+            ctx.io,
+            ctx.vcr,
+        )
+        .await?;
 
         runner.close_input();
         let _ = runner.wait().await;
@@ -779,9 +727,11 @@ async fn run_phase_session<W: Write>(
                 let Some(session_id) = state.session_id.take() else {
                     return Ok(PhaseOutcome::Exited);
                 };
-                renderer.render_interrupted();
+                ctx.renderer.render_interrupted();
 
-                match session_loop::wait_for_user_input(input, renderer, io, vcr).await? {
+                match session_loop::wait_for_user_input(ctx.input, ctx.renderer, ctx.io, ctx.vcr)
+                    .await?
+                {
                     Some(text) => {
                         let resume_config = SessionConfig {
                             prompt: Some(text),
@@ -790,9 +740,10 @@ async fn run_phase_session<W: Write>(
                             working_dir: Some(working_dir.to_path_buf()),
                             ..Default::default()
                         };
-                        runner = vcr
+                        runner = ctx
+                            .vcr
                             .call("spawn", resume_config, async |c: &SessionConfig| {
-                                let tx = io.replace_event_channel();
+                                let tx = ctx.io.replace_event_channel();
                                 SessionRunner::spawn(c.clone(), tx).await
                             })
                             .await?;
