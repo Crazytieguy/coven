@@ -212,14 +212,14 @@ impl VcrContext {
 
                 anyhow::ensure!(
                     entry_label == label,
-                    "VCR label mismatch at position {pos}: expected '{label}', got '{entry_label}'"
+                    "VCR label mismatch at position {pos}: expected '{entry_label}', got '{label}'"
                 );
 
                 let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
                 let actual_args = args.to_recorded()?;
                 anyhow::ensure!(
                     recorded_args == actual_args,
-                    "VCR args mismatch for '{label}' at position {pos}: expected {actual_args:?}, got {recorded_args:?}"
+                    "VCR args mismatch for '{label}' at position {pos}: expected {recorded_args:?}, got {actual_args:?}"
                 );
 
                 let recorded_result: std::result::Result<T::Recorded, String> =
