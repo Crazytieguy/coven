@@ -149,3 +149,4 @@ vcr_test!(subagent);
 vcr_test!(write_single_line);
 vcr_test!(edit_tool);
 vcr_test!(show_thinking);
+vcr_test!(subagent_error);

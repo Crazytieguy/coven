@@ -745,25 +745,31 @@ fn display_tool_name(name: &str) -> String {
 /// Extract displayable text from a tool result value.
 /// Handles: objects with "content" (regular tools), arrays of content blocks (MCP tools),
 /// and plain strings (permission errors).
+/// Strips `<tool_use_error>...</tool_use_error>` wrapping that the API adds to error content.
 fn extract_result_text(value: &Value) -> String {
-    match value {
+    let raw = match value {
         Value::String(s) => s.clone(),
         Value::Object(_) => value
             .get("content")
             .map(extract_result_text)
             .unwrap_or_default(),
-        Value::Array(arr) => {
-            for item in arr {
-                if item.get("type").and_then(Value::as_str) == Some("text")
-                    && let Some(text) = item.get("text").and_then(Value::as_str)
-                {
-                    return text.to_string();
-                }
-            }
-            String::new()
-        }
+        Value::Array(arr) => arr
+            .iter()
+            .find(|item| item.get("type").and_then(Value::as_str) == Some("text"))
+            .and_then(|item| item.get("text").and_then(Value::as_str))
+            .unwrap_or_default()
+            .to_string(),
         _ => String::new(),
-    }
+    };
+    strip_tool_use_error_wrap(&raw)
+}
+
+/// Strip `<tool_use_error>...</tool_use_error>` wrapping from error content.
+fn strip_tool_use_error_wrap(s: &str) -> String {
+    s.strip_prefix("<tool_use_error>")
+        .and_then(|s| s.strip_suffix("</tool_use_error>"))
+        .unwrap_or(s)
+        .to_string()
 }
 
 #[cfg(test)]

@@ -1,0 +1,23 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 01b064e6-acf5-4ede-b227-143dbec38541 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+[2] ▶ Task  Read README.md and nonexistent.txt in parallel
+  [2/3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+  [2/4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+        ✗ File does not exist.
+[5] Thinking...
+Done! The subagent successfully executed parallel Read tool calls on both files:
+
+- **README.md**: Successfully read, contains basic project documentation
+- **nonexistent.txt**: Error - file does not exist
+
+Both calls were made in parallel as requested.
+
+
+Done  $0.05 · 10.7s · 2 turns  (:N to view)
+>

@@ -1,0 +1,5 @@
+[run]
+prompt = "Use the Task tool to spawn a subagent that reads both README.md and nonexistent.txt simultaneously using parallel Read tool calls. Do not use any other tools yourself."
+
+[files]
+"README.md" = "# Test Project\n\nA minimal project for testing."
