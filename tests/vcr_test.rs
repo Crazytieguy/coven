@@ -12,11 +12,36 @@ fn strip_ansi(s: &str) -> String {
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
         if c == '\x1b' {
-            while let Some(&next) = chars.peek() {
-                chars.next();
-                if next.is_ascii_alphabetic() {
-                    break;
+            match chars.peek() {
+                // CSI sequence: ESC [ ... <alpha>
+                Some('[') => {
+                    chars.next();
+                    while let Some(&next) = chars.peek() {
+                        chars.next();
+                        if next.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
                 }
+                // OSC sequence: ESC ] ... (BEL | ESC \)
+                Some(']') => {
+                    chars.next();
+                    while let Some(next) = chars.next() {
+                        if next == '\x07' {
+                            break;
+                        }
+                        if next == '\x1b' && chars.peek() == Some(&'\\') {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                // Other two-byte escape: ESC X
+                Some(_) => {
+                    chars.next();
+                }
+                // Trailing ESC at end of string
+                None => {}
             }
         } else {
             result.push(c);

@@ -2,5 +2,4 @@
 - [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P0] `runner.kill()` uses SIGKILL which doesn't give Claude time to persist the conversation. Resume after Ctrl+C fails with "No conversation found with session ID". Consider using SIGTERM or closing stdin instead. (plan: plans/graceful-ctrl-c.md)
-- [P1] VCR test snapshots show title escape sequence leakage: OSC title sequences partially render as visible text (e.g., "oven:" instead of invisible title, "emoving worktree" instead of "Removing worktree"). The test output capture doesn't fully strip OSC sequences. (plan: plans/osc-title-leakage.md)
 

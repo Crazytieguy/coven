@@ -3,9 +3,9 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-oven: clever-ember-51
+
 Worker started: clever-ember-51 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-worker_basic-worktrees/coven-vcr-worker_basic/clever-ember-51)
-oven: clever-ember-51 — dispatch
+
 === Dispatch ===
 
 Session f9a944ef-9d76-4a90-8bbf-5276e3963252 (claude-haiku-4-5-20251001)
@@ -25,7 +25,7 @@ Dispatch: greet
 
 === Agent: greet ===
 
-oven: clever-ember-51 — greetSession 046978aa-2872-4203-86ef-95b3ae23d729 (claude-haiku-4-5-20251001)
+Session 046978aa-2872-4203-86ef-95b3ae23d729 (claude-haiku-4-5-20251001)
 
 [4] Thinking...
 [5] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
@@ -40,7 +40,7 @@ Done  $0.02 · 8.3s · 3 turns  (:N to view)
 
 === Landing ===
 Landed clever-ember-51 onto main
-oven: clever-ember-51 — dispatch
+
 === Dispatch ===
 
 Session ae21b6da-3423-4f4c-ae26-ad8f71de772f (claude-haiku-4-5-20251001)
@@ -59,6 +59,7 @@ The hello.txt file already exists in the project root, so all work is complete.
 
 Done  $0.01 · 3.5s · 2 turns  (:N to view)
   Total cost: $0.04
-oven: clever-ember-51 — sleeping
+
 Dispatch: sleep — waiting for new commits...
-emoving worktree...
+
+Removing worktree...
