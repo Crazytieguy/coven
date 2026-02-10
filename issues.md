@@ -4,4 +4,6 @@
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P2] CLI args duplication: `show_thinking`, `fork`, and `claude_args` are defined identically in three places (root `Cli`, `Ralph`, `Worker` in `cli.rs`). Extract a shared struct and use `#[command(flatten)]`. (plan: plans/cli-args-duplication.md)
 - [P2] Status formatting duplication: `commands/status.rs` duplicates the worker-formatting logic from `worker_state::format_status`. The two differ in minor formatting details (prefix, separator) but share the same structure. Consolidate into a single parameterized formatter. (plan: plans/status-formatting-duplication.md)
+- [P2] README overhaul: add usage guidelines, document worker/fork/agents/init/status/gc commands, update features list, add a commands section. Currently only covers basic features. (plan: plans/readme-overhaul.md)
+- [P2] Windows support: uses Unix-specific APIs (libc::tcflush, /dev/null, kill command, rsync). Need platform abstractions or #[cfg] guards to support x86_64-pc-windows-msvc target.
 
