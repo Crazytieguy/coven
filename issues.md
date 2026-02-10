@@ -6,5 +6,5 @@
 - [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P1] A single Ctrl+C Kills coven instead of just interrupting claude (plan: plans/ctrl-c-interrupt.md)
-- [P2] Migrate from deprecated `serde_yaml` to `serde_yml` or alternative. The `serde_yaml` crate is archived by dtolnay — used in dispatch.rs and agents.rs for YAML frontmatter parsing.
+- [P2] Migrate from deprecated `serde_yaml` to `serde_yml` or alternative. The `serde_yaml` crate is archived by dtolnay — used in dispatch.rs and agents.rs for YAML frontmatter parsing. (plan: plans/migrate-serde-yaml.md)
 - [P2] Add timeout to dispatch lock acquisition in worker_state.rs. Currently uses `fs2::FileExt` file locking with no timeout — could hang indefinitely if another process crashes while holding the lock.
