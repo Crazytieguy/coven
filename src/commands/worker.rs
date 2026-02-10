@@ -476,15 +476,7 @@ async fn ensure_commits<W: Write>(
     total_cost: &mut f64,
 ) -> Result<CommitCheck> {
     let wt_str = worktree_path.display().to_string();
-    if ctx
-        .vcr
-        .call_typed_err(
-            "worktree::has_unique_commits",
-            wt_str.clone(),
-            async |p: &String| worktree::has_unique_commits(Path::new(p)),
-        )
-        .await??
-    {
+    if vcr_has_unique_commits(ctx.vcr, wt_str.clone()).await?? {
         return Ok(CommitCheck::HasCommits {
             session_id: agent_session_id,
         });
@@ -518,15 +510,7 @@ async fn ensure_commits<W: Write>(
                 .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
             warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-            if ctx
-                .vcr
-                .call_typed_err(
-                    "worktree::has_unique_commits",
-                    wt_str,
-                    async |p: &String| worktree::has_unique_commits(Path::new(p)),
-                )
-                .await??
-            {
+            if vcr_has_unique_commits(ctx.vcr, wt_str).await?? {
                 Ok(CommitCheck::HasCommits { session_id })
             } else {
                 Ok(CommitCheck::NoCommits)
@@ -704,13 +688,7 @@ async fn resolve_conflict<W: Write>(
 
     warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-    let is_rebasing = ctx
-        .vcr
-        .call_typed_err(
-            "worktree::is_rebase_in_progress",
-            wt_str.clone(),
-            async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
-        )
+    let is_rebasing = vcr_is_rebase_in_progress(ctx.vcr, wt_str.clone())
         .await?
         .unwrap_or(false);
     if !is_rebasing {
@@ -747,13 +725,7 @@ async fn resolve_conflict<W: Write>(
     let total_cost = cost + nudge_cost;
     warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-    let is_rebasing = ctx
-        .vcr
-        .call_typed_err(
-            "worktree::is_rebase_in_progress",
-            wt_str.clone(),
-            async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
-        )
+    let is_rebasing = vcr_is_rebase_in_progress(ctx.vcr, wt_str.clone())
         .await?
         .unwrap_or(false);
     if is_rebasing {
@@ -829,6 +801,40 @@ async fn vcr_abort_rebase(
 ) -> Result<Result<(), worktree::WorktreeError>> {
     vcr.call_typed_err("worktree::abort_rebase", wt_str, async |p: &String| {
         worktree::abort_rebase(Path::new(p))
+    })
+    .await
+}
+
+/// VCR-wrapped `worktree::has_unique_commits`.
+async fn vcr_has_unique_commits(
+    vcr: &VcrContext,
+    wt_str: String,
+) -> Result<Result<bool, worktree::WorktreeError>> {
+    vcr.call_typed_err(
+        "worktree::has_unique_commits",
+        wt_str,
+        async |p: &String| worktree::has_unique_commits(Path::new(p)),
+    )
+    .await
+}
+
+/// VCR-wrapped `worktree::is_rebase_in_progress`.
+async fn vcr_is_rebase_in_progress(
+    vcr: &VcrContext,
+    wt_str: String,
+) -> Result<Result<bool, worktree::WorktreeError>> {
+    vcr.call_typed_err(
+        "worktree::is_rebase_in_progress",
+        wt_str,
+        async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
+    )
+    .await
+}
+
+/// VCR-wrapped `main_head_sha`.
+async fn vcr_main_head_sha(vcr: &VcrContext, wt_str: String) -> Result<String> {
+    vcr.call("main_head_sha", wt_str, async |p: &String| {
+        main_head_sha(Path::new(p))
     })
     .await
 }
@@ -961,22 +967,12 @@ async fn wait_for_new_commits<W: Write>(
     vcr: &VcrContext,
 ) -> Result<WaitOutcome> {
     let wt_str = worktree_path.display().to_string();
-    let initial_head = vcr
-        .call("main_head_sha", wt_str.clone(), async |p: &String| {
-            main_head_sha(Path::new(p))
-        })
-        .await?;
+    let initial_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
 
     loop {
         tokio::select! {
             () = sleep(Duration::from_secs(10)) => {
-                let current = vcr
-                    .call(
-                        "main_head_sha",
-                        wt_str.clone(),
-                        async |p: &String| main_head_sha(Path::new(p)),
-                    )
-                    .await?;
+                let current = vcr_main_head_sha(vcr, wt_str.clone()).await?;
                 if current != initial_head {
                     renderer.write_raw("New commits detected on main.\r\n");
                     return Ok(WaitOutcome::NewCommits);
