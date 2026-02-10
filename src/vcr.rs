@@ -201,51 +201,11 @@ impl VcrContext {
                     Ok(t) => Ok(t.to_recorded()?),
                     Err(e) => Err(format!("{e:#}")),
                 };
-                let entry = VcrEntry {
-                    label: label.to_string(),
-                    args: serde_json::to_value(args.to_recorded()?)?,
-                    result: serde_json::to_value(&recorded_result)?,
-                };
-                let result_value = entry.result.clone();
-                entries.borrow_mut().push(entry);
-                // Notify trigger controller so it can inject scripted terminal events
-                if let Some(ref tc) = self.trigger_controller {
-                    tc.borrow_mut().check(label, &result_value);
-                }
+                self.push_entry(entries, label, &args, &recorded_result)?;
                 result
             }
             VcrMode::Replay(state) => {
-                let (entry_label, entry_args, entry_result, pos) = {
-                    let mut state = state.borrow_mut();
-                    anyhow::ensure!(
-                        state.position < state.entries.len(),
-                        "VCR replay exhausted: expected more entries after position {}",
-                        state.position
-                    );
-                    let pos = state.position;
-                    let entry = &state.entries[pos];
-                    let result = (
-                        entry.label.clone(),
-                        entry.args.clone(),
-                        entry.result.clone(),
-                        pos,
-                    );
-                    state.position += 1;
-                    result
-                };
-
-                anyhow::ensure!(
-                    entry_label == label,
-                    "VCR label mismatch at position {pos}: expected '{entry_label}', got '{label}'"
-                );
-
-                let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
-                let actual_args = args.to_recorded()?;
-                anyhow::ensure!(
-                    recorded_args == actual_args,
-                    "VCR args mismatch for '{label}' at position {pos}: expected {recorded_args:?}, got {actual_args:?}"
-                );
-
+                let entry_result = Self::advance_replay(state, label, &args)?;
                 let recorded_result: std::result::Result<T::Recorded, String> =
                     serde_json::from_value(entry_result)?;
                 match recorded_result {
@@ -285,50 +245,11 @@ impl VcrContext {
                     Ok(t) => Ok(t.to_recorded()?),
                     Err(e) => Err(e.to_recorded_err()?),
                 };
-                let entry = VcrEntry {
-                    label: label.to_string(),
-                    args: serde_json::to_value(args.to_recorded()?)?,
-                    result: serde_json::to_value(&recorded_result)?,
-                };
-                let result_value = entry.result.clone();
-                entries.borrow_mut().push(entry);
-                if let Some(ref tc) = self.trigger_controller {
-                    tc.borrow_mut().check(label, &result_value);
-                }
+                self.push_entry(entries, label, &args, &recorded_result)?;
                 Ok(result)
             }
             VcrMode::Replay(state) => {
-                let (entry_label, entry_args, entry_result, pos) = {
-                    let mut state = state.borrow_mut();
-                    anyhow::ensure!(
-                        state.position < state.entries.len(),
-                        "VCR replay exhausted: expected more entries after position {}",
-                        state.position
-                    );
-                    let pos = state.position;
-                    let entry = &state.entries[pos];
-                    let result = (
-                        entry.label.clone(),
-                        entry.args.clone(),
-                        entry.result.clone(),
-                        pos,
-                    );
-                    state.position += 1;
-                    result
-                };
-
-                anyhow::ensure!(
-                    entry_label == label,
-                    "VCR label mismatch at position {pos}: expected '{entry_label}', got '{label}'"
-                );
-
-                let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
-                let actual_args = args.to_recorded()?;
-                anyhow::ensure!(
-                    recorded_args == actual_args,
-                    "VCR args mismatch for '{label}' at position {pos}: expected {recorded_args:?}, got {actual_args:?}"
-                );
-
+                let entry_result = Self::advance_replay(state, label, &args)?;
                 let recorded_result: std::result::Result<T::Recorded, E::Recorded> =
                     serde_json::from_value(entry_result)?;
                 match recorded_result {
@@ -337,6 +258,71 @@ impl VcrContext {
                 }
             }
         }
+    }
+
+    /// Advance the replay position and validate that the label and args match.
+    /// Returns the raw recorded result `Value` for the caller to deserialize.
+    fn advance_replay<A>(state: &RefCell<ReplayState>, label: &str, args: &A) -> Result<Value>
+    where
+        A: Recordable,
+        A::Recorded: PartialEq + Debug,
+    {
+        let (entry_label, entry_args, entry_result, pos) = {
+            let mut state = state.borrow_mut();
+            anyhow::ensure!(
+                state.position < state.entries.len(),
+                "VCR replay exhausted: expected more entries after position {}",
+                state.position
+            );
+            let pos = state.position;
+            let entry = &state.entries[pos];
+            let result = (
+                entry.label.clone(),
+                entry.args.clone(),
+                entry.result.clone(),
+                pos,
+            );
+            state.position += 1;
+            result
+        };
+
+        anyhow::ensure!(
+            entry_label == label,
+            "VCR label mismatch at position {pos}: expected '{entry_label}', got '{label}'"
+        );
+
+        let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
+        let actual_args = args.to_recorded()?;
+        anyhow::ensure!(
+            recorded_args == actual_args,
+            "VCR args mismatch for '{label}' at position {pos}: expected {recorded_args:?}, got {actual_args:?}"
+        );
+
+        Ok(entry_result)
+    }
+
+    /// Record a VCR entry and notify the trigger controller.
+    fn push_entry<A, R: Serialize>(
+        &self,
+        entries: &RefCell<Vec<VcrEntry>>,
+        label: &str,
+        args: &A,
+        recorded_result: &R,
+    ) -> Result<()>
+    where
+        A: Recordable,
+    {
+        let entry = VcrEntry {
+            label: label.to_string(),
+            args: serde_json::to_value(args.to_recorded()?)?,
+            result: serde_json::to_value(recorded_result)?,
+        };
+        let result_value = entry.result.clone();
+        entries.borrow_mut().push(entry);
+        if let Some(ref tc) = self.trigger_controller {
+            tc.borrow_mut().check(label, &result_value);
+        }
+        Ok(())
     }
 
     /// Whether this context is in live (production) mode.
