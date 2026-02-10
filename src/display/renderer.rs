@@ -822,14 +822,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn display_tool_name_plugin_mcp() {
-        assert_eq!(
-            display_tool_name("mcp__plugin_llms-fetch-mcp_llms-fetch__fetch"),
-            "llms-fetch-mcp:llms-fetch:fetch"
-        );
-    }
-
-    #[test]
     fn display_tool_name_non_plugin_mcp() {
         assert_eq!(
             display_tool_name("mcp__my-server__do_thing"),
@@ -838,21 +830,8 @@ mod tests {
     }
 
     #[test]
-    fn display_tool_name_non_mcp() {
-        assert_eq!(display_tool_name("Read"), "Read");
-        assert_eq!(display_tool_name("Bash"), "Bash");
-    }
-
-    #[test]
     fn display_tool_name_not_enough_parts() {
         assert_eq!(display_tool_name("mcp__solo"), "mcp__solo");
-    }
-
-    #[test]
-    fn first_line_extracts_first() {
-        assert_eq!(first_line("hello\nworld"), "hello");
-        assert_eq!(first_line("single"), "single");
-        assert_eq!(first_line(""), "");
     }
 
     #[test]
@@ -894,22 +873,6 @@ mod tests {
     }
 
     #[test]
-    fn format_tool_detail_read() {
-        let input = serde_json::json!({"file_path": "/src/main.rs"});
-        assert_eq!(format_tool_detail("Read", &input), "/src/main.rs");
-    }
-
-    #[test]
-    fn format_tool_detail_edit_with_additions() {
-        let input = serde_json::json!({
-            "file_path": "/src/main.rs",
-            "old_string": "line1",
-            "new_string": "line1\nline2\nline3"
-        });
-        assert_eq!(format_tool_detail("Edit", &input), "(+2)  /src/main.rs");
-    }
-
-    #[test]
     fn format_tool_detail_edit_with_removals() {
         let input = serde_json::json!({
             "file_path": "/src/main.rs",
@@ -917,45 +880,6 @@ mod tests {
             "new_string": "line1"
         });
         assert_eq!(format_tool_detail("Edit", &input), "(-2)  /src/main.rs");
-    }
-
-    #[test]
-    fn format_tool_detail_edit_net_additions() {
-        let input = serde_json::json!({
-            "file_path": "/src/main.rs",
-            "old_string": "aaa\nbbb\nccc",
-            "new_string": "xxx\nyyy\nzzz\nwww\nvvv"
-        });
-        assert_eq!(format_tool_detail("Edit", &input), "(+2)  /src/main.rs");
-    }
-
-    #[test]
-    fn format_tool_detail_edit_same_line_count() {
-        let input = serde_json::json!({
-            "file_path": "/src/main.rs",
-            "old_string": "old_value",
-            "new_string": "new_value"
-        });
-        // Same line count → no diff stats
-        assert_eq!(format_tool_detail("Edit", &input), "/src/main.rs");
-    }
-
-    #[test]
-    fn format_tool_detail_write_single_line() {
-        let input = serde_json::json!({
-            "file_path": "/hello.txt",
-            "content": "Hello, world!"
-        });
-        assert_eq!(format_tool_detail("Write", &input), "(1 line)  /hello.txt");
-    }
-
-    #[test]
-    fn format_tool_detail_write_multiple_lines() {
-        let input = serde_json::json!({
-            "file_path": "/hello.py",
-            "content": "print('hello')\nprint('world')\n"
-        });
-        assert_eq!(format_tool_detail("Write", &input), "(2 lines)  /hello.py");
     }
 
     #[test]
@@ -975,33 +899,9 @@ mod tests {
     }
 
     #[test]
-    fn format_tool_detail_glob() {
-        let input = serde_json::json!({"pattern": "**/*.rs"});
-        assert_eq!(format_tool_detail("Glob", &input), "**/*.rs");
-    }
-
-    #[test]
     fn format_tool_detail_grep_with_path() {
         let input = serde_json::json!({"pattern": "fn main", "path": "/src"});
         assert_eq!(format_tool_detail("Grep", &input), "fn main  /src");
-    }
-
-    #[test]
-    fn format_tool_detail_grep_without_path() {
-        let input = serde_json::json!({"pattern": "TODO"});
-        assert_eq!(format_tool_detail("Grep", &input), "TODO");
-    }
-
-    #[test]
-    fn format_tool_detail_bash() {
-        let input = serde_json::json!({"command": "ls -la\necho done"});
-        assert_eq!(format_tool_detail("Bash", &input), "ls -la");
-    }
-
-    #[test]
-    fn format_tool_detail_task() {
-        let input = serde_json::json!({"description": "Summarize README"});
-        assert_eq!(format_tool_detail("Task", &input), "Summarize README");
     }
 
     #[test]

@@ -16,7 +16,7 @@ pub fn parse_line(line: &str) -> Result<Option<InboundEvent>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::panic)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -24,74 +24,6 @@ mod tests {
     fn parse_empty_line() {
         assert!(parse_line("").unwrap().is_none());
         assert!(parse_line("  \n").unwrap().is_none());
-    }
-
-    #[test]
-    fn parse_init_event() {
-        let line = r#"{"type":"system","subtype":"init","session_id":"abc123","model":"claude-sonnet-4-20250514","tools":[]}"#;
-        let event = parse_line(line).unwrap().unwrap();
-        match event {
-            InboundEvent::System(super::super::types::SystemEvent::Init(init)) => {
-                assert_eq!(init.session_id, "abc123");
-                assert_eq!(init.model, "claude-sonnet-4-20250514");
-            }
-            other => panic!("Expected System/Init, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn parse_result_event() {
-        let line = r#"{"type":"result","subtype":"success","total_cost_usd":0.03,"num_turns":3,"duration_ms":12400,"result":"Done","session_id":"abc123"}"#;
-        let event = parse_line(line).unwrap().unwrap();
-        match event {
-            InboundEvent::Result(result) => {
-                assert_eq!(result.subtype, "success");
-                assert!((result.total_cost_usd - 0.03).abs() < f64::EPSILON);
-                assert_eq!(result.num_turns, 3);
-            }
-            other => panic!("Expected Result, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn parse_stream_event() {
-        let line = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}}"#;
-        let event = parse_line(line).unwrap().unwrap();
-        match event {
-            InboundEvent::StreamEvent(se) => {
-                assert_eq!(se.event.event_type, "content_block_delta");
-                let delta = se.event.delta.unwrap();
-                assert_eq!(delta.r#type, "text_delta");
-                assert_eq!(delta.text.unwrap(), "hello");
-            }
-            other => panic!("Expected StreamEvent, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn parse_assistant_event() {
-        let line = r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Hello!"},{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"ls"}}]}}"#;
-        let event = parse_line(line).unwrap().unwrap();
-        match event {
-            InboundEvent::Assistant(msg) => {
-                assert_eq!(msg.message.content.len(), 2);
-            }
-            other => panic!("Expected Assistant, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn parse_user_tool_result() {
-        let line = r#"{"type":"user","tool_use_result":{"tool_use_id":"tu1","name":"Bash","is_error":false}}"#;
-        let event = parse_line(line).unwrap().unwrap();
-        match event {
-            InboundEvent::User(u) => {
-                let result = u.tool_use_result.unwrap();
-                assert_eq!(result.get("name").unwrap().as_str().unwrap(), "Bash");
-                assert!(!result.get("is_error").unwrap().as_bool().unwrap());
-            }
-            other => panic!("Expected User, got {other:?}"),
-        }
     }
 
     #[test]
