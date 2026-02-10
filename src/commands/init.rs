@@ -3,7 +3,7 @@ use std::io::{self, Write};
 
 use anyhow::{Context, Result};
 
-use coven::agents::AGENTS_DIR;
+use crate::agents::AGENTS_DIR;
 
 const DISPATCH_PROMPT: &str = r#"---
 description: "Chooses the next task for a worker"

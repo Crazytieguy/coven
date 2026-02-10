@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Serialize, Deserialize, thiserror::Error)]
 pub enum WorktreeError {
     #[error("not a git repository")]
     NotGitRepo,
@@ -37,12 +38,14 @@ pub struct SpawnOptions<'a> {
 }
 
 /// Result of a successful spawn operation.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SpawnResult {
     pub worktree_path: PathBuf,
     pub branch: String,
 }
 
 /// Result of a successful land operation.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LandResult {
     pub branch: String,
     pub main_branch: String,

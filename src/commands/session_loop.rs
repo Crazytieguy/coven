@@ -1,19 +1,18 @@
+use std::io::Write;
 use std::process::Command as StdCommand;
 
 use anyhow::Result;
-use crossterm::event::{Event, EventStream, KeyEvent};
+use crossterm::event::{Event, KeyEvent};
 use crossterm::terminal;
-use futures::StreamExt;
-use tokio::sync::mpsc;
 
-use coven::display::input::{InputAction, InputHandler};
-use coven::display::renderer::Renderer;
-use coven::event::{AppEvent, InputMode};
-use coven::protocol::types::InboundEvent;
-use coven::session::runner::SessionRunner;
-use coven::session::state::{SessionState, SessionStatus};
-
-use super::handle_inbound;
+use crate::display::input::{InputAction, InputHandler};
+use crate::display::renderer::Renderer;
+use crate::event::{AppEvent, InputMode};
+use crate::handle_inbound;
+use crate::protocol::types::InboundEvent;
+use crate::session::runner::SessionRunner;
+use crate::session::state::{SessionState, SessionStatus};
+use crate::vcr::{Io, IoEvent, VcrContext};
 
 /// How a session ended.
 pub enum SessionOutcome {
@@ -39,13 +38,13 @@ struct SessionLocals {
 ///
 /// Returns when the session produces a Result event, the user interrupts,
 /// or the process exits.
-pub async fn run_session(
+pub async fn run_session<W: Write>(
     runner: &mut SessionRunner,
     state: &mut SessionState,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    event_rx: &mut mpsc::UnboundedReceiver<AppEvent>,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<SessionOutcome> {
     let mut locals = SessionLocals {
         event_buffer: Vec::new(),
@@ -54,40 +53,39 @@ pub async fn run_session(
     };
 
     loop {
-        tokio::select! {
-            event = event_rx.recv() => {
-                match event {
-                    Some(app_event) => {
-                        if input.is_active() && state.status == SessionStatus::Running {
-                            locals.event_buffer.push(app_event);
-                        } else {
-                            let outcome = process_claude_event(
-                                app_event, state, renderer, runner, &mut locals,
-                            ).await?;
-                            if let Some(outcome) = outcome {
-                                return Ok(outcome);
-                            }
-                        }
+        let io_event: IoEvent = vcr
+            .call("next_event", (), async |(): &()| io.next_event().await)
+            .await?;
+        match io_event {
+            IoEvent::Claude(app_event) => {
+                if input.is_active() && state.status == SessionStatus::Running {
+                    locals.event_buffer.push(app_event);
+                } else {
+                    let outcome =
+                        process_claude_event(app_event, state, renderer, runner, &mut locals, vcr)
+                            .await?;
+                    if let Some(outcome) = outcome {
+                        return Ok(outcome);
                     }
-                    None => return Ok(SessionOutcome::ProcessExited),
                 }
             }
-
-            term_event = term_events.next() => {
-                match term_event {
-                    Some(Ok(Event::Key(key_event))) => {
-                        let action = handle_session_key_event(
-                            &key_event, input, renderer, runner, state, &mut locals,
-                        ).await?;
-                        match action {
-                            LoopAction::Continue => {}
-                            LoopAction::Interrupted => return Ok(SessionOutcome::Interrupted),
-                        }
-                    }
-                    Some(Ok(_)) => {}
-                    Some(Err(_)) | None => return Ok(SessionOutcome::ProcessExited),
+            IoEvent::Terminal(Event::Key(key_event)) => {
+                let action = handle_session_key_event(
+                    &key_event,
+                    input,
+                    renderer,
+                    runner,
+                    state,
+                    &mut locals,
+                    vcr,
+                )
+                .await?;
+                match action {
+                    LoopAction::Continue => {}
+                    LoopAction::Interrupted => return Ok(SessionOutcome::Interrupted),
                 }
             }
+            IoEvent::Terminal(_) => {}
         }
     }
 }
@@ -99,13 +97,14 @@ enum LoopAction {
 }
 
 /// Handle a key event during an active session.
-async fn handle_session_key_event(
+async fn handle_session_key_event<W: Write>(
     key_event: &KeyEvent,
     input: &mut InputHandler,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
     state: &mut SessionState,
     locals: &mut SessionLocals,
+    vcr: &VcrContext,
 ) -> Result<LoopAction> {
     let action = input.handle_key(key_event);
     match action {
@@ -118,13 +117,19 @@ async fn handle_session_key_event(
             match mode {
                 InputMode::Steering => {
                     renderer.render_steering_sent(&text);
-                    runner.send_message(&text).await?;
+                    vcr.call("send_message", text, async |t: &String| {
+                        runner.send_message(t).await
+                    })
+                    .await?;
                 }
                 InputMode::FollowUp => {
                     if state.status == SessionStatus::WaitingForInput {
                         renderer.render_user_message(&text);
                         state.suppress_next_separator = true;
-                        runner.send_message(&text).await?;
+                        vcr.call("send_message", text, async |t: &String| {
+                            runner.send_message(t).await
+                        })
+                        .await?;
                         state.status = SessionStatus::Running;
                     } else {
                         renderer.render_followup_queued(&text);
@@ -161,12 +166,13 @@ async fn handle_session_key_event(
 }
 
 /// Process a single claude event. Returns Some(outcome) if the session should end.
-async fn process_claude_event(
+async fn process_claude_event<W: Write>(
     event: AppEvent,
     state: &mut SessionState,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
     locals: &mut SessionLocals,
+    vcr: &VcrContext,
 ) -> Result<Option<SessionOutcome>> {
     match event {
         AppEvent::Claude(inbound) => {
@@ -188,7 +194,10 @@ async fn process_claude_event(
                 let text = locals.pending_followups.remove(0);
                 renderer.render_followup_sent(&text);
                 state.suppress_next_separator = true;
-                runner.send_message(&text).await?;
+                vcr.call("send_message", text, async |t: &String| {
+                    runner.send_message(t).await
+                })
+                .await?;
                 state.status = SessionStatus::Running;
             }
         }
@@ -205,10 +214,10 @@ async fn process_claude_event(
 }
 
 /// Flush all buffered events through the renderer.
-fn flush_event_buffer(
+fn flush_event_buffer<W: Write>(
     locals: &mut SessionLocals,
     state: &mut SessionState,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
 ) {
     for event in locals.event_buffer.drain(..) {
         match event {
@@ -239,17 +248,21 @@ pub enum FollowUpAction {
 }
 
 /// Show a prompt and wait for user to type a follow-up or exit.
-pub async fn wait_for_followup(
+pub async fn wait_for_followup<W: Write>(
     input: &mut InputHandler,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
     state: &mut SessionState,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<FollowUpAction> {
-    match wait_for_text_input(input, renderer, term_events).await? {
+    match wait_for_text_input(input, renderer, io, vcr).await? {
         Some(text) => {
             state.suppress_next_separator = true;
-            runner.send_message(&text).await?;
+            vcr.call("send_message", text, async |t: &String| {
+                runner.send_message(t).await
+            })
+            .await?;
             state.status = SessionStatus::Running;
             Ok(FollowUpAction::Sent)
         }
@@ -261,29 +274,34 @@ pub async fn wait_for_followup(
 ///
 /// Unlike `wait_for_followup`, this doesn't send the message to a runner —
 /// the caller decides what to do with the text (e.g. spawn a resumed session).
-pub async fn wait_for_user_input(
+pub async fn wait_for_user_input<W: Write>(
     input: &mut InputHandler,
-    renderer: &mut Renderer,
-    term_events: &mut EventStream,
+    renderer: &mut Renderer<W>,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<Option<String>> {
-    wait_for_text_input(input, renderer, term_events).await
+    wait_for_text_input(input, renderer, io, vcr).await
 }
 
 /// Wait for user to type and submit text, or exit.
 ///
-/// Shows the prompt, activates input, and loops on terminal events.
+/// Shows the prompt, activates input, and loops on events.
 /// Returns the submitted text, or None if the user interrupted/ended.
-async fn wait_for_text_input(
+async fn wait_for_text_input<W: Write>(
     input: &mut InputHandler,
-    renderer: &mut Renderer,
-    term_events: &mut EventStream,
+    renderer: &mut Renderer<W>,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<Option<String>> {
     renderer.show_prompt();
     input.activate();
 
     loop {
-        match term_events.next().await {
-            Some(Ok(Event::Key(key_event))) => {
+        let io_event: IoEvent = vcr
+            .call("next_event", (), async |(): &()| io.next_event().await)
+            .await?;
+        match io_event {
+            IoEvent::Terminal(Event::Key(key_event)) => {
                 let action = input.handle_key(&key_event);
                 match action {
                     InputAction::Submit(text, _) => {
@@ -305,14 +323,14 @@ async fn wait_for_text_input(
                     InputAction::Activated(_) | InputAction::None => {}
                 }
             }
-            Some(Ok(_)) => {}
-            Some(Err(_)) | None => return Ok(None),
+            IoEvent::Claude(AppEvent::ProcessExit(_)) => return Ok(None),
+            IoEvent::Terminal(_) | IoEvent::Claude(_) => {}
         }
     }
 }
 
 /// Open message N in $PAGER.
-pub fn view_message(renderer: &mut Renderer, n: usize) {
+pub fn view_message<W: Write>(renderer: &mut Renderer<W>, n: usize) {
     let messages = renderer.messages();
     if n == 0 || n > messages.len() {
         renderer.write_raw(&format!("No message {n}\r\n"));
@@ -340,7 +358,6 @@ pub fn view_message(renderer: &mut Renderer, n: usize) {
 
     if let Ok(ref mut child) = child {
         if let Some(ref mut stdin) = child.stdin {
-            use std::io::Write;
             stdin.write_all(content.as_bytes()).ok();
         }
         // Close stdin so pager reads EOF

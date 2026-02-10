@@ -1,13 +1,13 @@
-use anyhow::Result;
-use crossterm::event::EventStream;
-use crossterm::terminal;
-use tokio::sync::mpsc;
+use std::io::Write;
 
-use coven::display::input::InputHandler;
-use coven::display::renderer::Renderer;
-use coven::event::AppEvent;
-use coven::session::runner::{SessionConfig, SessionRunner};
-use coven::session::state::SessionState;
+use anyhow::Result;
+use crossterm::terminal;
+
+use crate::display::input::InputHandler;
+use crate::display::renderer::Renderer;
+use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::session::state::SessionState;
+use crate::vcr::{Io, VcrContext};
 
 use super::session_loop::{self, SessionOutcome};
 
@@ -21,17 +21,22 @@ pub struct RalphConfig {
 }
 
 /// Run ralph loop mode.
-pub async fn ralph(config: RalphConfig) -> Result<()> {
-    terminal::enable_raw_mode()?;
+pub async fn ralph<W: Write>(
+    config: RalphConfig,
+    io: &mut Io,
+    vcr: &VcrContext,
+    writer: W,
+) -> Result<()> {
+    if vcr.is_live() {
+        terminal::enable_raw_mode()?;
+    }
 
-    let mut renderer = Renderer::new();
+    let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;
-
-    let mut term_events = EventStream::new();
 
     let system_prompt = if config.no_break {
         "You are running in a loop where each iteration starts a fresh session but the filesystem \
@@ -56,8 +61,6 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
         // Iteration header
         renderer.write_raw(&format!("\r\n--- Iteration {iteration} ---\r\n\r\n"));
 
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
-
         let session_config = SessionConfig {
             prompt: Some(config.prompt.clone()),
             extra_args: config.extra_args.clone(),
@@ -65,7 +68,12 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
             ..Default::default()
         };
 
-        let mut runner = SessionRunner::spawn(session_config, event_tx).await?;
+        let mut runner = vcr
+            .call("spawn", session_config, async |c: &SessionConfig| {
+                let tx = io.replace_event_channel();
+                SessionRunner::spawn(c.clone(), tx).await
+            })
+            .await?;
         let mut state = SessionState::default();
         let mut iteration_cost = 0.0;
 
@@ -75,8 +83,8 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
                 &mut state,
                 &mut renderer,
                 &mut input,
-                &mut event_rx,
-                &mut term_events,
+                io,
+                vcr,
             )
             .await?;
 
@@ -109,16 +117,10 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
                     iteration_cost += state.total_cost_usd;
                     renderer.render_interrupted();
 
-                    match session_loop::wait_for_user_input(
-                        &mut input,
-                        &mut renderer,
-                        &mut term_events,
-                    )
-                    .await?
+                    match session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr)
+                        .await?
                     {
                         Some(text) => {
-                            let (new_tx, new_rx) = mpsc::unbounded_channel();
-                            event_rx = new_rx;
                             let resume_config = SessionConfig {
                                 prompt: Some(text),
                                 extra_args: config.extra_args.clone(),
@@ -126,7 +128,12 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
                                 resume: Some(session_id),
                                 ..Default::default()
                             };
-                            runner = SessionRunner::spawn(resume_config, new_tx).await?;
+                            runner = vcr
+                                .call("spawn", resume_config, async |c: &SessionConfig| {
+                                    let tx = io.replace_event_channel();
+                                    SessionRunner::spawn(c.clone(), tx).await
+                                })
+                                .await?;
                             state = SessionState::default();
                         }
                         None => break 'outer,
@@ -137,13 +144,15 @@ pub async fn ralph(config: RalphConfig) -> Result<()> {
         }
     }
 
-    terminal::disable_raw_mode()?;
+    if vcr.is_live() {
+        terminal::disable_raw_mode()?;
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use coven::session::runner::SessionRunner;
+    use crate::session::runner::SessionRunner;
 
     #[test]
     fn scan_break_tag_found() {

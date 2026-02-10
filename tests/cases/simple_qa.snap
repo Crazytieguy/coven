@@ -2,9 +2,11 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session ff595aab-db48-450e-9ed8-aa6124691a21 (claude-opus-4-6)
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session f9da8168-0891-4734-8d0b-e612c33494f3 (claude-opus-4-6)
 
 4
 
 
-Done  $0.04 · 1.7s · 1 turn
+Done  $0.04 · 3.1s · 1 turn
+>

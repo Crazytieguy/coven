@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout};
 use tokio::sync::mpsc;
@@ -11,7 +12,7 @@ use crate::protocol::emit::format_user_message;
 use crate::protocol::parse::parse_line;
 
 /// Configuration for spawning a claude session.
-#[derive(Default)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
     /// Initial prompt to send (if any).
     pub prompt: Option<String>,
@@ -26,8 +27,11 @@ pub struct SessionConfig {
 }
 
 /// Manages a claude -p subprocess with bidirectional stream-json.
+///
+/// The `child` field is optional to support VCR replay mode, where a stub
+/// SessionRunner is constructed without a real process.
 pub struct SessionRunner {
-    child: Child,
+    child: Option<Child>,
     stdin: Option<ChildStdin>,
 }
 
@@ -75,9 +79,18 @@ impl SessionRunner {
         Self::spawn_reader(stdout, event_tx);
 
         Ok(Self {
-            child,
+            child: Some(child),
             stdin: Some(stdin),
         })
+    }
+
+    /// Create a stub SessionRunner for VCR replay mode.
+    /// Has no real process — methods like close_input/wait/kill are no-ops.
+    pub fn stub() -> Self {
+        Self {
+            child: None,
+            stdin: None,
+        }
     }
 
     /// Build the claude CLI arguments (for VCR header validation).
@@ -131,15 +144,19 @@ impl SessionRunner {
         self.stdin.take();
     }
 
-    /// Wait for the claude process to exit.
+    /// Wait for the claude process to exit. No-op on stubs.
     pub async fn wait(&mut self) -> Result<Option<i32>> {
-        let status = self.child.wait().await?;
-        Ok(status.code())
+        match &mut self.child {
+            Some(child) => Ok(child.wait().await?.code()),
+            None => Ok(None),
+        }
     }
 
-    /// Kill the claude process.
+    /// Kill the claude process. No-op on stubs.
     pub async fn kill(&mut self) -> Result<()> {
-        self.child.kill().await?;
+        if let Some(child) = &mut self.child {
+            child.kill().await?;
+        }
         Ok(())
     }
 

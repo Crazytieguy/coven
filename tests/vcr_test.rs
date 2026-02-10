@@ -2,125 +2,7 @@
 
 use std::path::Path;
 
-use coven::display::renderer::Renderer;
-use coven::handle_inbound;
-use coven::protocol::emit::format_user_message;
-use coven::protocol::parse::parse_line;
-use coven::session::state::SessionState;
-use coven::vcr::{DisplayConfig, TestCase, VcrHeader};
-
-// --- VCR validation ---
-
-/// Validate VCR header CLI args and stdin lines against the test case definition.
-fn validate_vcr(case: &TestCase, vcr_lines: &[&str]) {
-    // 1. Validate header
-    let header: VcrHeader =
-        serde_json::from_str(vcr_lines[0]).expect("First line should be valid VCR header JSON");
-    assert_eq!(header.vcr, "header");
-
-    let expected_command = case
-        .expected_command()
-        .expect("Test case should have [run] or [ralph]");
-    assert_eq!(
-        header.command, expected_command,
-        "VCR header CLI args mismatch"
-    );
-
-    // 2. Validate stdin lines match TOML messages
-    let stdin_lines: Vec<&str> = vcr_lines[1..]
-        .iter()
-        .filter_map(|l| l.strip_prefix("> "))
-        .collect();
-
-    if case.is_ralph() {
-        // Ralph: same message repeated each iteration
-        let iterations = vcr_lines[1..].iter().filter(|l| l.trim() == "---").count() + 1;
-        assert_eq!(
-            stdin_lines.len(),
-            iterations,
-            "Ralph VCR should have one stdin line per iteration"
-        );
-        let expected_msg = format_user_message(case.prompt().expect("should have prompt"))
-            .expect("serialization should succeed");
-        for (i, stdin_line) in stdin_lines.iter().enumerate() {
-            assert_eq!(
-                *stdin_line, expected_msg,
-                "Ralph stdin line {i} doesn't match expected prompt"
-            );
-        }
-    } else {
-        // Build expected stdin messages: initial prompt + follow-up messages
-        let mut expected: Vec<String> = vec![
-            format_user_message(case.prompt().expect("should have prompt"))
-                .expect("serialization should succeed"),
-        ];
-        for msg in &case.messages {
-            expected.push(format_user_message(&msg.content).expect("serialization should succeed"));
-        }
-
-        assert_eq!(
-            stdin_lines.len(),
-            expected.len(),
-            "Number of stdin lines ({}) doesn't match expected ({})",
-            stdin_lines.len(),
-            expected.len()
-        );
-        for (i, (actual, expected_msg)) in stdin_lines.iter().zip(expected.iter()).enumerate() {
-            assert_eq!(*actual, expected_msg.as_str(), "Stdin line {i} mismatch");
-        }
-    }
-}
-
-// --- VCR replay ---
-
-/// Replay VCR stdout lines through the renderer, capturing output.
-fn replay_stdout(vcr_lines: &[&str], display: &DisplayConfig) -> String {
-    let mut output = Vec::new();
-    let mut renderer = Renderer::with_writer(&mut output);
-    renderer.set_show_thinking(display.show_thinking);
-    let mut state = SessionState::default();
-    let mut seen_first_stdin = false;
-
-    for line in &vcr_lines[1..] {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        // `---` separates ralph iterations
-        if line == "---" {
-            state = SessionState::default();
-            seen_first_stdin = false;
-            continue;
-        }
-
-        // `>` lines are stdin
-        if line.starts_with("> ") {
-            if seen_first_stdin {
-                // Follow-up message — suppress the next turn separator
-                state.suppress_next_separator = true;
-            }
-            seen_first_stdin = true;
-            continue;
-        }
-
-        // `<` lines are stdout — parse and render
-        if let Some(json) = line.strip_prefix("< ") {
-            match parse_line(json) {
-                Ok(Some(event)) => {
-                    handle_inbound(&event, &mut state, &mut renderer, false);
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    renderer.render_warning(&format!("Parse error: {e}"));
-                }
-            }
-        }
-    }
-
-    drop(renderer);
-    String::from_utf8(output).expect("Output should be valid UTF-8")
-}
+use coven::vcr::{Io, TestCase, VcrContext};
 
 /// Strip ANSI escape codes for readable snapshots.
 fn strip_ansi(s: &str) -> String {
@@ -141,30 +23,62 @@ fn strip_ansi(s: &str) -> String {
     result
 }
 
-macro_rules! vcr_test {
-    ($name:ident) => {
-        #[test]
-        fn $name() {
-            let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
-            let toml_path = base.join(concat!(stringify!($name), ".toml"));
-            let vcr_path = base.join(concat!(stringify!($name), ".vcr"));
+/// Run a test case through the real command function with VCR replay,
+/// capturing renderer output for snapshot comparison.
+async fn run_vcr_test(name: &str) -> String {
+    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
+    let toml_path = base.join(format!("{name}.toml"));
+    let vcr_path = base.join(format!("{name}.vcr"));
 
-            let case: TestCase = toml::from_str(
-                &std::fs::read_to_string(&toml_path).expect("Failed to read TOML file"),
-            )
+    let case: TestCase =
+        toml::from_str(&std::fs::read_to_string(&toml_path).expect("Failed to read TOML file"))
             .expect("Failed to parse TOML file");
 
-            let vcr_content =
-                std::fs::read_to_string(&vcr_path).expect("Failed to read VCR file");
-            let vcr_lines: Vec<&str> = vcr_content.lines().collect();
+    let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read VCR file");
+    let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse VCR file");
+    let mut io = Io::dummy();
+    let mut output = Vec::new();
 
-            // Validate VCR header and stdin against TOML
-            validate_vcr(&case, &vcr_lines);
+    if case.is_ralph() {
+        let ralph_config = case.ralph.as_ref().unwrap();
+        coven::commands::ralph::ralph(
+            coven::commands::ralph::RalphConfig {
+                prompt: ralph_config.prompt.clone(),
+                iterations: 10,
+                break_tag: ralph_config.break_tag.clone(),
+                no_break: false,
+                show_thinking: case.display.show_thinking,
+                extra_args: ralph_config.claude_args.clone(),
+            },
+            &mut io,
+            &vcr,
+            &mut output,
+        )
+        .await
+        .expect("Command failed during VCR replay");
+    } else {
+        let run_config = case.run.as_ref().unwrap();
+        coven::commands::run::run(
+            Some(run_config.prompt.clone()),
+            run_config.claude_args.clone(),
+            case.display.show_thinking,
+            &mut io,
+            &vcr,
+            &mut output,
+        )
+        .await
+        .expect("Command failed during VCR replay");
+    }
 
-            // Replay and snapshot
-            let output = replay_stdout(&vcr_lines, &case.display);
-            let clean = strip_ansi(&output);
+    let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
+    strip_ansi(&raw)
+}
 
+macro_rules! vcr_test {
+    ($name:ident) => {
+        #[tokio::test]
+        async fn $name() {
+            let clean = run_vcr_test(stringify!($name)).await;
             insta::with_settings!({
                 snapshot_path => "../tests/cases",
                 prepend_module_to_snapshot => false,
@@ -187,27 +101,4 @@ vcr_test!(steering);
 vcr_test!(subagent);
 vcr_test!(write_single_line);
 vcr_test!(edit_tool);
-
-/// Test that --show-thinking streams thinking text inline.
-/// Replays multi_tool.vcr (which contains thinking blocks) with show_thinking enabled.
-#[test]
-fn show_thinking() {
-    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
-    let vcr_path = base.join("multi_tool.vcr");
-
-    let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read VCR file");
-    let vcr_lines: Vec<&str> = vcr_content.lines().collect();
-
-    let display = DisplayConfig {
-        show_thinking: true,
-    };
-    let output = replay_stdout(&vcr_lines, &display);
-    let clean = strip_ansi(&output);
-
-    insta::with_settings!({
-        snapshot_path => "../tests/cases",
-        prepend_module_to_snapshot => false,
-    }, {
-        insta::assert_snapshot!("show_thinking", clean);
-    });
-}
+vcr_test!(show_thinking);

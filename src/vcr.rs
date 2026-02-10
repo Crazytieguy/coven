@@ -1,9 +1,449 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::path::Path;
 
 use anyhow::{Result, bail};
+use crossterm::event::Event;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tokio::sync::mpsc;
 
-use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::event::AppEvent;
+use crate::session::runner::SessionRunner;
+
+// ── Recordable trait ────────────────────────────────────────────────────
+
+/// Allows both serializable types and non-serializable types (like process
+/// handles) to work with `vcr.call()`.
+pub trait Recordable: Sized {
+    type Recorded: Serialize + DeserializeOwned;
+    fn to_recorded(&self) -> Self::Recorded;
+    fn from_recorded(recorded: Self::Recorded) -> Self;
+}
+
+/// Blanket implementation for any type implementing `Serialize + DeserializeOwned`.
+/// Uses `serde_json::Value` as the intermediate representation, avoiding a `Clone`
+/// requirement.
+impl<T: Serialize + DeserializeOwned> Recordable for T {
+    type Recorded = Value;
+
+    fn to_recorded(&self) -> Value {
+        serde_json::to_value(self).expect("serialization should not fail for Recordable types")
+    }
+
+    fn from_recorded(v: Value) -> Self {
+        serde_json::from_value(v).expect("deserialization should not fail for recorded values")
+    }
+}
+
+// ── Manual Recordable impls ─────────────────────────────────────────────
+
+/// `SessionRunner` records as `()` — in replay mode, a stub with no child/stdin
+/// is returned. All actual operations on the stub are either no-ops (`close_input`,
+/// `wait`, `kill`) or bypassed by VCR (`send_message` is wrapped in `vcr.call()`).
+impl Recordable for SessionRunner {
+    type Recorded = ();
+
+    fn to_recorded(&self) {}
+
+    fn from_recorded((): ()) -> Self {
+        SessionRunner::stub()
+    }
+}
+
+// ── VCR entry (one line in the NDJSON file) ─────────────────────────────
+
+#[derive(Serialize, Deserialize)]
+struct VcrEntry {
+    label: String,
+    args: Value,
+    result: Value,
+}
+
+// ── VcrContext ───────────────────────────────────────────────────────────
+
+/// Operating mode for the VCR context.
+enum VcrMode {
+    /// Production — just execute operations.
+    Live,
+    /// Execute and record args + results.
+    Record(RefCell<Vec<VcrEntry>>),
+    /// Return recorded values, assert arguments match.
+    Replay(RefCell<ReplayState>),
+}
+
+struct ReplayState {
+    entries: Vec<VcrEntry>,
+    position: usize,
+}
+
+/// A VCR context threaded through command functions. Records or replays
+/// all external I/O operations via the `call()` method.
+pub struct VcrContext {
+    mode: VcrMode,
+    trigger_controller: Option<RefCell<TriggerController>>,
+}
+
+impl VcrContext {
+    /// Create a live context (production mode — operations execute normally).
+    pub fn live() -> Self {
+        Self {
+            mode: VcrMode::Live,
+            trigger_controller: None,
+        }
+    }
+
+    /// Create a recording context that captures all operations.
+    pub fn record() -> Self {
+        Self {
+            mode: VcrMode::Record(RefCell::new(Vec::new())),
+            trigger_controller: None,
+        }
+    }
+
+    /// Create a recording context with a trigger controller for scripted input.
+    pub fn record_with_triggers(controller: TriggerController) -> Self {
+        Self {
+            mode: VcrMode::Record(RefCell::new(Vec::new())),
+            trigger_controller: Some(RefCell::new(controller)),
+        }
+    }
+
+    /// Create a replay context from recorded NDJSON data.
+    pub fn replay(data: &str) -> Result<Self> {
+        let mut entries = Vec::new();
+        for line in data.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            entries.push(serde_json::from_str(line)?);
+        }
+        Ok(Self {
+            mode: VcrMode::Replay(RefCell::new(ReplayState {
+                entries,
+                position: 0,
+            })),
+            trigger_controller: None,
+        })
+    }
+
+    /// Write the recording to an NDJSON file.
+    pub fn write_recording(&self, path: &Path) -> Result<()> {
+        let VcrMode::Record(ref entries) = self.mode else {
+            bail!("write_recording called on non-Record VcrContext");
+        };
+        let entries = entries.borrow();
+        let mut output = String::new();
+        for entry in entries.iter() {
+            output.push_str(&serde_json::to_string(entry)?);
+            output.push('\n');
+        }
+        std::fs::write(path, output)?;
+        Ok(())
+    }
+
+    /// The core VCR method. All external operations go through this.
+    ///
+    /// - **Live**: calls `f` and returns the result.
+    /// - **Record**: calls `f`, records args and result, returns the result.
+    /// - **Replay**: asserts args match the recording, returns the recorded result.
+    ///
+    /// Errors are always recorded as their display string and replayed via `anyhow!()`.
+    pub async fn call<A, T>(
+        &self,
+        label: &str,
+        args: A,
+        f: impl AsyncFnOnce(&A) -> Result<T>,
+    ) -> Result<T>
+    where
+        A: Recordable,
+        A::Recorded: PartialEq + Debug,
+        T: Recordable,
+    {
+        match &self.mode {
+            VcrMode::Live => f(&args).await,
+            VcrMode::Record(entries) => {
+                let result = f(&args).await;
+                let recorded_result: std::result::Result<T::Recorded, String> = match &result {
+                    Ok(t) => Ok(t.to_recorded()),
+                    Err(e) => Err(format!("{e:#}")),
+                };
+                let entry = VcrEntry {
+                    label: label.to_string(),
+                    args: serde_json::to_value(args.to_recorded())
+                        .expect("args serialization should not fail"),
+                    result: serde_json::to_value(&recorded_result)
+                        .expect("result serialization should not fail"),
+                };
+                let result_value = entry.result.clone();
+                entries.borrow_mut().push(entry);
+                // Notify trigger controller so it can inject scripted terminal events
+                if let Some(ref tc) = self.trigger_controller {
+                    tc.borrow_mut().check(&result_value);
+                }
+                result
+            }
+            VcrMode::Replay(state) => {
+                let (entry_label, entry_args, entry_result, pos) = {
+                    let mut state = state.borrow_mut();
+                    assert!(
+                        state.position < state.entries.len(),
+                        "VCR replay exhausted: expected more entries after position {}",
+                        state.position
+                    );
+                    let pos = state.position;
+                    let entry = &state.entries[pos];
+                    let result = (
+                        entry.label.clone(),
+                        entry.args.clone(),
+                        entry.result.clone(),
+                        pos,
+                    );
+                    state.position += 1;
+                    result
+                };
+
+                assert_eq!(entry_label, label, "VCR label mismatch at position {pos}");
+
+                let recorded_args: A::Recorded = serde_json::from_value(entry_args)
+                    .expect("VCR args deserialization should not fail");
+                let actual_args = args.to_recorded();
+                assert_eq!(
+                    recorded_args, actual_args,
+                    "VCR args mismatch for '{label}' at position {pos}"
+                );
+
+                let recorded_result: std::result::Result<T::Recorded, String> =
+                    serde_json::from_value(entry_result)
+                        .expect("VCR result deserialization should not fail");
+                match recorded_result {
+                    Ok(t) => Ok(T::from_recorded(t)),
+                    Err(msg) => Err(anyhow::anyhow!("{msg}")),
+                }
+            }
+        }
+    }
+
+    /// Whether this context is in live (production) mode.
+    pub fn is_live(&self) -> bool {
+        matches!(&self.mode, VcrMode::Live)
+    }
+
+    /// Whether this context is in replay mode.
+    pub fn is_replay(&self) -> bool {
+        matches!(&self.mode, VcrMode::Replay(_))
+    }
+
+    /// Whether this context is in record mode.
+    pub fn is_record(&self) -> bool {
+        matches!(&self.mode, VcrMode::Record(_))
+    }
+}
+
+// ── IoEvent ─────────────────────────────────────────────────────────────
+
+/// Unified event from either the Claude process or the terminal.
+/// Replaces the `tokio::select!` between claude events and terminal events
+/// with a single VCR-able type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IoEvent {
+    /// An event from the claude process (parsed NDJSON).
+    Claude(AppEvent),
+    /// A terminal key/resize/etc event.
+    Terminal(Event),
+}
+
+// ── Io struct ───────────────────────────────────────────────────────────
+
+/// Owns the event channels and provides a unified `next_event()` method.
+/// In production, terminal events come from a crossterm adapter task.
+/// During recording, the `TriggerController` pushes scripted events.
+/// During replay, `next_event()` is never called (VCR returns recorded events).
+pub struct Io {
+    event_rx: mpsc::UnboundedReceiver<AppEvent>,
+    term_rx: mpsc::UnboundedReceiver<Event>,
+}
+
+impl Io {
+    pub fn new(
+        event_rx: mpsc::UnboundedReceiver<AppEvent>,
+        term_rx: mpsc::UnboundedReceiver<Event>,
+    ) -> Self {
+        Self { event_rx, term_rx }
+    }
+
+    /// Create a dummy Io for replay mode (channels are immediately closed).
+    pub fn dummy() -> Self {
+        let (_tx1, rx1) = mpsc::unbounded_channel();
+        let (_tx2, rx2) = mpsc::unbounded_channel();
+        Self {
+            event_rx: rx1,
+            term_rx: rx2,
+        }
+    }
+
+    /// Get the next event from either the Claude process or the terminal.
+    pub async fn next_event(&mut self) -> Result<IoEvent> {
+        tokio::select! {
+            event = self.event_rx.recv() => {
+                Ok(IoEvent::Claude(
+                    event.unwrap_or(AppEvent::ProcessExit(None))
+                ))
+            }
+            event = self.term_rx.recv() => {
+                match event {
+                    Some(e) => Ok(IoEvent::Terminal(e)),
+                    None => Ok(IoEvent::Claude(AppEvent::ProcessExit(None))),
+                }
+            }
+        }
+    }
+
+    /// Get the event sender for creating a new session's event channel.
+    /// The old receiver is replaced with the new one.
+    pub fn replace_event_channel(&mut self) -> mpsc::UnboundedSender<AppEvent> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.event_rx = rx;
+        tx
+    }
+}
+
+// ── TriggerController ───────────────────────────────────────────────────
+
+/// Injects scripted terminal input during recording based on trigger conditions.
+/// Watches recorded events and pushes key events into the terminal channel
+/// when triggers match.
+pub struct TriggerController {
+    triggers: Vec<PendingTrigger>,
+    term_tx: mpsc::UnboundedSender<Event>,
+    /// When true, automatically inject Ctrl+D after all triggers have fired
+    /// and a result event is seen. Used for `run` mode recordings.
+    auto_exit: bool,
+}
+
+struct PendingTrigger {
+    condition: Value,
+    text: String,
+    mode: TriggerInputMode,
+    fired: bool,
+}
+
+/// Whether a triggered message is a steering (Enter) or follow-up (Alt+Enter).
+#[derive(Clone, Copy, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum TriggerInputMode {
+    #[default]
+    Followup,
+    Steering,
+}
+
+impl TriggerController {
+    /// Create a new trigger controller from test case messages.
+    pub fn new(messages: &[TestMessage], term_tx: mpsc::UnboundedSender<Event>) -> Self {
+        let triggers = messages
+            .iter()
+            .map(|m| {
+                let condition: Value = serde_json::from_str(&m.trigger)
+                    .expect("trigger should be a valid JSON subset pattern");
+                PendingTrigger {
+                    condition,
+                    text: m.content.clone(),
+                    mode: m.mode,
+                    fired: false,
+                }
+            })
+            .collect();
+        Self {
+            triggers,
+            term_tx,
+            auto_exit: false,
+        }
+    }
+
+    /// Enable auto-exit: inject Ctrl+D after all triggers fired and result seen.
+    pub fn with_auto_exit(mut self) -> Self {
+        self.auto_exit = true;
+        self
+    }
+
+    /// Check a recorded VCR result against triggers and inject terminal events.
+    pub fn check(&mut self, recorded_result: &Value) {
+        // Collect triggers to fire first to avoid borrow conflict
+        let to_inject: Vec<(String, TriggerInputMode)> = self
+            .triggers
+            .iter_mut()
+            .filter(|t| !t.fired && is_subset(&t.condition, recorded_result))
+            .map(|t| {
+                t.fired = true;
+                (t.text.clone(), t.mode)
+            })
+            .collect();
+
+        let any_fired_this_call = !to_inject.is_empty();
+        for (text, mode) in &to_inject {
+            inject_text(&self.term_tx, text, *mode);
+        }
+
+        // Auto-exit: if all triggers have fired, none fired THIS call, and this
+        // looks like a result event, inject Ctrl+D to signal exit.
+        if self.auto_exit && !any_fired_this_call && self.triggers.iter().all(|t| t.fired) {
+            let result_pattern =
+                serde_json::json!({"Ok": {"Claude": {"Claude": {"type": "result"}}}});
+            if is_subset(&result_pattern, recorded_result) {
+                inject_exit(&self.term_tx);
+            }
+        }
+    }
+}
+
+/// Inject text as individual key events followed by Enter.
+fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: TriggerInputMode) {
+    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
+    for ch in text.chars() {
+        let event = Event::Key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+        let _ = term_tx.send(event);
+    }
+
+    let enter_modifiers = match mode {
+        TriggerInputMode::Followup => KeyModifiers::ALT,
+        TriggerInputMode::Steering => KeyModifiers::NONE,
+    };
+    let enter = Event::Key(KeyEvent {
+        code: KeyCode::Enter,
+        modifiers: enter_modifiers,
+        kind: KeyEventKind::Press,
+        state: crossterm::event::KeyEventState::NONE,
+    });
+    let _ = term_tx.send(enter);
+}
+
+/// Inject Ctrl+D (EndSession signal) into the terminal channel.
+fn inject_exit(term_tx: &mpsc::UnboundedSender<Event>) {
+    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+    let exit = Event::Key(KeyEvent {
+        code: KeyCode::Char('d'),
+        modifiers: KeyModifiers::CONTROL,
+        kind: KeyEventKind::Press,
+        state: crossterm::event::KeyEventState::NONE,
+    });
+    let _ = term_tx.send(exit);
+}
+
+/// Recursive subset matching: returns true if `pattern` is a subset of `event`.
+fn is_subset(pattern: &Value, event: &Value) -> bool {
+    match (pattern, event) {
+        (Value::Object(p), Value::Object(e)) => p
+            .iter()
+            .all(|(k, v)| e.get(k).is_some_and(|ev| is_subset(v, ev))),
+        _ => pattern == event,
+    }
+}
+
+// ── Test case types ──────────────────────────────────────────────────────
 
 /// Test case definition loaded from a `.toml` file.
 #[derive(Deserialize, Default)]
@@ -63,108 +503,16 @@ fn default_break_tag() -> String {
 pub struct TestMessage {
     /// The message content.
     pub content: String,
-    /// When to send: "after-result", "after-tool:N", "after-message:N".
+    /// When to send: either a JSON subset pattern or legacy "after-result" etc.
     pub trigger: String,
-}
-
-/// VCR file header — first line of every `.vcr` file.
-#[derive(Deserialize, Serialize)]
-pub struct VcrHeader {
-    #[serde(rename = "_vcr")]
-    pub vcr: String,
-    pub command: Vec<String>,
-}
-
-/// Trigger types parsed from TestMessage.trigger strings.
-pub enum Trigger {
-    AfterResult,
-    AfterTool(usize),
-    AfterMessage(usize),
+    /// How to send: "followup" (Alt+Enter) or "steering" (Enter). Defaults to "followup".
+    #[serde(default)]
+    pub mode: TriggerInputMode,
 }
 
 impl TestCase {
-    /// Build a `SessionConfig` from this test case.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
-    pub fn session_config(&self) -> Result<SessionConfig> {
-        if let Some(ref ralph) = self.ralph {
-            Ok(SessionConfig {
-                prompt: Some(ralph.prompt.clone()),
-                extra_args: ralph.claude_args.clone(),
-                append_system_prompt: Some(SessionRunner::ralph_system_prompt(&ralph.break_tag)),
-                ..Default::default()
-            })
-        } else if let Some(ref run) = self.run {
-            Ok(SessionConfig {
-                prompt: Some(run.prompt.clone()),
-                extra_args: run.claude_args.clone(),
-                ..Default::default()
-            })
-        } else {
-            bail!("Test case must have either [run] or [ralph] section");
-        }
-    }
-
-    /// Build the expected CLI command (including "claude" prefix).
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
-    pub fn expected_command(&self) -> Result<Vec<String>> {
-        let config = self.session_config()?;
-        let mut cmd = vec!["claude".to_string()];
-        cmd.extend(SessionRunner::build_args(&config));
-        Ok(cmd)
-    }
-
-    /// Get the initial prompt.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the test case has neither `[run]` nor `[ralph]` section.
-    pub fn prompt(&self) -> Result<&str> {
-        if let Some(ref ralph) = self.ralph {
-            Ok(&ralph.prompt)
-        } else if let Some(ref run) = self.run {
-            Ok(&run.prompt)
-        } else {
-            bail!("Test case must have either [run] or [ralph] section");
-        }
-    }
-
     /// Whether this is a ralph test case.
     pub fn is_ralph(&self) -> bool {
         self.ralph.is_some()
-    }
-
-    /// Get the ralph break tag (if ralph mode).
-    pub fn break_tag(&self) -> Option<&str> {
-        self.ralph.as_ref().map(|r| r.break_tag.as_str())
-    }
-}
-
-impl Trigger {
-    /// Parse a trigger string like "after-result", "after-tool:2", "after-message:1".
-    pub fn parse(s: &str) -> Option<Self> {
-        if s == "after-result" {
-            Some(Trigger::AfterResult)
-        } else if let Some(n) = s.strip_prefix("after-tool:") {
-            Some(Trigger::AfterTool(n.parse().ok()?))
-        } else if let Some(n) = s.strip_prefix("after-message:") {
-            Some(Trigger::AfterMessage(n.parse().ok()?))
-        } else {
-            None
-        }
-    }
-
-    /// Check if this trigger fires given current event counts.
-    pub fn fires(&self, tool_count: usize, message_count: usize, got_result: bool) -> bool {
-        match self {
-            Trigger::AfterResult => got_result,
-            Trigger::AfterTool(n) => tool_count >= *n,
-            Trigger::AfterMessage(n) => message_count >= *n,
-        }
     }
 }

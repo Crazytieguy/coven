@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 
-use coven::worker_state;
-use coven::worktree;
+use crate::worker_state;
+use crate::worktree;
 
 /// Remove orphaned worktrees left behind by dead workers.
 ///

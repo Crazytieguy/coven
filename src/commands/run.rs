@@ -1,30 +1,33 @@
-use anyhow::Result;
-use crossterm::event::{Event, EventStream};
-use crossterm::terminal;
-use futures::StreamExt;
-use tokio::sync::mpsc;
+use std::io::Write;
 
-use coven::display::input::{InputAction, InputHandler};
-use coven::display::renderer::Renderer;
-use coven::event::AppEvent;
-use coven::session::runner::{SessionConfig, SessionRunner};
-use coven::session::state::{SessionState, SessionStatus};
+use anyhow::Result;
+use crossterm::event::Event;
+use crossterm::terminal;
+
+use crate::display::input::{InputAction, InputHandler};
+use crate::display::renderer::Renderer;
+use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::session::state::{SessionState, SessionStatus};
+use crate::vcr::{Io, IoEvent, VcrContext};
 
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
 /// Run a single interactive session.
-pub async fn run(
+pub async fn run<W: Write>(
     prompt: Option<String>,
     extra_args: Vec<String>,
     show_thinking: bool,
+    io: &mut Io,
+    vcr: &VcrContext,
+    writer: W,
 ) -> Result<()> {
-    let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
-    let mut renderer = Renderer::new();
+    let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(show_thinking);
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
-    let mut term_events = EventStream::new();
-    terminal::enable_raw_mode()?;
+    if vcr.is_live() {
+        terminal::enable_raw_mode()?;
+    }
     renderer.render_help();
 
     // Get initial runner: either from prompt or by waiting for user input
@@ -34,38 +37,32 @@ pub async fn run(
             extra_args: extra_args.clone(),
             ..Default::default()
         };
-        SessionRunner::spawn(config, event_tx).await?
+        vcr.call("spawn", config, async |c: &SessionConfig| {
+            let tx = io.replace_event_channel();
+            SessionRunner::spawn(c.clone(), tx).await
+        })
+        .await?
     } else {
         renderer.show_prompt();
         input.activate();
-        if let Some(runner) = wait_for_initial_prompt(
-            &mut input,
-            &mut renderer,
-            &mut state,
-            &event_tx,
-            &extra_args,
-            &mut term_events,
-        )
-        .await?
+        if let Some(runner) =
+            wait_for_initial_prompt(&mut input, &mut renderer, &mut state, &extra_args, io, vcr)
+                .await?
         {
             runner
         } else {
-            terminal::disable_raw_mode()?;
+            if vcr.is_live() {
+                terminal::disable_raw_mode()?;
+            }
             return Ok(());
         }
     };
 
     // Main session loop — run sessions with follow-up support
     loop {
-        let outcome = session_loop::run_session(
-            &mut runner,
-            &mut state,
-            &mut renderer,
-            &mut input,
-            &mut event_rx,
-            &mut term_events,
-        )
-        .await?;
+        let outcome =
+            session_loop::run_session(&mut runner, &mut state, &mut renderer, &mut input, io, vcr)
+                .await?;
 
         match outcome {
             SessionOutcome::Completed { .. } => {
@@ -74,7 +71,8 @@ pub async fn run(
                     &mut renderer,
                     &mut runner,
                     &mut state,
-                    &mut term_events,
+                    io,
+                    vcr,
                 )
                 .await?
                 {
@@ -89,23 +87,22 @@ pub async fn run(
                 if let Some(session_id) = state.session_id.take() {
                     renderer.render_interrupted();
 
-                    match session_loop::wait_for_user_input(
-                        &mut input,
-                        &mut renderer,
-                        &mut term_events,
-                    )
-                    .await?
+                    match session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr)
+                        .await?
                     {
                         Some(text) => {
-                            let (new_tx, new_rx) = mpsc::unbounded_channel();
-                            event_rx = new_rx;
                             let config = SessionConfig {
                                 prompt: Some(text),
                                 extra_args: extra_args.clone(),
                                 resume: Some(session_id),
                                 ..Default::default()
                             };
-                            runner = SessionRunner::spawn(config, new_tx).await?;
+                            runner = vcr
+                                .call("spawn", config, async |c: &SessionConfig| {
+                                    let tx = io.replace_event_channel();
+                                    SessionRunner::spawn(c.clone(), tx).await
+                                })
+                                .await?;
                             state = SessionState::default();
                         }
                         None => break,
@@ -118,24 +115,29 @@ pub async fn run(
         }
     }
 
-    terminal::disable_raw_mode()?;
+    if vcr.is_live() {
+        terminal::disable_raw_mode()?;
+    }
     runner.close_input();
     let _ = runner.wait().await;
     Ok(())
 }
 
 /// Wait for the user to type an initial prompt. Returns the spawned runner, or None to exit.
-async fn wait_for_initial_prompt(
+async fn wait_for_initial_prompt<W: Write>(
     input: &mut InputHandler,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     state: &mut SessionState,
-    event_tx: &mpsc::UnboundedSender<AppEvent>,
     extra_args: &[String],
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
     loop {
-        match term_events.next().await {
-            Some(Ok(Event::Key(key_event))) => {
+        let io_event: IoEvent = vcr
+            .call("next_event", (), async |(): &()| io.next_event().await)
+            .await?;
+        match io_event {
+            IoEvent::Terminal(Event::Key(key_event)) => {
                 let action = input.handle_key(&key_event);
                 match action {
                     InputAction::Submit(text, _) => {
@@ -144,7 +146,12 @@ async fn wait_for_initial_prompt(
                             extra_args: extra_args.to_vec(),
                             ..Default::default()
                         };
-                        let runner = SessionRunner::spawn(config, event_tx.clone()).await?;
+                        let runner = vcr
+                            .call("spawn", config, async |c: &SessionConfig| {
+                                let tx = io.replace_event_channel();
+                                SessionRunner::spawn(c.clone(), tx).await
+                            })
+                            .await?;
                         state.status = SessionStatus::Running;
                         return Ok(Some(runner));
                     }
@@ -156,8 +163,7 @@ async fn wait_for_initial_prompt(
                     _ => {}
                 }
             }
-            Some(Ok(_)) => {}
-            Some(Err(_)) | None => return Ok(None),
+            IoEvent::Terminal(_) | IoEvent::Claude(_) => {}
         }
     }
 }

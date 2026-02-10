@@ -3,4 +3,4 @@ prompt = "What is Rust?"
 
 [[messages]]
 content = "How does ownership work?"
-trigger = "after-result"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "result"}}}}'

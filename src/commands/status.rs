@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use coven::worker_state;
+use crate::worker_state;
 
 /// Display the status of all active workers.
 pub fn status() -> Result<()> {

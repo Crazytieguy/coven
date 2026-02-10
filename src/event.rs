@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::protocol::types::InboundEvent;
 
 /// Unified application event consumed by the main event loop.
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AppEvent {
     /// An event parsed from claude's stdout stream.
     Claude(Box<InboundEvent>),

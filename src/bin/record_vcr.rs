@@ -1,15 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 
 use anyhow::{Context, Result};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::Command;
+use tokio::sync::mpsc;
 
-use coven::protocol::emit::format_user_message;
-use coven::protocol::parse::parse_line;
-use coven::protocol::types::InboundEvent;
-use coven::session::runner::SessionRunner;
-use coven::vcr::{TestCase, Trigger, VcrHeader};
+use coven::commands;
+use coven::vcr::{Io, TestCase, TriggerController, VcrContext};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -112,185 +107,59 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         String::from_utf8_lossy(&git_commit.stderr)
     );
 
-    // Build VCR header
-    let expected_command = case.expected_command()?;
-    let header = VcrHeader {
-        vcr: "header".to_string(),
-        command: expected_command.clone(),
-    };
-    let header_line = serde_json::to_string(&header)?;
+    // Save original directory and change to temp dir so the session runs there
+    let original_dir = std::env::current_dir()?;
+    std::env::set_current_dir(&tmp_dir)?;
 
-    let mut vcr_lines = vec![header_line];
+    // Set up VCR recording with trigger controller
+    let (term_tx, term_rx) = mpsc::unbounded_channel();
+    let (_event_tx, event_rx) = mpsc::unbounded_channel();
 
+    let mut controller = TriggerController::new(&case.messages, term_tx);
+    if !case.is_ralph() {
+        controller = controller.with_auto_exit();
+    }
+    let vcr = VcrContext::record_with_triggers(controller);
+    let mut io = Io::new(event_rx, term_rx);
+
+    // Run the real command function
     if case.is_ralph() {
-        record_ralph(&case, &expected_command, &tmp_dir, &mut vcr_lines).await?;
+        let ralph_config = case.ralph.as_ref().unwrap();
+        commands::ralph::ralph(
+            commands::ralph::RalphConfig {
+                prompt: ralph_config.prompt.clone(),
+                iterations: 10, // safety limit for recording
+                break_tag: ralph_config.break_tag.clone(),
+                no_break: false,
+                show_thinking: case.display.show_thinking,
+                extra_args: ralph_config.claude_args.clone(),
+            },
+            &mut io,
+            &vcr,
+            std::io::stdout(),
+        )
+        .await?;
     } else {
-        record_run(&case, &expected_command, &tmp_dir, &mut vcr_lines).await?;
+        let run_config = case.run.as_ref().unwrap();
+        commands::run::run(
+            Some(run_config.prompt.clone()),
+            run_config.claude_args.clone(),
+            case.display.show_thinking,
+            &mut io,
+            &vcr,
+            std::io::stdout(),
+        )
+        .await?;
     }
 
-    // Write VCR file
-    let vcr_content = vcr_lines.join("\n") + "\n";
-    std::fs::write(&vcr_path, vcr_content)?;
+    // Restore directory
+    std::env::set_current_dir(&original_dir)?;
+
+    // Write the VCR recording
+    vcr.write_recording(&vcr_path)?;
 
     // Clean up temp dir
     std::fs::remove_dir_all(&tmp_dir).ok();
-
-    Ok(())
-}
-
-/// Record a standard run session.
-async fn record_run(
-    case: &TestCase,
-    command: &[String],
-    work_dir: &Path,
-    vcr_lines: &mut Vec<String>,
-) -> Result<()> {
-    // Spawn claude
-    let mut child = Command::new(&command[0])
-        .args(&command[1..])
-        .current_dir(work_dir)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .context("Failed to spawn claude")?;
-
-    let mut stdin = child.stdin.take().context("stdin should be piped")?;
-    let stdout = child.stdout.take().context("stdout should be piped")?;
-
-    // Send initial prompt
-    let prompt_msg = format_user_message(case.prompt()?)?;
-    stdin.write_all(prompt_msg.as_bytes()).await?;
-    stdin.write_all(b"\n").await?;
-    stdin.flush().await?;
-    vcr_lines.push(format!("> {prompt_msg}"));
-
-    // Parse triggers from messages
-    let pending_messages: Vec<_> = case
-        .messages
-        .iter()
-        .filter_map(|m| Trigger::parse(&m.trigger).map(|t| (t, m.content.clone())))
-        .collect();
-
-    // Track which messages have been sent
-    let mut sent = vec![false; pending_messages.len()];
-    let mut tool_count: usize = 0;
-    let mut message_count: usize = 0;
-    let mut got_result = false;
-
-    // Read stdout
-    let reader = BufReader::new(stdout);
-    let mut lines = reader.lines();
-
-    while let Ok(Some(line)) = lines.next_line().await {
-        vcr_lines.push(format!("< {line}"));
-
-        // Parse to detect triggers
-        if let Ok(Some(event)) = parse_line(&line) {
-            match &event {
-                InboundEvent::User(u) if u.tool_use_result.is_some() => {
-                    tool_count += 1;
-                }
-                InboundEvent::Assistant(_) => {
-                    message_count += 1;
-                }
-                InboundEvent::Result(_) => {
-                    got_result = true;
-                }
-                _ => {}
-            }
-
-            // Check if any pending message should fire
-            for (i, (trigger, content)) in pending_messages.iter().enumerate() {
-                if !sent[i] && trigger.fires(tool_count, message_count, got_result) {
-                    let msg = format_user_message(content)?;
-                    stdin.write_all(msg.as_bytes()).await?;
-                    stdin.write_all(b"\n").await?;
-                    stdin.flush().await?;
-                    vcr_lines.push(format!("> {msg}"));
-                    sent[i] = true;
-                    // Reset for next trigger
-                    got_result = false;
-                }
-            }
-
-            // If we got a result and all messages are sent (and none
-            // were just fired on this very result), we're done.
-            // Use `got_result` rather than pattern-matching the event so
-            // that a trigger which fires on after-result and resets
-            // `got_result` prevents an immediate break.
-            if got_result && sent.iter().all(|&s| s) {
-                break;
-            }
-        }
-    }
-
-    // Close stdin and wait
-    drop(stdin);
-    child.wait().await?;
-
-    Ok(())
-}
-
-/// Record a ralph loop session.
-async fn record_ralph(
-    case: &TestCase,
-    command: &[String],
-    work_dir: &Path,
-    vcr_lines: &mut Vec<String>,
-) -> Result<()> {
-    let break_tag = case.break_tag().unwrap_or("break");
-    let max_iterations = 10; // safety limit for recording
-
-    for iteration in 0..max_iterations {
-        if iteration > 0 {
-            vcr_lines.push("---".to_string());
-        }
-
-        // Spawn fresh claude for each iteration
-        let mut child = Command::new(&command[0])
-            .args(&command[1..])
-            .current_dir(work_dir)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .context("Failed to spawn claude")?;
-
-        let mut stdin = child.stdin.take().context("stdin should be piped")?;
-        let stdout = child.stdout.take().context("stdout should be piped")?;
-
-        // Send prompt
-        let prompt_msg = format_user_message(case.prompt()?)?;
-        stdin.write_all(prompt_msg.as_bytes()).await?;
-        stdin.write_all(b"\n").await?;
-        stdin.flush().await?;
-        vcr_lines.push(format!("> {prompt_msg}"));
-
-        // Read stdout
-        let reader = BufReader::new(stdout);
-        let mut lines = reader.lines();
-        let mut result_text = String::new();
-
-        while let Ok(Some(line)) = lines.next_line().await {
-            vcr_lines.push(format!("< {line}"));
-
-            if let Ok(Some(InboundEvent::Result(ref result))) = parse_line(&line) {
-                result_text.clone_from(&result.result);
-                break;
-            }
-        }
-
-        // Close stdin and wait
-        drop(stdin);
-        child.wait().await?;
-
-        // Check for break tag
-        if SessionRunner::scan_break_tag(&result_text, break_tag).is_some() {
-            eprintln!("  Break tag detected at iteration {}", iteration + 1);
-            break;
-        }
-    }
 
     Ok(())
 }

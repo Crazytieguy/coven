@@ -1,10 +1,11 @@
 mod cli;
-mod commands;
 
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use coven::commands;
+use coven::vcr::{Io, VcrContext};
 
 use cli::{Cli, Command};
 
@@ -40,14 +41,20 @@ async fn main() -> Result<()> {
             if no_break && iterations == 0 {
                 anyhow::bail!("--no-break requires --iterations to prevent infinite looping");
             }
-            commands::ralph::ralph(commands::ralph::RalphConfig {
-                prompt,
-                iterations,
-                break_tag,
-                no_break,
-                show_thinking,
-                extra_args: claude_args,
-            })
+            let (mut io, vcr) = create_live_io();
+            commands::ralph::ralph(
+                commands::ralph::RalphConfig {
+                    prompt,
+                    iterations,
+                    break_tag,
+                    no_break,
+                    show_thinking,
+                    extra_args: claude_args,
+                },
+                &mut io,
+                &vcr,
+                std::io::stdout(),
+            )
             .await?;
         }
         Some(Command::Worker {
@@ -60,20 +67,63 @@ async fn main() -> Result<()> {
                 Some(b) => b,
                 None => default_worktree_base()?,
             };
-            commands::worker::worker(commands::worker::WorkerConfig {
-                show_thinking,
-                branch,
-                worktree_base: base,
-                extra_args: claude_args,
-            })
+            let (mut io, vcr) = create_live_io();
+            commands::worker::worker(
+                commands::worker::WorkerConfig {
+                    show_thinking,
+                    branch,
+                    worktree_base: base,
+                    extra_args: claude_args,
+                },
+                &mut io,
+                &vcr,
+                std::io::stdout(),
+            )
             .await?;
         }
         None => {
-            commands::run::run(cli.prompt, cli.claude_args, cli.show_thinking).await?;
+            let (mut io, vcr) = create_live_io();
+            commands::run::run(
+                cli.prompt,
+                cli.claude_args,
+                cli.show_thinking,
+                &mut io,
+                &vcr,
+                std::io::stdout(),
+            )
+            .await?;
         }
     }
 
     Ok(())
+}
+
+/// Create a live `Io` and `VcrContext` for production use.
+///
+/// Spawns a background task that reads crossterm events and forwards them
+/// to the terminal event channel. The event channel starts empty — the first
+/// `SessionRunner::spawn` should provide claude events via `io.replace_event_channel()`.
+fn create_live_io() -> (Io, VcrContext) {
+    use crossterm::event::EventStream;
+    use futures::StreamExt;
+    use tokio::sync::mpsc;
+
+    let (term_tx, term_rx) = mpsc::unbounded_channel();
+    let (_event_tx, event_rx) = mpsc::unbounded_channel();
+
+    // Background task: forward crossterm events to the channel
+    tokio::spawn(async move {
+        let mut stream = EventStream::new();
+        while let Some(Ok(event)) = stream.next().await {
+            if term_tx.send(event).is_err() {
+                break;
+            }
+        }
+    });
+
+    let io = Io::new(event_rx, term_rx);
+    let vcr = VcrContext::live();
+    (io, vcr)
 }
 
 fn default_worktree_base() -> Result<PathBuf> {

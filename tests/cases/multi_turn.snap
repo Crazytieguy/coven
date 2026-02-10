@@ -2,52 +2,56 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 43fc6101-c379-4850-bf4e-c92f01aa96ee (claude-opus-4-6)
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 34d19b41-47f6-4862-b216-a2610994df0c (claude-opus-4-6)
 
-Rust is a systems programming language focused on safety, speed, and concurrency. Key highlights:
+Rust is a systems programming language focused on safety, speed, and concurrency. It was originally developed by Mozilla and first released in 2010 (stable 1.0 in 2015). Key features include:
 
-- **Memory safety without garbage collection** — uses an ownership system with borrowing and lifetimes checked at compile time
-- **Zero-cost abstractions** — high-level features compile down to efficient low-level code
+- **Memory safety without garbage collection** — enforced through its ownership and borrowing system at compile time
+- **Zero-cost abstractions** — high-level ergonomics with low-level performance
 - **Fearless concurrency** — the type system prevents data races at compile time
-- **Modern tooling** — `cargo` (build system/package manager), `rustup` (toolchain manager), excellent compiler error messages
+- **Pattern matching, algebraic types, and traits** — expressive type system influenced by ML-family languages
 
-It's commonly used for systems software, WebAssembly, CLI tools, game engines, embedded systems, and performance-critical applications. Originally developed at Mozilla, it's now governed by the Rust Foundation.
+It's commonly used for systems programming, CLI tools, WebAssembly, embedded systems, and performance-critical applications. The package manager and build tool is called **Cargo**, and packages are hosted on crates.io.
 
 
-Done  $0.04 · 5.1s · 1 turn
-Rust's ownership system is its core mechanism for memory safety without a garbage collector. Three rules:
+Done  $0.04 · 6.4s · 1 turn
+> > How does ownership work?
+Rust's ownership system is its core mechanism for memory safety without a garbage collector. It has three rules:
 
-1. **Each value has exactly one owner** (a variable)
-2. **There can only be one owner at a time**
-3. **When the owner goes out of scope, the value is dropped** (freed)
+1. **Each value has exactly one owner** — a variable that "owns" the data
+2. **There can only be one owner at a time** — assigning a value to another variable *moves* it
+3. **When the owner goes out of scope, the value is dropped** (memory is freed)
 
-**Move semantics** — assigning or passing a value transfers ownership:
+**Move semantics:**
 ```rust
 let s1 = String::from("hello");
-let s2 = s1;  // s1 is moved to s2, s1 is no longer valid
+let s2 = s1;       // s1 is moved to s2
+// println!("{s1}"); // compile error — s1 is no longer valid
 ```
 
-**Borrowing** — references let you use a value without taking ownership:
+**Borrowing** lets you reference data without taking ownership:
 ```rust
-fn print_len(s: &String) {  // borrows s
-    println!("{}", s.len());
+let s1 = String::from("hello");
+let len = calculate_length(&s1); // borrows s1, doesn't take ownership
+println!("{s1}"); // still valid
+
+fn calculate_length(s: &String) -> usize {
+    s.len()
 }
-let s = String::from("hello");
-print_len(&s);  // s is still valid here
 ```
 
 **Borrowing rules:**
-- You can have **either** many immutable references (`&T`) **or** one mutable reference (`&mut T`) — never both
+- You can have **many immutable references** (`&T`) at once
+- OR **one mutable reference** (`&mut T`) — but not both simultaneously
 - References must always be valid (no dangling pointers)
 
-**Lifetimes** — the compiler tracks how long references are valid to ensure they never outlive the data they point to. Usually inferred, but sometimes you annotate them explicitly:
-```rust
-fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
-    if x.len() > y.len() { x } else { y }
-}
-```
+**`Clone` vs `Copy`:**
+- Types on the stack (integers, bools, etc.) implement `Copy` — they're duplicated cheaply instead of moved
+- Heap data like `String` must be explicitly `.clone()`d if you want a deep copy
 
-This all gets checked at **compile time** — no runtime overhead.
+This system eliminates use-after-free, double-free, and data races entirely at compile time, with no runtime overhead.
 
 
-Done  $0.06 · 8.0s · 1 turn
+Done  $0.06 · 9.7s · 1 turn
+>

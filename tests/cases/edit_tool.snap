@@ -2,18 +2,17 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 0087cf7e-eb76-49a9-b946-e2dbcbc7a87c (claude-opus-4-6)
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session b8d7501e-4a92-40e5-bdbf-52141489e33b (claude-opus-4-6)
 
 Let me read the file first.
 
 [1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [2] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
-Done. Changed `'hello'` to `'goodbye'` and added a `'farewell!'` print line. The function now outputs:
-
-```
-goodbye, world!
-farewell!
-```
+Done. The changes:
+- Changed `'hello'` to `'goodbye'` in the greeting message
+- Added a `print('farewell!')` line after it
 
 
-Done  $0.07 · 10.2s · 3 turns  (:N to view)
+Done  $0.16 · 10.6s · 3 turns  (:N to view)
+>

@@ -2,10 +2,12 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 0adf5c13-4d06-4d8e-a600-5a19a1ad6f07 (claude-opus-4-6)
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session e194a68d-73b8-41c4-b3f0-0f1a495d6de1 (claude-opus-4-6)
 
 [1] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 Done. Created `hello.txt` with the text "Hello, world!".
 
 
-Done  $0.05 · 7.2s · 2 turns  (:N to view)
+Done  $0.05 · 8.4s · 2 turns  (:N to view)
+>

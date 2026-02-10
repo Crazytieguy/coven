@@ -1,23 +1,22 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use crossterm::event::{Event, EventStream, KeyCode, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::terminal;
-use futures::StreamExt;
-use tokio::sync::mpsc;
 use tokio::time::sleep;
 
-use coven::agents::{self, AgentDef};
-use coven::dispatch::{self, DispatchDecision};
-use coven::display::input::{InputAction, InputHandler};
-use coven::display::renderer::Renderer;
-use coven::event::AppEvent;
-use coven::session::runner::{SessionConfig, SessionRunner};
-use coven::session::state::SessionState;
-use coven::worker_state;
-use coven::worktree::{self, SpawnOptions};
+use crate::agents::{self, AgentDef};
+use crate::dispatch::{self, DispatchDecision};
+use crate::display::input::{InputAction, InputHandler};
+use crate::display::renderer::Renderer;
+use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::session::state::SessionState;
+use crate::vcr::{Io, IoEvent, VcrContext};
+use crate::worker_state;
+use crate::worktree::{self, SpawnOptions};
 
 use super::session_loop::{self, SessionOutcome};
 
@@ -29,7 +28,12 @@ pub struct WorkerConfig {
 }
 
 /// Run a worker: spawn a worktree, loop dispatch → agent → land.
-pub async fn worker(mut config: WorkerConfig) -> Result<()> {
+pub async fn worker<W: Write>(
+    mut config: WorkerConfig,
+    io: &mut Io,
+    vcr: &VcrContext,
+    writer: W,
+) -> Result<()> {
     // Default to acceptEdits (same as other commands) unless the user
     // specified a permission mode. The user is expected to set up persistent
     // permissions for their project so agents can run unattended.
@@ -47,12 +51,13 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
         base_path: &config.worktree_base,
     })?;
 
-    terminal::enable_raw_mode()?;
-    let mut renderer = Renderer::new();
+    if vcr.is_live() {
+        terminal::enable_raw_mode()?;
+    }
+    let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new();
-    let mut term_events = EventStream::new();
     let mut total_cost = 0.0;
 
     worker_state::register(&spawn_result.worktree_path, &spawn_result.branch)?;
@@ -70,12 +75,15 @@ pub async fn worker(mut config: WorkerConfig) -> Result<()> {
         &spawn_result.branch,
         &mut renderer,
         &mut input,
-        &mut term_events,
+        io,
+        vcr,
         &mut total_cost,
     )
     .await;
 
-    terminal::disable_raw_mode()?;
+    if vcr.is_live() {
+        terminal::disable_raw_mode()?;
+    }
     renderer.set_title("");
 
     worker_state::deregister(&spawn_result.worktree_path);
@@ -96,14 +104,15 @@ struct DispatchResult {
 }
 
 /// Run the dispatch phase: load agents, run dispatch session, parse decision.
-async fn run_dispatch(
+async fn run_dispatch<W: Write>(
     worktree_path: &Path,
     branch: &str,
     extra_args: &[String],
     worker_status: &str,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<Option<DispatchResult>> {
     renderer.set_title(&format!("coven: {branch} \u{2014} dispatch"));
     renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
@@ -139,7 +148,8 @@ async fn run_dispatch(
         None,
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
     )
     .await?
     else {
@@ -183,7 +193,8 @@ async fn run_dispatch(
                 Some(&session_id),
                 renderer,
                 input,
-                term_events,
+                io,
+                vcr,
             )
             .await?
             else {
@@ -201,13 +212,14 @@ async fn run_dispatch(
     }
 }
 
-async fn worker_loop(
+async fn worker_loop<W: Write>(
     config: &WorkerConfig,
     worktree_path: &Path,
     branch: &str,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
     total_cost: &mut f64,
 ) -> Result<()> {
     loop {
@@ -226,7 +238,8 @@ async fn worker_loop(
             &worker_status,
             renderer,
             input,
-            term_events,
+            io,
+            vcr,
         )
         .await?
         else {
@@ -251,7 +264,7 @@ async fn worker_loop(
             DispatchDecision::Sleep => {
                 renderer.set_title(&format!("coven: {branch} \u{2014} sleeping"));
                 renderer.write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
-                match wait_for_new_commits(worktree_path, renderer, input, term_events).await? {
+                match wait_for_new_commits(worktree_path, renderer, input, io).await? {
                     WaitOutcome::NewCommits => {}
                     WaitOutcome::Exited => return Ok(()),
                 }
@@ -285,7 +298,8 @@ async fn worker_loop(
                     &config.extra_args,
                     renderer,
                     input,
-                    term_events,
+                    io,
+                    vcr,
                     total_cost,
                 )
                 .await?;
@@ -302,13 +316,14 @@ async fn worker_loop(
 
 /// Run the agent phase: execute the agent session, ensure commits, and land.
 /// Returns true if the worker should exit (user interrupted).
-async fn run_agent(
+async fn run_agent<W: Write>(
     prompt: &str,
     worktree_path: &Path,
     extra_args: &[String],
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
     total_cost: &mut f64,
 ) -> Result<bool> {
     let agent_session_id = match run_phase_session(
@@ -318,7 +333,8 @@ async fn run_agent(
         None,
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
     )
     .await?
     {
@@ -344,7 +360,8 @@ async fn run_agent(
         extra_args,
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
         total_cost,
     )
     .await?;
@@ -357,7 +374,8 @@ async fn run_agent(
                 extra_args,
                 renderer,
                 input,
-                term_events,
+                io,
+                vcr,
                 total_cost,
             )
             .await?;
@@ -384,13 +402,14 @@ enum CommitCheck {
 }
 
 /// Check if the agent produced commits. If not, resume once to ask it to commit.
-async fn ensure_commits(
+async fn ensure_commits<W: Write>(
     worktree_path: &Path,
     agent_session_id: Option<String>,
     extra_args: &[String],
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
     total_cost: &mut f64,
 ) -> Result<CommitCheck> {
     if worktree::has_unique_commits(worktree_path)? {
@@ -415,7 +434,8 @@ async fn ensure_commits(
         Some(sid),
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
     )
     .await?
     {
@@ -444,13 +464,14 @@ async fn ensure_commits(
 /// to fail and silently lose the resolved work.
 ///
 /// Returns true if the worker should exit (user interrupted during resolution).
-async fn land_or_resolve(
+async fn land_or_resolve<W: Write>(
     worktree_path: &Path,
     session_id: Option<&str>,
     extra_args: &[String],
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
     total_cost: &mut f64,
 ) -> Result<bool> {
     const MAX_ATTEMPTS: u32 = 5;
@@ -492,7 +513,7 @@ async fn land_or_resolve(
                 "Conflict resolution failed after {MAX_ATTEMPTS} attempts \
                  — pausing worker. Press Enter to retry.\r\n",
             ));
-            if wait_for_enter_or_exit(term_events).await {
+            if wait_for_enter_or_exit(io).await? {
                 return Ok(true);
             }
             attempts = 0;
@@ -530,7 +551,8 @@ async fn land_or_resolve(
             extra_args,
             renderer,
             input,
-            term_events,
+            io,
+            vcr,
         )
         .await?
         {
@@ -565,14 +587,15 @@ enum ResolveOutcome {
 }
 
 /// Run a conflict resolution session, nudging once if the rebase remains incomplete.
-async fn resolve_conflict(
+async fn resolve_conflict<W: Write>(
     prompt: &str,
     worktree_path: &Path,
     sid: &str,
     extra_args: &[String],
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<ResolveOutcome> {
     let PhaseOutcome::Completed {
         cost, session_id, ..
@@ -583,7 +606,8 @@ async fn resolve_conflict(
         Some(sid),
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
     )
     .await?
     else {
@@ -617,7 +641,8 @@ async fn resolve_conflict(
         Some(nudge_sid),
         renderer,
         input,
-        term_events,
+        io,
+        vcr,
     )
     .await?
     else {
@@ -644,24 +669,23 @@ async fn resolve_conflict(
 }
 
 /// Wait for Enter (returns false) or Ctrl-C/Ctrl-D/stream end (returns true = should exit).
-async fn wait_for_enter_or_exit(term_events: &mut EventStream) -> bool {
+async fn wait_for_enter_or_exit(io: &mut Io) -> Result<bool> {
     loop {
-        match term_events.next().await {
-            Some(Ok(Event::Key(key_event))) => match key_event.code {
-                KeyCode::Enter => return false,
+        let io_event = io.next_event().await?;
+        if let IoEvent::Terminal(Event::Key(key_event)) = io_event {
+            match key_event.code {
+                KeyCode::Enter => return Ok(false),
                 KeyCode::Char('c' | 'd') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    return true;
+                    return Ok(true);
                 }
                 _ => {}
-            },
-            None => return true,
-            _ => {}
+            }
         }
     }
 }
 
 /// Abort any in-progress rebase, reset to main, and clean the worktree.
-fn abort_and_reset(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> {
+fn abort_and_reset<W: Write>(worktree_path: &Path, renderer: &mut Renderer<W>) -> Result<()> {
     let _ = worktree::abort_rebase(worktree_path);
     worktree::reset_to_main(worktree_path)?;
     warn_clean(worktree_path, renderer);
@@ -669,7 +693,7 @@ fn abort_and_reset(worktree_path: &Path, renderer: &mut Renderer) -> Result<()> 
 }
 
 /// Run `git clean -fd` and warn (but don't fail) if it errors.
-fn warn_clean(worktree_path: &Path, renderer: &mut Renderer) {
+fn warn_clean<W: Write>(worktree_path: &Path, renderer: &mut Renderer<W>) {
     if let Err(e) = worktree::clean(worktree_path) {
         renderer.write_raw(&format!("Warning: worktree clean failed: {e}\r\n"));
     }
@@ -688,17 +712,16 @@ enum PhaseOutcome {
 ///
 /// If `resume` is provided, the session is resumed from the given session ID
 /// rather than starting fresh. Used for conflict resolution.
-async fn run_phase_session(
+async fn run_phase_session<W: Write>(
     prompt: &str,
     working_dir: &Path,
     extra_args: &[String],
     resume: Option<&str>,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<PhaseOutcome> {
-    let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
-
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
         extra_args: extra_args.to_vec(),
@@ -707,19 +730,17 @@ async fn run_phase_session(
         ..Default::default()
     };
 
-    let mut runner = SessionRunner::spawn(session_config, event_tx).await?;
+    let mut runner = vcr
+        .call("spawn", session_config, async |c: &SessionConfig| {
+            let tx = io.replace_event_channel();
+            SessionRunner::spawn(c.clone(), tx).await
+        })
+        .await?;
     let mut state = SessionState::default();
 
     loop {
-        let outcome = session_loop::run_session(
-            &mut runner,
-            &mut state,
-            renderer,
-            input,
-            &mut event_rx,
-            term_events,
-        )
-        .await?;
+        let outcome =
+            session_loop::run_session(&mut runner, &mut state, renderer, input, io, vcr).await?;
 
         runner.close_input();
         let _ = runner.wait().await;
@@ -738,10 +759,8 @@ async fn run_phase_session(
                 };
                 renderer.render_interrupted();
 
-                match session_loop::wait_for_user_input(input, renderer, term_events).await? {
+                match session_loop::wait_for_user_input(input, renderer, io, vcr).await? {
                     Some(text) => {
-                        let (new_tx, new_rx) = mpsc::unbounded_channel();
-                        event_rx = new_rx;
                         let resume_config = SessionConfig {
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
@@ -749,7 +768,12 @@ async fn run_phase_session(
                             working_dir: Some(working_dir.to_path_buf()),
                             ..Default::default()
                         };
-                        runner = SessionRunner::spawn(resume_config, new_tx).await?;
+                        runner = vcr
+                            .call("spawn", resume_config, async |c: &SessionConfig| {
+                                let tx = io.replace_event_channel();
+                                SessionRunner::spawn(c.clone(), tx).await
+                            })
+                            .await?;
                         state = SessionState::default();
                     }
                     None => return Ok(PhaseOutcome::Exited),
@@ -768,11 +792,11 @@ enum WaitOutcome {
 }
 
 /// Wait for new commits on main by polling, while allowing the user to exit.
-async fn wait_for_new_commits(
+async fn wait_for_new_commits<W: Write>(
     worktree_path: &Path,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<W>,
     input: &mut InputHandler,
-    term_events: &mut EventStream,
+    io: &mut Io,
 ) -> Result<WaitOutcome> {
     let initial_head = main_head_sha(worktree_path)?;
 
@@ -785,8 +809,8 @@ async fn wait_for_new_commits(
                     return Ok(WaitOutcome::NewCommits);
                 }
             }
-            event = term_events.next() => {
-                if let Some(Ok(Event::Key(key_event))) = event {
+            event = io.next_event() => {
+                if let Ok(IoEvent::Terminal(Event::Key(key_event))) = event {
                     let action = input.handle_key(&key_event);
                     if matches!(action, InputAction::Interrupt | InputAction::EndSession) {
                         return Ok(WaitOutcome::Exited);

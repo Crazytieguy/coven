@@ -8,4 +8,5 @@ prompt = "Read each .py file in this directory one at a time. After reading each
 
 [[messages]]
 content = "Actually, just count the lines in each file instead"
-trigger = "after-tool:1"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start", "content_block": {"type": "tool_use"}}}}}}'
+mode = "steering"

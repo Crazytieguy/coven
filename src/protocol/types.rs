@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Top-level inbound event from claude's stream-json output.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum InboundEvent {
     #[serde(rename = "system")]
@@ -19,7 +19,7 @@ pub enum InboundEvent {
 
 // --- System events ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "subtype")]
 pub enum SystemEvent {
     #[serde(rename = "init")]
@@ -28,7 +28,7 @@ pub enum SystemEvent {
     Other,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitEvent {
     #[serde(default)]
     pub session_id: String,
@@ -41,7 +41,7 @@ pub struct InitEvent {
 // --- Stream events (raw API streaming) ---
 
 /// Wrapper for a stream event. The `event` field contains the actual API event payload.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamEvent {
     pub event: StreamEventPayload,
     #[serde(flatten)]
@@ -49,7 +49,7 @@ pub struct StreamEvent {
 }
 
 /// The inner payload of a stream event (the raw Claude API SSE event).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamEventPayload {
     #[serde(default, rename = "type")]
     pub event_type: String,
@@ -61,7 +61,7 @@ pub struct StreamEventPayload {
     _extra: Value,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentBlock {
     #[serde(default)]
     pub r#type: String,
@@ -75,7 +75,7 @@ pub struct ContentBlock {
     _extra: Value,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Delta {
     #[serde(default)]
     pub r#type: String,
@@ -93,7 +93,7 @@ pub struct Delta {
 
 // --- Assistant message (complete) ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessage {
     pub message: AssistantMessageBody,
     #[serde(default)]
@@ -102,7 +102,7 @@ pub struct AssistantMessage {
     _extra: Value,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessageBody {
     #[serde(default)]
     pub content: Vec<AssistantContentBlock>,
@@ -110,7 +110,7 @@ pub struct AssistantMessageBody {
     _extra: Value,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AssistantContentBlock {
     #[serde(rename = "text")]
@@ -135,7 +135,7 @@ pub enum AssistantContentBlock {
 
 // --- User (tool result) ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserToolResult {
     /// Tool result — can be an object (regular tools), array (MCP tools), or string (errors).
     #[serde(default)]
@@ -151,7 +151,7 @@ pub struct UserToolResult {
 
 // --- Result ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionResult {
     #[serde(default)]
     pub subtype: String,

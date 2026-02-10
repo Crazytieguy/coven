@@ -2,14 +2,16 @@
 source: tests/vcr_test.rs
 expression: clean
 ---
-Session 71b846c9-8962-4390-8bd1-573272469a14 (claude-sonnet-4-5-20250929)
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 07794ce8-5a14-4436-ab15-c9528772a338 (claude-sonnet-4-5-20250929)
 
 [1] Thinking...
-I'll create a hello world script and change the greeting to "hi".
+I'll create a hello.py file with a "hi" greeting.
 
 [2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 [3] Thinking...
-Done! I've created hello.py with a "Hi world" greeting instead of the traditional "Hello world".
+Done! I've created `hello.py` with "Hi, world!" as the greeting.
 
 
-Done  $0.15 · 8.0s · 2 turns  (:N to view)
+Done  $0.15 · 9.2s · 2 turns  (:N to view)
+>
