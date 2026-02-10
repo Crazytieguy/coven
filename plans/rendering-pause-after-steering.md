@@ -1,50 +1,27 @@
 Issue: [P0] I think sometimes rendering pauses after a steering message and there's no way to resume it
-Status: blocked, revisit later
+Status: draft
 
-## Approach
+## Investigation
 
-### Root cause: flush_event_buffer doesn't propagate session outcomes
+The original hypothesis was that this was caused by `flush_event_buffer` not propagating session outcomes — a buffered Result during typing would silently complete, and the subsequent steering message would be sent to a process that produced no more output, causing the event loop to hang.
 
-This is almost certainly a symptom of the flush_event_buffer bug (tracked separately as the [P0] flush_event_buffer issue). Here's the specific scenario:
+The `flush_event_buffer` fix has since been implemented. Tracing the scenario now:
 
 1. Claude is running, user starts typing (input activates, events get buffered)
 2. Claude sends a Result event while the user is typing (gets buffered)
 3. User presses Enter to send steering message
-4. `input.handle_key()` clears the input line and deactivates input
-5. `flush_event_buffer()` runs — renders the buffered Result event, but:
-   - Passes `has_pending_followups: false`, so the "Done" line is shown
-   - Sets `state.status = WaitingForInput`
-   - **Does not return a SessionOutcome** (returns `()`)
-6. Code continues to line 119: `renderer.render_steering_sent(&text)`
-7. Code continues to line 120-123: `vcr.call("send_message", ...)` — writes to Claude's stdin
-8. Claude's process may accept the message but never produce new output (it already completed its turn), or the write may fail silently
-9. The loop returns to `io.next_event().await` — but no events arrive. The terminal appears frozen.
+4. `flush_event_buffer()` runs — renders the buffered Result and returns `FlushResult::Completed`
+5. `handle_flush_result` receives the Completed result — **intentionally** returns `Ok(None)` (per comment: "if the session completed during the flush, state is WaitingForInput and the match below will send the user's text as a follow-up")
+6. The steering message is sent via `runner.send_message()` to the still-alive Claude process
+7. Claude processes it as a new turn and produces more output — no hang
 
-The user sees: "Press Enter → nothing happens" because the input was cleared (step 4) and then the event loop is stuck waiting for events from a process that already sent its Result (step 9). The buffered content *was* rendered during the flush (step 5), but because the input line was just cleared and potentially overwrote it, or because it scrolled past quickly before the terminal froze, the user perceives it as "content that was supposed to be buffered isn't shown."
+Key insight: a Result is a logical completion, not a process exit. The Claude process is still alive and accepts the steering message as another turn. The flush renders the buffered content so the user sees it, and execution continues normally.
 
-A similar scenario with ProcessExit instead of Result would be even worse — the process is dead, so `send_message` might error or silently fail, and the loop definitely hangs.
+The ProcessExit case is also handled: `FlushResult::ProcessExited` causes `handle_flush_result` to return `LoopAction::Return(SessionOutcome::ProcessExited)`, exiting the loop cleanly before attempting to send the steering message.
 
-### Fix: resolved by the flush_event_buffer plan
+## Conclusion
 
-The flush_event_buffer fix (making `flush_event_buffer` return `Option<SessionOutcome>`) will resolve this by:
-
-1. When a Result is flushed, the Submit handler will see `SessionOutcome::Completed` and return early instead of trying to send the steering message to a completed session.
-2. When a ProcessExit is flushed, the Submit handler will see `SessionOutcome::ProcessExited` and exit the loop.
-
-### Verification
-
-After the flush_event_buffer fix is implemented, test this scenario:
-1. Start a session, wait for Claude to be mid-response
-2. Start typing a steering message
-3. Wait for Claude to finish (Result event gets buffered)
-4. Press Enter to send the steering message
-5. Verify: the buffered content is rendered, the session completes cleanly (or the steering message is sent as a follow-up if that's the desired behavior), and the terminal doesn't freeze.
-
-If the flush_event_buffer fix doesn't fully resolve this, investigate the terminal rendering path — specifically whether `flush_event_buffer` output is visible to the user (cursor positioning, stdout flushing, interaction with the cleared input line).
-
-## Questions
-
-None — this is a dependent fix, resolved by the flush_event_buffer plan.
+This issue appears to be **resolved** by the flush_event_buffer fix. Recommend closing unless the symptom has been observed recently with the current code.
 
 ## Review
 
