@@ -3,69 +3,58 @@ Status: draft
 
 ## Approach
 
-The problem has two facets: (1) `runner.kill()` sends SIGKILL, which is unnecessarily aggressive, and (2) coven has no OS-level SIGINT handler as defense-in-depth.
+### Root cause
 
-### 1. Graceful interrupt via SIGINT instead of SIGKILL
+The code in `run.rs` and `ralph.rs` already intends to show a resumption prompt after Ctrl+C — `render_interrupted()` is called, then `wait_for_user_input()`. But it doesn't work because of a race with `ProcessExit`:
 
-Currently `session_loop.rs` line 149 calls `runner.kill()` → `child.kill()` → SIGKILL. The claude CLI handles SIGINT gracefully (aborts current operation, emits a result). We should:
+1. User presses Ctrl+C → `InputAction::Interrupt` → `runner.kill()` → SIGKILL to child
+2. The child's stdout closes → background reader sends `ProcessExit` to the event channel
+3. `run.rs`/`ralph.rs` calls `runner.close_input()` and `runner.wait()`, but neither drains the event channel
+4. `render_interrupted()` prints "[interrupted]"
+5. `wait_for_user_input()` → `wait_for_text_input()` → `io.next_event()` picks up the pending `ProcessExit`
+6. `wait_for_text_input` line 403: `IoEvent::Claude(AppEvent::ProcessExit(_)) => return Ok(None)`
+7. Returns `None` → caller `break`s → coven exits
 
-- Add a `runner.interrupt()` method that sends SIGINT to the child process (via `nix::sys::signal::kill(pid, Signal::SIGINT)` or raw `libc::kill`).
-- In `session_loop.rs`, replace `runner.kill()` with `runner.interrupt()`.
-- The session loop then continues processing events. Claude should respond to SIGINT by finishing up and emitting a result, which flows through normal completion handling.
-- If claude doesn't respond within a reasonable timeout (e.g. 3s), fall back to `runner.kill()`.
+The user sees "[interrupted]" flash briefly and then coven exits. The resumption prompt never appears.
 
-This changes the Ctrl+C flow from "kill claude, offer resume" to "interrupt claude, it finishes gracefully, continue session." The `SessionOutcome::Interrupted` path in `run.rs`/`ralph.rs` would become a fallback for the timeout case only.
+### Fix
 
-### 2. OS-level SIGINT handler (defense-in-depth)
+After killing the runner and waiting for it, call `io.replace_event_channel()` to discard the old channel (which has the stale `ProcessExit`). The returned sender can be dropped — there's no active reader until the user submits text and a new runner is spawned.
 
-Even though crossterm raw mode suppresses terminal SIGINT generation from Ctrl+C, external signals (e.g. `kill -INT`) can still reach coven. Currently coven dies with the default handler. We should:
+This is a one-line fix in each of `run.rs` and `ralph.rs`:
 
-- Install a SIGINT handler at startup (using `tokio::signal::unix::signal(SignalKind::interrupt())`) that converts the signal into an internal event (e.g. sent on the terminal event channel).
-- This ensures that even if SIGINT reaches the process, it's handled gracefully instead of killing coven.
-- The handler should be installed in `main.rs` before enabling raw mode.
+**`src/commands/run.rs`** (in the `SessionOutcome::Interrupted` arm, after `runner.wait()`):
+```rust
+SessionOutcome::Interrupted => {
+    runner.close_input();
+    let _ = runner.wait().await;
+    drop(io.replace_event_channel());  // <-- add this
+    let Some(session_id) = state.session_id.take() else {
+        break;
+    };
+    // ... rest unchanged
+}
+```
 
-### 3. Child process group isolation
+**`src/commands/ralph.rs`** (same pattern — after `runner.wait()` in the Interrupted arm):
+```rust
+SessionOutcome::Interrupted => {
+    // runner.close_input() and runner.wait() already called above
+    drop(io.replace_event_channel());  // <-- add this
+    let Some(session_id) = state.session_id.take() else {
+        break 'outer;
+    };
+    // ... rest unchanged
+}
+```
 
-Spawn the claude subprocess in its own process group (via `pre_exec` with `libc::setpgid(0, 0)`). This ensures that:
-- If raw mode fails to suppress SIGINT, only coven receives it (not claude too)
-- `runner.interrupt()` can target just the child process precisely
-- No accidental double-signaling from both coven's handler and the terminal driver
+### Testing
 
-### Files to change
-
-- `src/session/runner.rs`: Add `interrupt()` method, add `pre_exec` for process group isolation
-- `src/commands/session_loop.rs`: Use `interrupt()` + timeout instead of `kill()`
-- `src/main.rs`: Install SIGINT handler, forward to event channel
-- `src/vcr.rs` / `src/event.rs`: May need a new event variant for OS-level signals
-- `Cargo.toml`: May need `libc` or `nix` crate for signal sending
-
-### Implementation order
-
-1. Add process group isolation to child spawn (smallest change, pure safety improvement)
-2. Add `runner.interrupt()` method
-3. Change session_loop to use interrupt + timeout
-4. Add OS-level SIGINT handler in main.rs
+Create a VCR test that simulates Ctrl+C mid-stream, verifies the "[interrupted]" message appears, and verifies the prompt is shown for resumption. This exercises the `Interrupted` → `wait_for_user_input` path.
 
 ## Questions
 
-### Should Ctrl+C behavior differ between modes?
-
-In `run` mode (interactive), Ctrl+C interrupts claude and you stay in coven — this is clearly the right UX. In `ralph` mode (looping), should Ctrl+C interrupt the current iteration or stop the loop? And in `worker` mode, Ctrl+C probably shouldn't affect the automated pipeline at all.
-
-Current behavior: all modes kill claude and offer resume (run) or exit (ralph). Should we keep mode-specific differences, or should Ctrl+C always mean "interrupt claude, keep coven alive"?
-
-Answer:
-
-### How to handle the timeout fallback?
-
-If we send SIGINT and claude doesn't respond within N seconds, we need to escalate to SIGKILL. Should we:
-- (a) Use a fixed timeout (e.g. 3s) and silently escalate
-- (b) Show the user a message like "claude not responding, force-killing..."
-- (c) Require a second Ctrl+C to escalate (common shell pattern: first Ctrl+C = SIGINT, second = SIGKILL)
-
-Option (c) is the most intuitive for terminal users. Option (a) is simplest.
-
-Answer:
+None — the fix is mechanical and the root cause is clear.
 
 ## Review
 
