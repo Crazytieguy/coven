@@ -1,0 +1,40 @@
+[worker]
+
+[files]
+".coven/agents/dispatch.md" = '''---
+description: "Chooses the next task for a worker"
+args:
+  - name: agent_catalog
+    description: "Available agents and dispatch syntax"
+    required: true
+  - name: worker_status
+    description: "What other workers are currently doing"
+    required: true
+---
+
+You are the dispatch agent for a worker. Decide what to do next.
+
+{{{agent_catalog}}}
+
+## Worker Status
+
+{{{worker_status}}}
+
+Check if hello.txt exists in the project root:
+- If it exists, output sleep (all work is done).
+- If it does not exist, dispatch the greet agent to create it.
+
+Be concise in your reasoning.'''
+
+".coven/agents/greet.md" = '''---
+description: "Creates a greeting file"
+---
+
+Create a file called hello.txt with the content "Hello from coven worker!" and commit it with the message "Add hello.txt".'''
+
+# Exit when the worker enters wait_for_new_commits (after dispatch outputs sleep).
+# The label "main_head_sha" is only recorded inside wait_for_new_commits.
+[[messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"

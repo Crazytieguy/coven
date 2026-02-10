@@ -210,7 +210,7 @@ impl VcrContext {
                 entries.borrow_mut().push(entry);
                 // Notify trigger controller so it can inject scripted terminal events
                 if let Some(ref tc) = self.trigger_controller {
-                    tc.borrow_mut().check(&result_value);
+                    tc.borrow_mut().check(label, &result_value);
                 }
                 result
             }
@@ -293,7 +293,7 @@ impl VcrContext {
                 let result_value = entry.result.clone();
                 entries.borrow_mut().push(entry);
                 if let Some(ref tc) = self.trigger_controller {
-                    tc.borrow_mut().check(&result_value);
+                    tc.borrow_mut().check(label, &result_value);
                 }
                 Ok(result)
             }
@@ -377,6 +377,8 @@ pub enum IoEvent {
 pub struct Io {
     event_rx: mpsc::UnboundedReceiver<AppEvent>,
     term_rx: mpsc::UnboundedReceiver<Event>,
+    /// Kept alive so `event_rx.recv()` doesn't return `None` while idle.
+    idle_tx: Option<mpsc::UnboundedSender<AppEvent>>,
 }
 
 impl Io {
@@ -384,7 +386,11 @@ impl Io {
         event_rx: mpsc::UnboundedReceiver<AppEvent>,
         term_rx: mpsc::UnboundedReceiver<Event>,
     ) -> Self {
-        Self { event_rx, term_rx }
+        Self {
+            event_rx,
+            term_rx,
+            idle_tx: None,
+        }
     }
 
     /// Create a dummy Io for replay mode (channels are immediately closed).
@@ -394,6 +400,7 @@ impl Io {
         Self {
             event_rx: rx1,
             term_rx: rx2,
+            idle_tx: None,
         }
     }
 
@@ -414,12 +421,26 @@ impl Io {
         }
     }
 
-    /// Get the event sender for creating a new session's event channel.
-    /// The old receiver is replaced with the new one.
+    /// Replace the event channel and return the new sender.
+    ///
+    /// The old receiver (and any stale events like `ProcessExit`) is dropped.
     pub fn replace_event_channel(&mut self) -> mpsc::UnboundedSender<AppEvent> {
+        self.idle_tx = None;
         let (tx, rx) = mpsc::unbounded_channel();
         self.event_rx = rx;
         tx
+    }
+
+    /// Discard the current event channel (draining any stale events) and
+    /// replace it with an idle channel that blocks on `recv()` without
+    /// returning `None`.
+    ///
+    /// Call this after killing a runner and before `wait_for_user_input`
+    /// to prevent a stale `ProcessExit` from immediately ending the wait.
+    pub fn clear_event_channel(&mut self) {
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.event_rx = rx;
+        self.idle_tx = Some(tx);
     }
 }
 
@@ -437,13 +458,17 @@ pub struct TriggerController {
 }
 
 struct PendingTrigger {
-    condition: Value,
+    /// JSON subset pattern to match against the VCR call result.
+    condition: Option<Value>,
+    /// If set, the trigger only fires when the VCR call has this label.
+    label: Option<String>,
     text: String,
     mode: TriggerInputMode,
     fired: bool,
 }
 
-/// Whether a triggered message is a steering (Enter), follow-up (Alt+Enter), or exit (Ctrl+D).
+/// Whether a triggered message is a steering (Enter), follow-up (Alt+Enter),
+/// exit (Ctrl+D), or interrupt (Ctrl+C followed by resume text).
 #[derive(Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum TriggerInputMode {
@@ -451,6 +476,7 @@ pub enum TriggerInputMode {
     Followup,
     Steering,
     Exit,
+    Interrupt,
 }
 
 impl TriggerController {
@@ -459,9 +485,18 @@ impl TriggerController {
         let triggers = messages
             .iter()
             .map(|m| {
-                let condition: Value = serde_json::from_str(&m.trigger)?;
+                anyhow::ensure!(
+                    m.trigger.is_some() || m.label.is_some(),
+                    "trigger message must have at least one of `trigger` or `label`"
+                );
+                let condition = m
+                    .trigger
+                    .as_ref()
+                    .map(|t| serde_json::from_str(t))
+                    .transpose()?;
                 Ok(PendingTrigger {
                     condition,
+                    label: m.label.clone(),
                     text: m.content.clone(),
                     mode: m.mode,
                     fired: false,
@@ -482,13 +517,24 @@ impl TriggerController {
         self
     }
 
-    /// Check a recorded VCR result against triggers and inject terminal events.
-    pub fn check(&mut self, recorded_result: &Value) {
+    /// Check a recorded VCR call against triggers and inject terminal events.
+    pub fn check(&mut self, vcr_label: &str, recorded_result: &Value) {
         // Collect triggers to fire first to avoid borrow conflict
         let to_inject: Vec<(String, TriggerInputMode)> = self
             .triggers
             .iter_mut()
-            .filter(|t| !t.fired && is_subset(&t.condition, recorded_result))
+            .filter(|t| {
+                if t.fired {
+                    return false;
+                }
+                if t.label.as_deref().is_some_and(|l| l != vcr_label) {
+                    return false;
+                }
+                match &t.condition {
+                    Some(cond) => is_subset(cond, recorded_result),
+                    None => true, // label-only trigger, already matched above
+                }
+            })
             .map(|t| {
                 t.fired = true;
                 (t.text.clone(), t.mode)
@@ -499,6 +545,12 @@ impl TriggerController {
         for (text, mode) in &to_inject {
             match mode {
                 TriggerInputMode::Exit => inject_exit(&self.term_tx),
+                TriggerInputMode::Interrupt => {
+                    inject_interrupt(&self.term_tx);
+                    if !text.is_empty() {
+                        inject_text(&self.term_tx, text, TriggerInputMode::Steering);
+                    }
+                }
                 _ => inject_text(&self.term_tx, text, *mode),
             }
         }
@@ -527,7 +579,9 @@ fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: Trigger
     let enter_modifiers = match mode {
         TriggerInputMode::Followup => KeyModifiers::ALT,
         TriggerInputMode::Steering => KeyModifiers::NONE,
-        TriggerInputMode::Exit => unreachable!("Exit triggers are handled in check(), not inject_text()"),
+        TriggerInputMode::Exit | TriggerInputMode::Interrupt => {
+            unreachable!("Exit/Interrupt triggers are handled in check(), not inject_text()")
+        }
     };
     let enter = Event::Key(KeyEvent {
         code: KeyCode::Enter,
@@ -548,6 +602,18 @@ fn inject_exit(term_tx: &mpsc::UnboundedSender<Event>) {
         state: crossterm::event::KeyEventState::NONE,
     });
     let _ = term_tx.send(exit);
+}
+
+/// Inject Ctrl+C (`Interrupt` signal) into the terminal channel.
+fn inject_interrupt(term_tx: &mpsc::UnboundedSender<Event>) {
+    use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+    let ctrl_c = Event::Key(KeyEvent {
+        code: KeyCode::Char('c'),
+        modifiers: KeyModifiers::CONTROL,
+        kind: KeyEventKind::Press,
+        state: crossterm::event::KeyEventState::NONE,
+    });
+    let _ = term_tx.send(ctrl_c);
 }
 
 /// Recursive subset matching: returns true if `pattern` is a subset of `event`.
@@ -633,8 +699,13 @@ pub struct WorkerTestConfig {
 pub struct TestMessage {
     /// The message content.
     pub content: String,
-    /// When to send: either a JSON subset pattern or legacy "after-result" etc.
-    pub trigger: String,
+    /// JSON subset pattern to match against the VCR call result.
+    /// At least one of `trigger` or `label` must be set.
+    #[serde(default)]
+    pub trigger: Option<String>,
+    /// If set, only match VCR calls with this label.
+    #[serde(default)]
+    pub label: Option<String>,
     /// How to send: "followup" (Alt+Enter) or "steering" (Enter). Defaults to "followup".
     #[serde(default)]
     pub mode: TriggerInputMode,

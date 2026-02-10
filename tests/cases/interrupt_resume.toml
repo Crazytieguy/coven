@@ -1,0 +1,9 @@
+[run]
+prompt = "What is 2+2? Answer in one sentence."
+
+# When the first content_block_start arrives (model starts thinking/responding),
+# inject Ctrl+C to interrupt, then "Continue where you left off" as resume text.
+[[messages]]
+content = "Continue where you left off"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start"}}}}}'
+mode = "interrupt"

@@ -119,6 +119,7 @@ pub async fn ralph<W: Write>(
                     break; // next iteration
                 }
                 SessionOutcome::Interrupted => {
+                    io.clear_event_channel();
                     let Some(session_id) = state.session_id.take() else {
                         break 'outer;
                     };

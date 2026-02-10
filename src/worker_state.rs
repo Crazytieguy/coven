@@ -152,11 +152,8 @@ pub fn read_all(repo_path: &Path) -> Result<Vec<WorkerState>> {
 ///
 /// Excludes the current process (the worker calling dispatch doesn't need
 /// to see itself in the status list).
-pub fn format_status(states: &[WorkerState]) -> String {
-    let others: Vec<_> = states
-        .iter()
-        .filter(|s| s.pid != std::process::id())
-        .collect();
+pub fn format_status(states: &[WorkerState], own_pid: u32) -> String {
+    let others: Vec<_> = states.iter().filter(|s| s.pid != own_pid).collect();
 
     if others.is_empty() {
         return "No other workers active.".to_string();
@@ -197,6 +194,11 @@ pub fn format_status(states: &[WorkerState]) -> String {
 ///
 /// The lock is released when the returned `DispatchLock` is dropped.
 /// If the process crashes, the OS releases the lock automatically.
+///
+/// This intentionally blocks forever rather than timing out. If the lock
+/// is stuck, the operator should investigate and resolve manually (e.g.
+/// kill the stuck worker). An automatic timeout could cause two workers
+/// to dispatch simultaneously, which is worse than blocking.
 pub fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
     let dir = coven_dir(repo_path)?;
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
@@ -347,12 +349,15 @@ mod tests {
 
     #[test]
     fn format_status_no_others() {
-        let status = format_status(&[WorkerState {
-            pid: std::process::id(),
-            branch: "my-branch".into(),
-            agent: Some("plan".into()),
-            args: HashMap::new(),
-        }]);
+        let status = format_status(
+            &[WorkerState {
+                pid: std::process::id(),
+                branch: "my-branch".into(),
+                agent: Some("plan".into()),
+                args: HashMap::new(),
+            }],
+            std::process::id(),
+        );
         assert_eq!(status, "No other workers active.");
     }
 
@@ -378,7 +383,7 @@ mod tests {
                 args: HashMap::new(),
             },
         ];
-        let status = format_status(&states);
+        let status = format_status(&states, std::process::id());
         assert!(
             status.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
         );

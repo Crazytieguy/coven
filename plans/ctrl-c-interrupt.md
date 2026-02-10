@@ -1,5 +1,5 @@
 Issue: [P1] A single Ctrl+C Kills coven instead of just interrupting claude
-Status: draft
+Status: done
 
 ## Approach
 
@@ -58,3 +58,4 @@ None — the fix is mechanical and the root cause is clear.
 
 ## Review
 
+This seems a bit brittle, but if you believe this is correct please go ahead. Otherwise: revise the plan instead and set it to draft. Currently I don't believe there's infrastructure in place to simulate a Ctrl+C, so let's add that as well. Really it would be nice if we could simulate non-text keypresses in general.

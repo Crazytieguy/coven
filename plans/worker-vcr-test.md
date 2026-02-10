@@ -1,5 +1,5 @@
 Issue: [P0] Add first `coven worker` VCR test case: single worker dispatch → agent → land pipeline
-Status: draft
+Status: done
 
 ## Approach
 

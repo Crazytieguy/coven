@@ -1,0 +1,14 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 40a37dc6-3a0a-4ec3-bf2f-ad2e1fbdfd6f (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+
+[interrupted]
+> > Continue where you left off
+
+Error  $0.00 · 0.0s · 0 turns  (:N to view)
+>

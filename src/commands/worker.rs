@@ -71,16 +71,21 @@ pub async fn worker<W: Write>(
             .extend(["--permission-mode".to_string(), "acceptEdits".to_string()]);
     }
 
-    let project_root = match config.working_dir {
-        Some(ref dir) => dir.clone(),
-        None => std::env::current_dir()?,
-    };
-
-    let spawn_args = SpawnArgs {
-        repo_path: project_root.display().to_string(),
-        branch: config.branch.clone(),
-        base_path: config.worktree_base.display().to_string(),
-    };
+    let configured_dir = config.working_dir.as_ref().map(|d| d.display().to_string());
+    let configured_base = config.worktree_base.display().to_string();
+    let spawn_args: SpawnArgs = vcr
+        .call("worker_paths", (), async |(): &()| {
+            let repo_path = match configured_dir {
+                Some(s) => s,
+                None => std::env::current_dir()?.display().to_string(),
+            };
+            Ok(SpawnArgs {
+                repo_path,
+                branch: config.branch.clone(),
+                base_path: configured_base,
+            })
+        })
+        .await?;
     let spawn_result = vcr
         .call_typed_err("worktree::spawn", spawn_args, async |a: &SpawnArgs| {
             worktree::spawn(&SpawnOptions {
@@ -101,6 +106,10 @@ pub async fn worker<W: Write>(
     let mut total_cost = 0.0;
 
     let wt_str = spawn_result.worktree_path.display().to_string();
+    let own_pid: u32 = vcr
+        .call("process_id", (), async |(): &()| Ok(std::process::id()))
+        .await?;
+
     vcr.call(
         "worker_state::register",
         (wt_str.clone(), spawn_result.branch.clone()),
@@ -126,6 +135,7 @@ pub async fn worker<W: Write>(
         &config,
         &spawn_result.worktree_path,
         &spawn_result.branch,
+        own_pid,
         &mut ctx,
         &mut total_cost,
     )
@@ -270,6 +280,7 @@ async fn worker_loop<W: Write>(
     config: &WorkerConfig,
     worktree_path: &Path,
     branch: &str,
+    own_pid: u32,
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<()> {
@@ -302,7 +313,7 @@ async fn worker_loop<W: Write>(
                 async |p: &String| worker_state::read_all(Path::new(p)),
             )
             .await?;
-        let worker_status = worker_state::format_status(&all_workers);
+        let worker_status = worker_state::format_status(&all_workers, own_pid);
 
         let Some(dispatch) = run_dispatch(
             worktree_path,
@@ -335,9 +346,10 @@ async fn worker_loop<W: Write>(
                     .set_title(&format!("coven: {branch} \u{2014} sleeping"));
                 ctx.renderer
                     .write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
-                match wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io).await? {
-                    WaitOutcome::NewCommits => {}
-                    WaitOutcome::Exited => return Ok(()),
+                let wait =
+                    wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
+                if matches!(wait.await?, WaitOutcome::Exited) {
+                    return Ok(());
                 }
             }
             DispatchDecision::RunAgent { agent, args } => {
@@ -898,6 +910,7 @@ async fn run_phase_session<W: Write>(
                 });
             }
             SessionOutcome::Interrupted => {
+                ctx.io.clear_event_channel();
                 let Some(session_id) = state.session_id.take() else {
                     return Ok(PhaseOutcome::Exited);
                 };
@@ -944,20 +957,33 @@ async fn wait_for_new_commits<W: Write>(
     renderer: &mut Renderer<W>,
     input: &mut InputHandler,
     io: &mut Io,
+    vcr: &VcrContext,
 ) -> Result<WaitOutcome> {
-    let initial_head = main_head_sha(worktree_path)?;
+    let wt_str = worktree_path.display().to_string();
+    let initial_head = vcr
+        .call("main_head_sha", wt_str.clone(), async |p: &String| {
+            main_head_sha(Path::new(p))
+        })
+        .await?;
 
     loop {
         tokio::select! {
             () = sleep(Duration::from_secs(10)) => {
-                let current = main_head_sha(worktree_path)?;
+                let current = vcr
+                    .call(
+                        "main_head_sha",
+                        wt_str.clone(),
+                        async |p: &String| main_head_sha(Path::new(p)),
+                    )
+                    .await?;
                 if current != initial_head {
                     renderer.write_raw("New commits detected on main.\r\n");
                     return Ok(WaitOutcome::NewCommits);
                 }
             }
-            event = io.next_event() => {
-                if let Ok(IoEvent::Terminal(Event::Key(key_event))) = event {
+            event = vcr.call("next_event", (), async |(): &()| io.next_event().await) => {
+                let event = event?;
+                if let IoEvent::Terminal(Event::Key(key_event)) = event {
                     let action = input.handle_key(&key_event);
                     if matches!(action, InputAction::Interrupt | InputAction::EndSession) {
                         return Ok(WaitOutcome::Exited);

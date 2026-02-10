@@ -1,5 +1,5 @@
 Issue: [P0] I think sometimes rendering pauses after a steering message and there's no way to resume it
-Status: draft
+Status: blocked, revisit later
 
 ## Approach
 

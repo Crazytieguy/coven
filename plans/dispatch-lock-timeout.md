@@ -1,5 +1,5 @@
 Issue: [P2] Add timeout to dispatch lock acquisition in worker_state.rs. Currently uses `fs2::FileExt` file locking with no timeout — could hang indefinitely if another process crashes while holding the lock.
-Status: draft
+Status: done
 
 ## Approach
 
@@ -32,3 +32,4 @@ None.
 
 ## Review
 
+Not needed, I prefer manual human operator intervention. Instead, add a comment to the codebase that clarifies this preference. Do NOT add the loop

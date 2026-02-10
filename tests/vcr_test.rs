@@ -175,3 +175,5 @@ vcr_test!(edit_tool);
 vcr_test!(show_thinking);
 vcr_test!(subagent_error);
 vcr_test!(parallel_subagent);
+vcr_test!(worker_basic);
+vcr_test!(interrupt_resume);
