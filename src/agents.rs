@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Relative path from project root to the agents directory.
 pub const AGENTS_DIR: &str = ".coven/agents";
 
 /// A single argument definition for an agent.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentArg {
     pub name: String,
     pub description: String,
@@ -17,7 +17,7 @@ pub struct AgentArg {
 }
 
 /// YAML frontmatter parsed from an agent file.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentFrontmatter {
     pub description: String,
     #[serde(default)]
@@ -25,7 +25,7 @@ pub struct AgentFrontmatter {
 }
 
 /// A fully loaded agent definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentDef {
     pub name: String,
     pub frontmatter: AgentFrontmatter,

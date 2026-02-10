@@ -31,6 +31,19 @@ pub struct DispatchLock {
     _file: File,
 }
 
+impl crate::vcr::Recordable for DispatchLock {
+    type Recorded = ();
+
+    fn to_recorded(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn from_recorded((): ()) -> anyhow::Result<Self> {
+        let file = File::open("/dev/null")?;
+        Ok(DispatchLock { _file: file })
+    }
+}
+
 // ── Path helpers ────────────────────────────────────────────────────────
 
 /// Resolve the shared coven directory: `<git-common-dir>/coven/`.
