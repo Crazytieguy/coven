@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(long)]
     pub show_thinking: bool,
 
+    /// Enable model-driven context forking via <fork> tags.
+    #[arg(long)]
+    pub fork: bool,
+
     /// Extra arguments to pass through to claude (after --).
     #[arg(last = true)]
     pub claude_args: Vec<String>,
@@ -49,6 +53,10 @@ pub enum Command {
         #[arg(long)]
         show_thinking: bool,
 
+        /// Enable model-driven context forking via <fork> tags.
+        #[arg(long)]
+        fork: bool,
+
         /// Extra arguments to pass through to claude (after --).
         #[arg(last = true)]
         claude_args: Vec<String>,
@@ -76,6 +84,10 @@ pub enum Command {
         /// Stream thinking text inline in dim italic instead of collapsing.
         #[arg(long)]
         show_thinking: bool,
+
+        /// Enable model-driven context forking via <fork> tags.
+        #[arg(long)]
+        fork: bool,
 
         /// Extra arguments to pass through to claude (after --).
         #[arg(last = true)]

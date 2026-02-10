@@ -9,6 +9,7 @@ pub mod commands;
 pub mod dispatch;
 pub mod display;
 pub mod event;
+pub mod fork;
 pub mod protocol;
 pub mod session;
 pub mod vcr;

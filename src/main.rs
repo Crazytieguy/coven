@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
             break_tag,
             no_break,
             show_thinking,
+            fork: _,
             claude_args,
         }) => {
             if no_break && iterations == 0 {
@@ -62,6 +63,7 @@ async fn main() -> Result<()> {
             branch,
             worktree_base,
             show_thinking,
+            fork: _,
             claude_args,
         }) => {
             let base = match worktree_base {
