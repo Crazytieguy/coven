@@ -42,6 +42,30 @@ impl<T: Serialize + DeserializeOwned> Recordable for T {
     }
 }
 
+// ── RecordableError trait ─────────────────────────────────────────────
+
+/// Allows error types to be fully serialized/deserialized through VCR recording,
+/// preserving variant structure for pattern matching. Use with `vcr.call_typed_err()`
+/// for operations where callers need to match on specific error variants.
+pub trait RecordableError: std::error::Error + Sized {
+    type Recorded: Serialize + DeserializeOwned;
+    fn to_recorded_err(&self) -> Result<Self::Recorded>;
+    fn from_recorded_err(recorded: Self::Recorded) -> Result<Self>;
+}
+
+/// Blanket implementation for any error type implementing `Serialize + DeserializeOwned`.
+impl<E: Serialize + DeserializeOwned + std::error::Error> RecordableError for E {
+    type Recorded = Value;
+
+    fn to_recorded_err(&self) -> Result<Value> {
+        Ok(serde_json::to_value(self)?)
+    }
+
+    fn from_recorded_err(v: Value) -> Result<Self> {
+        Ok(serde_json::from_value(v)?)
+    }
+}
+
 // ── Manual Recordable impls ─────────────────────────────────────────────
 
 /// `SessionRunner` records as `()` — in replay mode, a stub with no child/stdin
@@ -227,6 +251,90 @@ impl VcrContext {
                 match recorded_result {
                     Ok(t) => Ok(T::from_recorded(t)?),
                     Err(msg) => Err(anyhow::anyhow!("{msg}")),
+                }
+            }
+        }
+    }
+
+    /// Like [`call()`](Self::call), but preserves typed errors through recording/replay.
+    ///
+    /// Use this for operations where callers need to match on specific error
+    /// variants (e.g., `WorktreeError::RebaseConflict`). Errors are serialized
+    /// using their [`RecordableError`] impl instead of being stringified.
+    ///
+    /// Returns `Result<std::result::Result<T, E>>` — the outer `Result` carries
+    /// VCR infrastructure errors (label/args mismatch, exhausted recording),
+    /// the inner `Result` carries the typed application error.
+    pub async fn call_typed_err<A, T, E>(
+        &self,
+        label: &str,
+        args: A,
+        f: impl AsyncFnOnce(&A) -> std::result::Result<T, E>,
+    ) -> Result<std::result::Result<T, E>>
+    where
+        A: Recordable,
+        A::Recorded: PartialEq + Debug,
+        T: Recordable,
+        E: RecordableError,
+    {
+        match &self.mode {
+            VcrMode::Live => Ok(f(&args).await),
+            VcrMode::Record(entries) => {
+                let result = f(&args).await;
+                let recorded_result: std::result::Result<T::Recorded, E::Recorded> = match &result
+                {
+                    Ok(t) => Ok(t.to_recorded()?),
+                    Err(e) => Err(e.to_recorded_err()?),
+                };
+                let entry = VcrEntry {
+                    label: label.to_string(),
+                    args: serde_json::to_value(args.to_recorded()?)?,
+                    result: serde_json::to_value(&recorded_result)?,
+                };
+                let result_value = entry.result.clone();
+                entries.borrow_mut().push(entry);
+                if let Some(ref tc) = self.trigger_controller {
+                    tc.borrow_mut().check(&result_value);
+                }
+                Ok(result)
+            }
+            VcrMode::Replay(state) => {
+                let (entry_label, entry_args, entry_result, pos) = {
+                    let mut state = state.borrow_mut();
+                    anyhow::ensure!(
+                        state.position < state.entries.len(),
+                        "VCR replay exhausted: expected more entries after position {}",
+                        state.position
+                    );
+                    let pos = state.position;
+                    let entry = &state.entries[pos];
+                    let result = (
+                        entry.label.clone(),
+                        entry.args.clone(),
+                        entry.result.clone(),
+                        pos,
+                    );
+                    state.position += 1;
+                    result
+                };
+
+                anyhow::ensure!(
+                    entry_label == label,
+                    "VCR label mismatch at position {pos}: expected '{entry_label}', got '{label}'"
+                );
+
+                let recorded_args: A::Recorded = serde_json::from_value(entry_args)?;
+                let actual_args = args.to_recorded()?;
+                anyhow::ensure!(
+                    recorded_args == actual_args,
+                    "VCR args mismatch for '{label}' at position {pos}: expected {recorded_args:?}, got {actual_args:?}"
+                );
+
+                let recorded_result: std::result::Result<T::Recorded, E::Recorded> =
+                    serde_json::from_value(entry_result)?;
+                match recorded_result {
+                    Ok(t) => Ok(Ok(T::from_recorded(t)?)),
+                    Err(e) => Ok(Err(E::from_recorded_err(e)?)),
                 }
             }
         }
