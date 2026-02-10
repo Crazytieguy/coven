@@ -3,60 +3,48 @@ Status: draft
 
 ## Approach
 
-### Problem
+### Root cause
 
-`runner.kill()` calls `tokio::process::Child::kill()` which sends SIGKILL. The Claude CLI can't catch SIGKILL, so it dies without persisting the conversation. When coven later tries `--resume <session_id>`, Claude reports "No conversation found."
+The `interrupt_resume` test case interrupts during the **first** message response. At that point, Claude hasn't persisted anything for the session yet, so there's nothing to resume — regardless of how gracefully we terminate the process.
 
-### Key finding from testing
+### Fix
 
-SIGINT to `claude -p` during generation doesn't cause immediate exit. Instead, Claude queues the exit and finishes the current model response first (observed to take up to ~30 seconds). It does eventually exit cleanly, just not quickly.
+Change the test case so the interrupt happens during the **second** message, after the first has completed and been persisted:
 
-This means the original plan (SIGINT + 3-second timeout + SIGKILL fallback) would behave identically to today's SIGKILL in the common case (Ctrl+C during generation), since the 3-second timeout would expire while Claude is still finishing its response.
+1. **Adjust the prompt**: Use a prompt that naturally completes in one turn, e.g. "What is 2+2? Answer in one sentence."
+2. **Add a follow-up message**: After the first response completes, send a follow-up like "Now what is 3+3? Answer in one sentence."
+3. **Move the interrupt**: Trigger the interrupt on `content_block_start` during the second response (after the follow-up).
+4. **Resume**: The resume message "Continue where you left off" follows the interrupt as before.
 
-### Revised approach
+The test case TOML would look roughly like:
 
-Use a generous timeout so Claude has time to finish its response and persist the conversation. The tradeoff is responsiveness vs. data preservation — but the whole point of this issue is that we're losing conversations, so we should err on the patient side.
+```toml
+[run]
+prompt = "What is 2+2? Answer in one sentence."
 
-1. Send SIGINT to the Claude process
-2. Show the user a status message like "Stopping Claude..." so they know it's working, not hung
-3. Wait up to **30 seconds** for Claude to exit (long enough for a typical generation to complete)
-4. If timeout expires, fall back to SIGKILL (at this point something is genuinely stuck)
-5. A second Ctrl+C during the wait period should immediately SIGKILL (escape hatch for impatient users)
+# First follow-up completes normally
+[[messages]]
+content = "Now what is 3+3? Answer in one sentence."
+trigger = "result"
+
+# When the second response starts, interrupt and resume
+[[messages]]
+content = "Continue where you left off"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start"}}}}}'
+mode = "interrupt"
+```
+
+This ensures the session has at least one completed turn before the interrupt, so there's actually something to resume.
+
+### If this still fails
+
+If resume still fails even with a persisted first turn, then we revisit changing `runner.kill()` to use SIGINT with a timeout. But the hypothesis is that the current kill mechanism is fine — we just need the session to have persisted state.
 
 ### Changes
 
-**`src/session/runner.rs`:**
-- Add `pub async fn interrupt(&mut self) -> Result<bool>` — returns `true` if Claude exited cleanly, `false` if we had to SIGKILL
-- Implementation: get PID from `child.id()`, send SIGINT via `libc::kill`, then `tokio::time::timeout(Duration::from_secs(30), child.wait())`, fallback to `child.kill()` on timeout
-- Keep `kill()` for the hard-kill path
-
-**`src/commands/session_loop.rs`:**
-- Change the `InputAction::Interrupt` handler to call `runner.interrupt()` instead of `runner.kill()`
-- Show "Stopping Claude..." status while waiting
-- Track whether we're already in the "stopping" state — if a second Ctrl+C arrives during the wait, call `runner.kill()` immediately
-
-**VCR considerations:**
-- Same as before: `interrupt()` should no-op when `self.child` is `None` (stub/replay mode)
-
-**Dependencies:**
-- `libc` — already a transitive dependency, add as direct if needed
-
-## Questions
-
-### Is 30 seconds the right timeout?
-
-The observation was "half a minute" for a long generation. 30 seconds covers most cases, but a very long response could exceed it. Options:
-- 30 seconds (covers most cases, still feels responsive with the status message)
-- 60 seconds (covers nearly all cases, but feels long even with feedback)
-- No timeout (always wait for clean exit, second Ctrl+C is the only escape hatch)
-
-Answer:
-
-### Should we close stdin in addition to SIGINT?
-
-Closing stdin might signal Claude to stop accepting input and wrap up sooner. Or it might have no effect during generation. Worth testing, but we could also just start with SIGINT and add stdin-closing later if needed.
-
-Answer:
+- **`tests/cases/interrupt_resume.toml`**: Restructure as described above
+- **`tests/cases/interrupt_resume.vcr`**: Re-record with `cargo run --bin record-vcr interrupt_resume`
+- **`tests/cases/interrupt_resume.snap`**: Accept new snapshot after verifying it shows the expected flow (first response, interrupt, resume, second response)
 
 ## Review
 
