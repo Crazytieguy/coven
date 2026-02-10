@@ -157,8 +157,8 @@ async fn handle_session_key_event<W: Write>(
                 }
             }
         }
-        InputAction::ViewMessage(n) => {
-            view_message(renderer, n);
+        InputAction::ViewMessage(ref query) => {
+            view_message(renderer, query);
             let flush = flush_event_buffer(locals, state, renderer);
             if let FlushResult::Completed(ref result_text) = flush {
                 return Ok(LoopAction::Return(SessionOutcome::Completed {
@@ -385,8 +385,8 @@ async fn wait_for_text_input<W: Write>(
                         renderer.render_user_message(&text);
                         return Ok(Some(text));
                     }
-                    InputAction::ViewMessage(n) => {
-                        view_message(renderer, n);
+                    InputAction::ViewMessage(ref query) => {
+                        view_message(renderer, query);
                         renderer.show_prompt();
                         input.activate();
                     }
@@ -406,12 +406,12 @@ async fn wait_for_text_input<W: Write>(
     }
 }
 
-/// Open message N in $PAGER.
-pub fn view_message<W: Write>(renderer: &mut Renderer<W>, n: usize) {
+/// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").
+pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) {
     use crate::display::renderer::format_message;
 
-    let Some(content) = format_message(renderer.messages(), n) else {
-        renderer.write_raw(&format!("No message {n}\r\n"));
+    let Some(content) = format_message(renderer.messages(), query) else {
+        renderer.write_raw(&format!("No message {query}\r\n"));
         return;
     };
 

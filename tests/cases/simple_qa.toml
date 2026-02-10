@@ -1,4 +1,4 @@
-views = [1]
+views = ["1"]
 
 [run]
 prompt = "What is 2+2?"

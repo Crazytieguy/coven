@@ -466,9 +466,9 @@ pub struct TestCase {
     /// Additional messages to send during the session (follow-ups, steering).
     #[serde(default)]
     pub messages: Vec<TestMessage>,
-    /// Message numbers to snapshot via `:N` view (1-indexed).
+    /// Message labels to snapshot via `:N` or `:P/C` view commands.
     #[serde(default)]
-    pub views: Vec<usize>,
+    pub views: Vec<String>,
 }
 
 /// Display configuration for test replay (not used during recording).

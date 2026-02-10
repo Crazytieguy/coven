@@ -1,0 +1,6 @@
+[run]
+prompt = "Use the Task tool to spawn TWO subagents in parallel (in the same message): one that reads README.md and one that reads notes.txt. Summarize both results. Do not use any other tools directly."
+
+[files]
+"README.md" = "# Test Project\n\nA minimal project for testing parallel subagent display in coven."
+"notes.txt" = "These are test notes for the parallel subagent test case."

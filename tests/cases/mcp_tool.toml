@@ -1,4 +1,4 @@
-views = [2]
+views = ["2"]
 
 [run]
 prompt = "Fetch the tokio docs from https://docs.rs/tokio"

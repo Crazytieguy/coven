@@ -1,4 +1,4 @@
-views = [2, 3, 9, 11]
+views = ["2", "3", "9", "11"]
 
 [run]
 prompt = "Run test.sh and fix any issues"

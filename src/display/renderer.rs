@@ -18,10 +18,16 @@ pub struct StoredMessage {
     pub result: Option<String>,
 }
 
-/// Format the content of message `n` (1-indexed) for display.
-/// Returns `None` if `n` is out of bounds.
-pub fn format_message(messages: &[StoredMessage], n: usize) -> Option<String> {
-    let msg = messages.get(n.checked_sub(1)?)?;
+/// Format the content of a message for display, looking it up by label query.
+///
+/// The `query` is matched against the bracketed prefix of stored labels:
+/// - `"3"` matches a message labeled `[3] Thinking`
+/// - `"2/1"` matches a message labeled `[2/1] Read`
+///
+/// Returns `None` if no message matches.
+pub fn format_message(messages: &[StoredMessage], query: &str) -> Option<String> {
+    let prefix = format!("[{query}]");
+    let msg = messages.iter().find(|m| m.label.starts_with(&prefix))?;
     Some(match &msg.result {
         Some(result) => format!(
             "{}\n\n{}\n\n--- Result ---\n\n{}",
@@ -34,6 +40,7 @@ pub fn format_message(messages: &[StoredMessage], n: usize) -> Option<String> {
 /// Tracks an active subagent (Task tool call) for concurrent rendering.
 struct ActiveSubagent {
     tool_number: usize,
+    child_counter: usize,
 }
 
 /// Display configuration for the renderer.
@@ -305,11 +312,7 @@ impl<W: Write> Renderer<W> {
         parent_tool_use_id: &str,
     ) {
         self.finish_current_block();
-        let parent_number = self
-            .active_subagents
-            .get(parent_tool_use_id)
-            .map(|s| s.tool_number);
-        self.render_tool_call_line(name, input, parent_number);
+        self.render_tool_call_line(name, input, Some(parent_tool_use_id));
         self.out.flush().ok();
     }
 
@@ -393,23 +396,28 @@ impl<W: Write> Renderer<W> {
     }
 
     /// Render a tool call line: `[N] ▶ ToolName  detail`. Child tool calls
-    /// within a subagent use `[P/N]` prefixed numbering with indented, dimmer
-    /// style. Leaves the line open for the result.
+    /// within a subagent use `[P/C]` prefixed numbering with indented, dimmer
+    /// style (`C` is a per-subagent counter). Leaves the line open for the result.
     fn render_tool_call_line(
         &mut self,
         name: &str,
         input: &Value,
-        parent_tool_number: Option<usize>,
+        parent_tool_use_id: Option<&str>,
     ) {
-        self.tool_counter += 1;
-        let n = self.tool_counter;
         let display_name = display_tool_name(name);
         let detail = format_tool_detail(name, input);
-        let is_child = parent_tool_number.is_some();
+        let is_child = parent_tool_use_id.is_some();
 
-        let (prefix, number_label) = match parent_tool_number {
-            Some(p) => ("  ", format!("{p}/{n}")),
-            None => ("", format!("{n}")),
+        let (prefix, number_label) = if let Some(id) = parent_tool_use_id
+            && let Some(subagent) = self.active_subagents.get_mut(id)
+        {
+            subagent.child_counter += 1;
+            let c = subagent.child_counter;
+            let p = subagent.tool_number;
+            ("  ", format!("{p}/{c}"))
+        } else {
+            self.tool_counter += 1;
+            ("", format!("{}", self.tool_counter))
         };
         // Indent width: prefix + "[" + number_label + "] "
         self.last_tool_indent = prefix.len() + 1 + number_label.len() + 2;
@@ -468,7 +476,7 @@ impl<W: Write> Renderer<W> {
     }
 
     /// Compute the indent string that aligns content under the last-rendered
-    /// tool call's `[N] ▶` or `  [P/N] ▶` prefix.
+    /// tool call's `[N] ▶` or `  [P/C] ▶` prefix.
     fn tool_indent(&self) -> String {
         " ".repeat(self.last_tool_indent)
     }
@@ -532,6 +540,7 @@ impl<W: Write> Renderer<W> {
                             id,
                             ActiveSubagent {
                                 tool_number: self.tool_counter,
+                                child_counter: 0,
                             },
                         );
                     }

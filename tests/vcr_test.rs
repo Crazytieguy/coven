@@ -27,7 +27,7 @@ fn strip_ansi(s: &str) -> String {
 struct TestResult {
     display: String,
     messages: Vec<StoredMessage>,
-    views: Vec<usize>,
+    views: Vec<String>,
 }
 
 /// Run a test case through the real command function with VCR replay,
@@ -100,14 +100,14 @@ async fn run_vcr_test(name: &str) -> TestResult {
 }
 
 /// Format view output for snapshot: one section per viewed message.
-fn format_views(messages: &[StoredMessage], views: &[usize]) -> String {
+fn format_views(messages: &[StoredMessage], views: &[String]) -> String {
     let mut out = String::new();
-    for (i, &n) in views.iter().enumerate() {
+    for (i, query) in views.iter().enumerate() {
         if i > 0 {
             out.push_str("\n--- :next ---\n\n");
         }
-        out.push_str(&format!(":{}  ", n));
-        out.push_str(&format_message(messages, n).expect("view index out of bounds"));
+        out.push_str(&format!(":{query}  "));
+        out.push_str(&format_message(messages, query).expect("view query not found"));
         out.push('\n');
     }
     out
@@ -150,3 +150,4 @@ vcr_test!(write_single_line);
 vcr_test!(edit_tool);
 vcr_test!(show_thinking);
 vcr_test!(subagent_error);
+vcr_test!(parallel_subagent);

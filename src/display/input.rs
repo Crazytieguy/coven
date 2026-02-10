@@ -13,8 +13,8 @@ pub enum InputAction {
     Activated(char),
     /// User submitted text (Enter = steering, Alt+Enter = follow-up).
     Submit(String, InputMode),
-    /// User wants to view message N.
-    ViewMessage(usize),
+    /// User wants to view a message by label (e.g. "3" or "2/1").
+    ViewMessage(String),
     /// User cancelled input (Escape).
     Cancel,
     /// User pressed Ctrl-C.
@@ -119,9 +119,9 @@ impl InputHandler {
                     return InputAction::None;
                 }
 
-                // Check for :N view command
-                if let Some(n) = parse_view_command(&text) {
-                    return InputAction::ViewMessage(n);
+                // Check for :N or :P/C view command
+                if let Some(query) = parse_view_command(&text) {
+                    return InputAction::ViewMessage(query);
                 }
 
                 let mode = if event.modifiers.contains(KeyModifiers::ALT) {
@@ -150,8 +150,24 @@ impl InputHandler {
     }
 }
 
-fn parse_view_command(text: &str) -> Option<usize> {
-    text.trim().strip_prefix(':')?.parse::<usize>().ok()
+/// Parse `:N` or `:P/C` view commands. Returns the label query (e.g. "3" or "2/1").
+fn parse_view_command(text: &str) -> Option<String> {
+    let rest = text.trim().strip_prefix(':')?;
+    // Accept "N" or "P/C" where N, P, C are positive integers
+    if let Some((left, right)) = rest.split_once('/') {
+        let p: usize = left.parse().ok()?;
+        let c: usize = right.parse().ok()?;
+        if p == 0 || c == 0 {
+            return None;
+        }
+        Some(format!("{p}/{c}"))
+    } else {
+        let n: usize = rest.parse().ok()?;
+        if n == 0 {
+            return None;
+        }
+        Some(n.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -160,9 +176,18 @@ mod tests {
 
     #[test]
     fn parse_view_command_valid() {
-        assert_eq!(parse_view_command(":1"), Some(1));
-        assert_eq!(parse_view_command(":42"), Some(42));
+        assert_eq!(parse_view_command(":1"), Some("1".to_string()));
+        assert_eq!(parse_view_command(":42"), Some("42".to_string()));
         assert_eq!(parse_view_command(": 3"), None); // space not allowed
+    }
+
+    #[test]
+    fn parse_view_command_slash_notation() {
+        assert_eq!(parse_view_command(":2/1"), Some("2/1".to_string()));
+        assert_eq!(parse_view_command(":10/3"), Some("10/3".to_string()));
+        assert_eq!(parse_view_command(":0/1"), None); // zero not allowed
+        assert_eq!(parse_view_command(":1/0"), None); // zero not allowed
+        assert_eq!(parse_view_command(":a/1"), None);
     }
 
     #[test]

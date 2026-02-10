@@ -1,14 +1,14 @@
 ---
 source: tests/vcr_test.rs
-expression: clean
+expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 Session 0c0cba5f-b4e0-4f76-b4c8-625655ca6db4 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Task  Read and summarize README.md
-  [2/3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[4] Thinking...
+  [2/1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[3] Thinking...
 The subagent has completed the task. Here's the one-sentence summary:
 
 **This is a minimal test project designed to test subagent display functionality in coven.**
