@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use crossterm::terminal;
@@ -18,6 +19,7 @@ pub struct RalphConfig {
     pub no_break: bool,
     pub show_thinking: bool,
     pub extra_args: Vec<String>,
+    pub working_dir: Option<PathBuf>,
 }
 
 /// Run ralph loop mode.
@@ -65,6 +67,7 @@ pub async fn ralph<W: Write>(
             prompt: Some(config.prompt.clone()),
             extra_args: config.extra_args.clone(),
             append_system_prompt: Some(system_prompt.clone()),
+            working_dir: config.working_dir.clone(),
             ..Default::default()
         };
 
@@ -126,6 +129,7 @@ pub async fn ralph<W: Write>(
                                 extra_args: config.extra_args.clone(),
                                 append_system_prompt: Some(system_prompt.clone()),
                                 resume: Some(session_id),
+                                working_dir: config.working_dir.clone(),
                                 ..Default::default()
                             };
                             runner = vcr

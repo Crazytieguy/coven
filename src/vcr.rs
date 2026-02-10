@@ -13,6 +13,10 @@ use tokio::sync::mpsc;
 use crate::event::AppEvent;
 use crate::session::runner::SessionRunner;
 
+/// Default model used for VCR test recordings. Shared between record-vcr and the test harness
+/// so that spawn args match during replay assertion.
+pub const DEFAULT_TEST_MODEL: &str = "claude-haiku-4-5-20251001";
+
 // ── Recordable trait ────────────────────────────────────────────────────
 
 /// Allows both serializable types and non-serializable types (like process

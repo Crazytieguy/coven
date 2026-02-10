@@ -3,11 +3,11 @@ source: tests/vcr_test.rs
 expression: clean
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 5910e578-d0f1-4d07-a5eb-3d75c32649dd (claude-haiku-4-5-20251001)
+Session d2a7737c-ff91-432c-91df-50bb88eda3c6 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 2 + 2 = 4
 
 
-Done  $0.01 · 1.8s · 1 turn  (:N to view)
+Done  $0.01 · 3.7s · 1 turn  (:N to view)
 >

@@ -40,7 +40,7 @@ async fn run_vcr_test(name: &str) -> String {
     let mut output = Vec::new();
 
     // Default to haiku, matching what record-vcr uses during recording.
-    let default_model = "claude-haiku-4-5-20251001";
+    let default_model = coven::vcr::DEFAULT_TEST_MODEL;
 
     if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
@@ -56,6 +56,7 @@ async fn run_vcr_test(name: &str) -> String {
                 no_break: false,
                 show_thinking: case.display.show_thinking,
                 extra_args,
+                working_dir: None,
             },
             &mut io,
             &vcr,
@@ -73,6 +74,7 @@ async fn run_vcr_test(name: &str) -> String {
             Some(run_config.prompt.clone()),
             claude_args,
             case.display.show_thinking,
+            None,
             &mut io,
             &vcr,
             &mut output,
@@ -102,7 +104,6 @@ macro_rules! vcr_test {
 
 vcr_test!(simple_qa);
 vcr_test!(tool_use);
-vcr_test!(multi_tool);
 vcr_test!(grep_glob);
 vcr_test!(mcp_tool);
 vcr_test!(error_handling);

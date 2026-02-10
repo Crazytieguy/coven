@@ -2,39 +2,74 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use tokio::sync::mpsc;
+use tokio::task::LocalSet;
 
 use coven::commands;
-use coven::vcr::{Io, TestCase, TriggerController, VcrContext};
+use coven::vcr::{DEFAULT_TEST_MODEL, Io, TestCase, TriggerController, VcrContext};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let cases_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
 
-    if args.len() > 1 {
-        for name in &args[1..] {
-            eprintln!("Recording: {name}");
-            record_case(&cases_dir, name).await?;
-            eprintln!("  Done: {name}.vcr");
-        }
+    let names: Vec<String> = if args.len() > 1 {
+        args[1..].to_vec()
     } else {
-        // Record all cases
         let mut entries: Vec<_> = std::fs::read_dir(&cases_dir)?
             .filter_map(std::result::Result::ok)
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
             .collect();
         entries.sort_by_key(std::fs::DirEntry::path);
+        entries
+            .iter()
+            .filter_map(|e| {
+                e.path()
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(String::from)
+            })
+            .collect()
+    };
 
-        for entry in entries {
-            let path = entry.path();
-            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let name = name.to_string();
-            eprintln!("Recording: {name}");
-            record_case(&cases_dir, &name).await?;
-            eprintln!("  Done: {name}.vcr");
-        }
+    // Record all cases concurrently using LocalSet (VcrContext is !Send due to RefCell).
+    // Tasks interleave at await points — the real parallelism is I/O-bound (Claude API calls).
+    let local = LocalSet::new();
+    let errors = local
+        .run_until(async {
+            let mut handles = Vec::new();
+            for name in names {
+                let dir = cases_dir.clone();
+                handles.push(tokio::task::spawn_local(async move {
+                    let result = record_case(&dir, &name).await;
+                    (name, result)
+                }));
+            }
+
+            let mut errors = Vec::new();
+            for handle in handles {
+                let (name, outcome) = handle.await.expect("task should not panic");
+                match outcome {
+                    Ok(()) => eprintln!("  Done: {name}.vcr"),
+                    Err(e) => {
+                        eprintln!("  FAILED: {name}: {e}");
+                        errors.push((name, e));
+                    }
+                }
+            }
+            errors
+        })
+        .await;
+
+    if !errors.is_empty() {
+        anyhow::bail!(
+            "{} recording(s) failed: {}",
+            errors.len(),
+            errors
+                .iter()
+                .map(|(n, _)| n.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
     }
 
     Ok(())
@@ -107,10 +142,6 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         String::from_utf8_lossy(&git_commit.stderr)
     );
 
-    // Save original directory and change to temp dir so the session runs there
-    let original_dir = std::env::current_dir()?;
-    std::env::set_current_dir(&tmp_dir)?;
-
     // Set up VCR recording with trigger controller
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
@@ -124,7 +155,10 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
 
     // Run the real command function.
     // Default to haiku for recording unless the test case specifies a model.
-    let default_model = "claude-haiku-4-5-20251001";
+    let default_model = DEFAULT_TEST_MODEL;
+
+    // Capture output to a buffer (stdout would interleave in parallel).
+    let mut output = Vec::new();
 
     if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
@@ -140,10 +174,11 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
                 no_break: false,
                 show_thinking: case.display.show_thinking,
                 extra_args,
+                working_dir: Some(tmp_dir.clone()),
             },
             &mut io,
             &vcr,
-            std::io::stdout(),
+            &mut output,
         )
         .await?;
     } else {
@@ -156,15 +191,13 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
             Some(run_config.prompt.clone()),
             claude_args,
             case.display.show_thinking,
+            Some(tmp_dir.clone()),
             &mut io,
             &vcr,
-            std::io::stdout(),
+            &mut output,
         )
         .await?;
     }
-
-    // Restore directory
-    std::env::set_current_dir(&original_dir)?;
 
     // Write the VCR recording
     vcr.write_recording(&vcr_path)?;

@@ -23,6 +23,8 @@ pub struct SessionConfig {
     /// Resume an existing session by ID (uses `--resume`).
     pub resume: Option<String>,
     /// Working directory for the claude process. If None, inherits from parent.
+    /// Skipped in serde — not meaningful for VCR replay, only a runtime concern.
+    #[serde(skip)]
     pub working_dir: Option<PathBuf>,
 }
 

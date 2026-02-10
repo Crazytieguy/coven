@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use crossterm::event::Event;
@@ -17,6 +18,7 @@ pub async fn run<W: Write>(
     prompt: Option<String>,
     extra_args: Vec<String>,
     show_thinking: bool,
+    working_dir: Option<PathBuf>,
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
@@ -35,6 +37,7 @@ pub async fn run<W: Write>(
         let config = SessionConfig {
             prompt: Some(prompt),
             extra_args: extra_args.clone(),
+            working_dir: working_dir.clone(),
             ..Default::default()
         };
         vcr.call("spawn", config, async |c: &SessionConfig| {
@@ -45,9 +48,16 @@ pub async fn run<W: Write>(
     } else {
         renderer.show_prompt();
         input.activate();
-        if let Some(runner) =
-            wait_for_initial_prompt(&mut input, &mut renderer, &mut state, &extra_args, io, vcr)
-                .await?
+        if let Some(runner) = wait_for_initial_prompt(
+            &mut input,
+            &mut renderer,
+            &mut state,
+            &extra_args,
+            &working_dir,
+            io,
+            vcr,
+        )
+        .await?
         {
             runner
         } else {
@@ -95,6 +105,7 @@ pub async fn run<W: Write>(
                                 prompt: Some(text),
                                 extra_args: extra_args.clone(),
                                 resume: Some(session_id),
+                                working_dir: working_dir.clone(),
                                 ..Default::default()
                             };
                             runner = vcr
@@ -129,6 +140,7 @@ async fn wait_for_initial_prompt<W: Write>(
     renderer: &mut Renderer<W>,
     state: &mut SessionState,
     extra_args: &[String],
+    working_dir: &Option<PathBuf>,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
@@ -144,6 +156,7 @@ async fn wait_for_initial_prompt<W: Write>(
                         let config = SessionConfig {
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
+                            working_dir: working_dir.clone(),
                             ..Default::default()
                         };
                         let runner = vcr
