@@ -79,6 +79,12 @@ struct ActiveSubagent {
     child_counter: usize,
 }
 
+/// Tracks an active fork for rendering child tool calls with `[P/C]` numbering.
+struct ActiveFork {
+    tool_number: usize,
+    child_counter: usize,
+}
+
 /// Display configuration for the renderer.
 #[derive(Default)]
 pub struct RendererConfig {
@@ -104,6 +110,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     tool_line_open: bool,
     /// Active subagents, keyed by `tool_use_id`.
     active_subagents: HashMap<String, ActiveSubagent>,
+    /// Active fork (at most one at a time for v1).
+    active_fork: Option<ActiveFork>,
     /// The `tool_use_id` of the currently-streaming `tool_use` block.
     current_tool_use_id: Option<String>,
     /// Indent width for content under the last-rendered tool call.
@@ -144,6 +152,7 @@ impl<W: Write> Renderer<W> {
             current_thinking: None,
             tool_line_open: false,
             active_subagents: HashMap::new(),
+            active_fork: None,
             current_tool_use_id: None,
             last_tool_indent: 0,
             config: RendererConfig::default(),
@@ -368,6 +377,76 @@ impl<W: Write> Renderer<W> {
             self.apply_tool_result(&text, is_error);
         }
         self.out.flush().ok();
+    }
+
+    // --- Fork rendering ---
+
+    /// Render the fork start line and register the active fork.
+    pub fn render_fork_start(&mut self, tasks: &[String]) {
+        self.finish_current_block();
+        self.tool_counter += 1;
+        let n = self.tool_counter;
+        let labels = tasks.join(" \u{00b7} ");
+        let label = truncate_line(&format!("[{n}] \u{2442} Fork  {labels}"));
+        queue!(
+            self.out,
+            Print(theme::fork_tool().apply(&label)),
+            Print("\r\n"),
+        )
+        .ok();
+        self.active_fork = Some(ActiveFork {
+            tool_number: n,
+            child_counter: 0,
+        });
+        self.out.flush().ok();
+    }
+
+    /// Render a tool call from a fork child with `[P/C] ⑂` numbering.
+    pub fn render_fork_child_tool_call(&mut self, name: &str, input: &Value) {
+        self.close_tool_line();
+        let display_name = display_tool_name(name);
+        let detail = format_tool_detail(name, input);
+
+        let Some(ref mut fork) = self.active_fork else {
+            return;
+        };
+        fork.child_counter += 1;
+        let p = fork.tool_number;
+        let c = fork.child_counter;
+        let number_label = format!("{p}/{c}");
+        // Indent: "  " + "[" + number_label + "] "
+        self.last_tool_indent = 2 + 1 + number_label.len() + 2;
+
+        let label = truncate_line(&format!(
+            "  [{number_label}] \u{2442} {display_name}  {detail}"
+        ));
+        queue!(self.out, Print(theme::fork_tool().apply(&label))).ok();
+
+        let content = serde_json::to_string_pretty(input).unwrap_or_default();
+        self.messages.push(StoredMessage {
+            label: format!("[{number_label}] {display_name}"),
+            content,
+            result: None,
+        });
+        self.tool_line_open = true;
+    }
+
+    /// Render completion of a fork child.
+    pub fn render_fork_child_done(&mut self, label: &str) {
+        self.close_tool_line();
+        let line = format!("  \u{2442} {label} done");
+        queue!(
+            self.out,
+            Print(theme::fork_tool().apply(&line)),
+            Print("\r\n"),
+        )
+        .ok();
+        self.out.flush().ok();
+    }
+
+    /// Clean up after all fork children have completed.
+    pub fn render_fork_complete(&mut self) {
+        self.active_fork = None;
     }
 
     // --- User message indicators ---

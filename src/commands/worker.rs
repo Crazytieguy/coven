@@ -13,6 +13,7 @@ use crate::agents::{self, AgentDef};
 use crate::dispatch::{self, DispatchDecision};
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
+use crate::fork::{self, ForkConfig};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, IoEvent, VcrContext};
@@ -27,6 +28,7 @@ struct PhaseContext<'a, W: Write> {
     input: &'a mut InputHandler,
     io: &'a mut Io,
     vcr: &'a VcrContext,
+    fork_config: Option<&'a ForkConfig>,
 }
 
 pub struct WorkerConfig {
@@ -36,6 +38,7 @@ pub struct WorkerConfig {
     pub extra_args: Vec<String>,
     /// Override for the project root directory (used by test recording).
     pub working_dir: Option<PathBuf>,
+    pub fork: bool,
 }
 
 /// Serializable args for VCR-recording `worktree::spawn`.
@@ -124,11 +127,14 @@ pub async fn worker<W: Write>(
         spawn_result.worktree_path.display()
     ));
 
+    let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
+
     let mut ctx = PhaseContext {
         renderer: &mut renderer,
         input: &mut input,
         io,
         vcr,
+        fork_config: fork_config.as_ref(),
     };
 
     let result = worker_loop(
@@ -870,12 +876,15 @@ async fn run_phase_session<W: Write>(
     resume: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<PhaseOutcome> {
+    let append_system_prompt = ctx
+        .fork_config
+        .map(|_| fork::fork_system_prompt().to_string());
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
         extra_args: extra_args.to_vec(),
+        append_system_prompt,
         resume: resume.map(String::from),
         working_dir: Some(working_dir.to_path_buf()),
-        ..Default::default()
     };
 
     let mut runner = ctx
@@ -895,6 +904,7 @@ async fn run_phase_session<W: Write>(
             ctx.input,
             ctx.io,
             ctx.vcr,
+            ctx.fork_config,
         )
         .await?;
 
@@ -923,9 +933,11 @@ async fn run_phase_session<W: Write>(
                         let resume_config = SessionConfig {
                             prompt: Some(text),
                             extra_args: extra_args.to_vec(),
+                            append_system_prompt: ctx
+                                .fork_config
+                                .map(|_| fork::fork_system_prompt().to_string()),
                             resume: Some(session_id),
                             working_dir: Some(working_dir.to_path_buf()),
-                            ..Default::default()
                         };
                         runner = ctx
                             .vcr

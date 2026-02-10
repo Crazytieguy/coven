@@ -91,6 +91,7 @@ async fn run_vcr_test(name: &str) -> TestResult {
                 worktree_base,
                 extra_args,
                 working_dir: None,
+                fork: false,
             },
             &mut io,
             &vcr,
@@ -113,6 +114,7 @@ async fn run_vcr_test(name: &str) -> TestResult {
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
                 show_thinking: case.display.show_thinking,
+                fork: false,
                 extra_args,
                 working_dir: None,
             },
@@ -129,10 +131,13 @@ async fn run_vcr_test(name: &str) -> TestResult {
             claude_args.extend(["--model".to_string(), default_model.to_string()]);
         }
         coven::commands::run::run(
-            Some(run_config.prompt.clone()),
-            claude_args,
-            case.display.show_thinking,
-            None,
+            coven::commands::run::RunConfig {
+                prompt: Some(run_config.prompt.clone()),
+                extra_args: claude_args,
+                show_thinking: case.display.show_thinking,
+                fork: false,
+                working_dir: None,
+            },
             &mut io,
             &vcr,
             &mut output,

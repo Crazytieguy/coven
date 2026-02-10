@@ -8,6 +8,7 @@ use crossterm::terminal;
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
 use crate::event::{AppEvent, InputMode};
+use crate::fork::{self, ForkConfig};
 use crate::handle_inbound;
 use crate::protocol::types::InboundEvent;
 use crate::session::runner::SessionRunner;
@@ -45,6 +46,7 @@ pub async fn run_session<W: Write>(
     input: &mut InputHandler,
     io: &mut Io,
     vcr: &VcrContext,
+    fork_config: Option<&ForkConfig>,
 ) -> Result<SessionOutcome> {
     let mut locals = SessionLocals {
         event_buffer: Vec::new(),
@@ -61,9 +63,16 @@ pub async fn run_session<W: Write>(
                 if input.is_active() && state.status == SessionStatus::Running {
                     locals.event_buffer.push(app_event);
                 } else {
-                    let outcome =
-                        process_claude_event(app_event, state, renderer, runner, &mut locals, vcr)
-                            .await?;
+                    let outcome = process_claude_event(
+                        app_event,
+                        state,
+                        renderer,
+                        runner,
+                        &mut locals,
+                        vcr,
+                        fork_config,
+                    )
+                    .await?;
                     if let Some(outcome) = outcome {
                         return Ok(outcome);
                     }
@@ -207,15 +216,43 @@ async fn process_claude_event<W: Write>(
     runner: &mut SessionRunner,
     locals: &mut SessionLocals,
     vcr: &VcrContext,
+    fork_config: Option<&ForkConfig>,
 ) -> Result<Option<SessionOutcome>> {
     match event {
         AppEvent::Claude(inbound) => {
-            let has_pending = !locals.pending_followups.is_empty();
-            handle_inbound(&inbound, state, renderer, has_pending);
-
-            // Capture result text
+            // Capture result text early (needed for fork detection)
             if let InboundEvent::Result(ref result) = *inbound {
                 locals.result_text.clone_from(&result.result);
+            }
+
+            // Detect fork tag in result text (live mode only — fork children
+            // spawn real sessions, which isn't compatible with VCR replay).
+            let fork_tasks = if vcr.is_live() {
+                if let InboundEvent::Result(_) = *inbound {
+                    fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Suppress the Done line if fork detected or followups pending
+            let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
+            handle_inbound(&inbound, state, renderer, has_pending);
+
+            // Run fork flow: spawn children, collect results, send reintegration
+            if let Some(tasks) = fork_tasks {
+                let session_id = state.session_id.clone().unwrap_or_default();
+                // Safety: fork_tasks is only set when fork_config is Some
+                let Some(fork_cfg) = fork_config else {
+                    unreachable!("fork_tasks set without fork_config");
+                };
+                let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer).await?;
+                runner.send_message(&msg).await?;
+                state.suppress_next_separator = true;
+                state.status = SessionStatus::Running;
+                return Ok(None);
             }
 
             // If result and there's a pending follow-up, send it (FIFO)

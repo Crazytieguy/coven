@@ -61,3 +61,11 @@ pub fn prompt_style() -> ContentStyle {
         ..Default::default()
     }
 }
+
+pub fn fork_tool() -> ContentStyle {
+    ContentStyle {
+        foreground_color: Some(Color::Cyan),
+        attributes: Attribute::Dim.into(),
+        ..Default::default()
+    }
+}

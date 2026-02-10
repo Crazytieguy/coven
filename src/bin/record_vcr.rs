@@ -164,6 +164,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
                 worktree_base: worktree_base.clone(),
                 extra_args,
                 working_dir: Some(tmp_dir.clone()),
+                fork: false,
             },
             &mut io,
             &vcr,
@@ -185,6 +186,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
                 show_thinking: case.display.show_thinking,
+                fork: false,
                 extra_args,
                 working_dir: Some(tmp_dir.clone()),
             },
@@ -200,10 +202,13 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
             claude_args.extend(["--model".to_string(), default_model.to_string()]);
         }
         commands::run::run(
-            Some(run_config.prompt.clone()),
-            claude_args,
-            case.display.show_thinking,
-            Some(tmp_dir.clone()),
+            commands::run::RunConfig {
+                prompt: Some(run_config.prompt.clone()),
+                extra_args: claude_args,
+                show_thinking: case.display.show_thinking,
+                fork: false,
+                working_dir: Some(tmp_dir.clone()),
+            },
             &mut io,
             &vcr,
             &mut output,

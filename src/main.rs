@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
             break_tag,
             no_break,
             show_thinking,
-            fork: _,
+            fork,
             claude_args,
         }) => {
             if no_break && iterations == 0 {
@@ -50,6 +50,7 @@ async fn main() -> Result<()> {
                     break_tag,
                     no_break,
                     show_thinking,
+                    fork,
                     extra_args: claude_args,
                     working_dir: None,
                 },
@@ -63,7 +64,7 @@ async fn main() -> Result<()> {
             branch,
             worktree_base,
             show_thinking,
-            fork: _,
+            fork,
             claude_args,
         }) => {
             let base = match worktree_base {
@@ -78,6 +79,7 @@ async fn main() -> Result<()> {
                     worktree_base: base,
                     extra_args: claude_args,
                     working_dir: None,
+                    fork,
                 },
                 &mut io,
                 &vcr,
@@ -88,10 +90,13 @@ async fn main() -> Result<()> {
         None => {
             let (mut io, vcr) = create_live_io();
             commands::run::run(
-                cli.prompt,
-                cli.claude_args,
-                cli.show_thinking,
-                None,
+                commands::run::RunConfig {
+                    prompt: cli.prompt,
+                    extra_args: cli.claude_args,
+                    show_thinking: cli.show_thinking,
+                    fork: cli.fork,
+                    working_dir: None,
+                },
                 &mut io,
                 &vcr,
                 std::io::stdout(),

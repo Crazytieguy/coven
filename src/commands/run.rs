@@ -7,24 +7,30 @@ use crossterm::terminal;
 
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::{Renderer, StoredMessage};
+use crate::fork::{self, ForkConfig};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
 
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
+pub struct RunConfig {
+    pub prompt: Option<String>,
+    pub extra_args: Vec<String>,
+    pub show_thinking: bool,
+    pub fork: bool,
+    pub working_dir: Option<PathBuf>,
+}
+
 /// Run a single interactive session. Returns the stored messages for inspection.
 pub async fn run<W: Write>(
-    prompt: Option<String>,
-    extra_args: Vec<String>,
-    show_thinking: bool,
-    working_dir: Option<PathBuf>,
+    config: RunConfig,
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
     let mut renderer = Renderer::with_writer(writer);
-    renderer.set_show_thinking(show_thinking);
+    renderer.set_show_thinking(config.show_thinking);
     let mut input = InputHandler::new();
     let mut state = SessionState::default();
     if vcr.is_live() {
@@ -32,15 +38,19 @@ pub async fn run<W: Write>(
     }
     renderer.render_help();
 
+    let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
+    let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
+
     // Get initial runner: either from prompt or by waiting for user input
-    let mut runner = if let Some(prompt) = prompt {
-        let config = SessionConfig {
+    let mut runner = if let Some(prompt) = config.prompt {
+        let session_cfg = SessionConfig {
             prompt: Some(prompt),
-            extra_args: extra_args.clone(),
-            working_dir: working_dir.clone(),
+            extra_args: config.extra_args.clone(),
+            append_system_prompt: fork_system_prompt.clone(),
+            working_dir: config.working_dir.clone(),
             ..Default::default()
         };
-        vcr.call("spawn", config, async |c: &SessionConfig| {
+        vcr.call("spawn", session_cfg, async |c: &SessionConfig| {
             let tx = io.replace_event_channel();
             SessionRunner::spawn(c.clone(), tx).await
         })
@@ -52,8 +62,8 @@ pub async fn run<W: Write>(
             &mut input,
             &mut renderer,
             &mut state,
-            &extra_args,
-            working_dir.as_ref(),
+            fork_system_prompt.as_deref(),
+            &config,
             io,
             vcr,
         )
@@ -69,9 +79,16 @@ pub async fn run<W: Write>(
 
     // Main session loop — run sessions with follow-up support
     loop {
-        let outcome =
-            session_loop::run_session(&mut runner, &mut state, &mut renderer, &mut input, io, vcr)
-                .await?;
+        let outcome = session_loop::run_session(
+            &mut runner,
+            &mut state,
+            &mut renderer,
+            &mut input,
+            io,
+            vcr,
+            fork_config.as_ref(),
+        )
+        .await?;
 
         match outcome {
             SessionOutcome::Completed { .. } => {
@@ -102,15 +119,15 @@ pub async fn run<W: Write>(
                 else {
                     break;
                 };
-                let config = SessionConfig {
+                let session_cfg = SessionConfig {
                     prompt: Some(text),
-                    extra_args: extra_args.clone(),
+                    extra_args: config.extra_args.clone(),
+                    append_system_prompt: fork_system_prompt.clone(),
                     resume: Some(session_id),
-                    working_dir: working_dir.clone(),
-                    ..Default::default()
+                    working_dir: config.working_dir.clone(),
                 };
                 runner = vcr
-                    .call("spawn", config, async |c: &SessionConfig| {
+                    .call("spawn", session_cfg, async |c: &SessionConfig| {
                         let tx = io.replace_event_channel();
                         SessionRunner::spawn(c.clone(), tx).await
                     })
@@ -134,8 +151,8 @@ async fn wait_for_initial_prompt<W: Write>(
     input: &mut InputHandler,
     renderer: &mut Renderer<W>,
     state: &mut SessionState,
-    extra_args: &[String],
-    working_dir: Option<&PathBuf>,
+    fork_system_prompt: Option<&str>,
+    run_config: &RunConfig,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
@@ -148,14 +165,15 @@ async fn wait_for_initial_prompt<W: Write>(
                 let action = input.handle_key(&key_event);
                 match action {
                     InputAction::Submit(text, _) => {
-                        let config = SessionConfig {
+                        let session_cfg = SessionConfig {
                             prompt: Some(text),
-                            extra_args: extra_args.to_vec(),
-                            working_dir: working_dir.cloned(),
+                            extra_args: run_config.extra_args.clone(),
+                            append_system_prompt: fork_system_prompt.map(String::from),
+                            working_dir: run_config.working_dir.clone(),
                             ..Default::default()
                         };
                         let runner = vcr
-                            .call("spawn", config, async |c: &SessionConfig| {
+                            .call("spawn", session_cfg, async |c: &SessionConfig| {
                                 let tx = io.replace_event_channel();
                                 SessionRunner::spawn(c.clone(), tx).await
                             })

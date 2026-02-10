@@ -6,6 +6,7 @@ use crossterm::terminal;
 
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
+use crate::fork::{self, ForkConfig};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
@@ -18,18 +19,24 @@ pub struct RalphConfig {
     pub break_tag: String,
     pub no_break: bool,
     pub show_thinking: bool,
+    pub fork: bool,
     pub extra_args: Vec<String>,
     pub working_dir: Option<PathBuf>,
 }
 
 impl RalphConfig {
     fn system_prompt(&self) -> String {
-        if self.no_break {
+        let base = if self.no_break {
             "You are running in a loop where each iteration starts a fresh session but the \
              filesystem persists."
                 .to_string()
         } else {
             SessionRunner::ralph_system_prompt(&self.break_tag)
+        };
+        if self.fork {
+            format!("{base}\n\n{}", fork::fork_system_prompt())
+        } else {
+            base
         }
     }
 }
@@ -52,11 +59,10 @@ pub async fn ralph<W: Write>(
     let mut total_cost = 0.0;
     let mut iteration = 0;
     let system_prompt = config.system_prompt();
+    let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
     'outer: loop {
         iteration += 1;
-
-        // Check iteration limit
         if config.iterations > 0 && iteration > config.iterations {
             renderer.write_raw(&format!(
                 "\r\nReached iteration limit ({})\r\n",
@@ -93,9 +99,9 @@ pub async fn ralph<W: Write>(
                 &mut input,
                 io,
                 vcr,
+                fork_config.as_ref(),
             )
             .await?;
-
             runner.close_input();
             let _ = runner.wait().await;
 
@@ -103,11 +109,8 @@ pub async fn ralph<W: Write>(
                 SessionOutcome::Completed { result_text } => {
                     iteration_cost += state.total_cost_usd;
                     total_cost += iteration_cost;
-
-                    // Show running cost
                     renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
-                    // Check for break tag
                     if !config.no_break
                         && let Some(reason) =
                             SessionRunner::scan_break_tag(&result_text, &config.break_tag)
