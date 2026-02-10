@@ -1,5 +1,6 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use coven::display::renderer::{StoredMessage, format_message};
@@ -130,7 +131,7 @@ fn format_views(messages: &[StoredMessage], views: &[String]) -> String {
         if i > 0 {
             out.push_str("\n--- :next ---\n\n");
         }
-        out.push_str(&format!(":{query}  "));
+        let _ = write!(out, ":{query}  ");
         out.push_str(&format_message(messages, query).expect("view query not found"));
         out.push('\n');
     }

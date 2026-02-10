@@ -237,6 +237,7 @@ fn is_pid_alive(pid: u32) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
@@ -383,12 +384,13 @@ mod tests {
                 args: HashMap::new(),
             },
         ];
-        let status = format_status(&states, std::process::id());
+        let formatted = format_status(&states, std::process::id());
         assert!(
-            status.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
+            formatted
+                .contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
         );
-        assert!(status.contains("bold-oak-7 (PID 12346): idle"));
-        assert!(!status.contains("my-branch"));
+        assert!(formatted.contains("bold-oak-7 (PID 12346): idle"));
+        assert!(!formatted.contains("my-branch"));
     }
 
     #[test]

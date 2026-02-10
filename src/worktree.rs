@@ -474,6 +474,7 @@ fn rsync_ignored(main_path: &Path, worktree_path: &Path) -> Result<(), WorktreeE
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::fs;

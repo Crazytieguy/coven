@@ -126,6 +126,7 @@ fn extract_tag_content(text: &str, tag: &str) -> Result<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::agents::{AgentArg, AgentDef, AgentFrontmatter};
@@ -139,12 +140,12 @@ mod tests {
 
     #[test]
     fn parse_agent_with_args() {
-        let text = r#"The scroll bug is highest priority.
+        let text = r"The scroll bug is highest priority.
 
 <dispatch>
 agent: plan
 issue: issues/fix-scroll-bug.md
-</dispatch>"#;
+</dispatch>";
 
         let decision = parse_decision(text).unwrap();
         assert_eq!(
