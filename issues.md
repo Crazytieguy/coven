@@ -3,5 +3,5 @@
 - [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P2] CLI args duplication: `show_thinking`, `fork`, and `claude_args` are defined identically in three places (root `Cli`, `Ralph`, `Worker` in `cli.rs`). Extract a shared struct and use `#[command(flatten)]`. (plan: plans/cli-args-duplication.md)
-- [P2] Status formatting duplication: `commands/status.rs` duplicates the worker-formatting logic from `worker_state::format_status`. The two differ in minor formatting details (prefix, separator) but share the same structure. Consolidate into a single parameterized formatter.
+- [P2] Status formatting duplication: `commands/status.rs` duplicates the worker-formatting logic from `worker_state::format_status`. The two differ in minor formatting details (prefix, separator) but share the same structure. Consolidate into a single parameterized formatter. (plan: plans/status-formatting-duplication.md)
 
