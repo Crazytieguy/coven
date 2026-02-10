@@ -3,5 +3,4 @@
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P0] `runner.kill()` uses SIGKILL which doesn't give Claude time to persist the conversation. Resume after Ctrl+C fails with "No conversation found with session ID". Consider using SIGTERM or closing stdin instead. (plan: plans/graceful-ctrl-c.md)
 - [P1] VCR test snapshots show title escape sequence leakage: OSC title sequences partially render as visible text (e.g., "oven:" instead of invisible title, "emoving worktree" instead of "Removing worktree"). The test output capture doesn't fully strip OSC sequences. (plan: plans/osc-title-leakage.md)
-- [P1] Consider removing the explicit "mode" system for test case toml files. Instead, just support key combinations generically, ideally using a library. Plan file should either include an implementation plan or a convincing reason not to do this. (plan: plans/remove-mode-system.md)
 
