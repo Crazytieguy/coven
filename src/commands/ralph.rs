@@ -22,6 +22,18 @@ pub struct RalphConfig {
     pub working_dir: Option<PathBuf>,
 }
 
+impl RalphConfig {
+    fn system_prompt(&self) -> String {
+        if self.no_break {
+            "You are running in a loop where each iteration starts a fresh session but the \
+             filesystem persists."
+                .to_string()
+        } else {
+            SessionRunner::ralph_system_prompt(&self.break_tag)
+        }
+    }
+}
+
 /// Run ralph loop mode.
 pub async fn ralph<W: Write>(
     config: RalphConfig,
@@ -39,14 +51,7 @@ pub async fn ralph<W: Write>(
     let mut input = InputHandler::new();
     let mut total_cost = 0.0;
     let mut iteration = 0;
-
-    let system_prompt = if config.no_break {
-        "You are running in a loop where each iteration starts a fresh session but the filesystem \
-         persists."
-            .to_string()
-    } else {
-        SessionRunner::ralph_system_prompt(&config.break_tag)
-    };
+    let system_prompt = config.system_prompt();
 
     'outer: loop {
         iteration += 1;

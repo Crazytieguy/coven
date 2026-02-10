@@ -78,15 +78,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
-    let toml_path = cases_dir.join(format!("{name}.toml"));
-    let vcr_path = cases_dir.join(format!("{name}.vcr"));
-
-    let toml_content = std::fs::read_to_string(&toml_path)
-        .context(format!("Failed to read {}", toml_path.display()))?;
-    let case: TestCase = toml::from_str(&toml_content)?;
-
-    // Set up temp working directory
+/// Create a temp directory with test files, `.claude/settings.json`, and an initial git commit.
+fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
     let tmp_dir = std::env::temp_dir().join(format!("coven-vcr-{name}"));
     if tmp_dir.exists() {
         std::fs::remove_dir_all(&tmp_dir)?;
@@ -101,8 +94,6 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         std::fs::write(&file_path, content)?;
     }
 
-    // Create .claude/settings.json with broad permissions so recordings
-    // aren't blocked by permission prompts.
     let claude_dir = tmp_dir.join(".claude");
     std::fs::create_dir_all(&claude_dir)?;
     std::fs::write(
@@ -110,40 +101,39 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         r#"{"permissions":{"allow":["Bash(*)","WebFetch","WebSearch","mcp__plugin_llms-fetch-mcp_llms-fetch__fetch"]}}"#,
     )?;
 
-    // Initialize git repo with initial commit for test environment.
-    let git_init = std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&tmp_dir)
-        .output()?;
-    anyhow::ensure!(
-        git_init.status.success(),
-        "git init failed: {}",
-        String::from_utf8_lossy(&git_init.stderr)
-    );
+    for (cmd, args) in [
+        ("init", vec![]),
+        ("add", vec!["."]),
+        ("commit", vec!["-m", "initial"]),
+    ] {
+        let output = std::process::Command::new("git")
+            .arg(cmd)
+            .args(&args)
+            .current_dir(&tmp_dir)
+            .env("GIT_AUTHOR_NAME", "test")
+            .env("GIT_AUTHOR_EMAIL", "test@test.com")
+            .env("GIT_COMMITTER_NAME", "test")
+            .env("GIT_COMMITTER_EMAIL", "test@test.com")
+            .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "git {cmd} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
-    let git_add = std::process::Command::new("git")
-        .args(["add", "."])
-        .current_dir(&tmp_dir)
-        .output()?;
-    anyhow::ensure!(
-        git_add.status.success(),
-        "git add failed: {}",
-        String::from_utf8_lossy(&git_add.stderr)
-    );
+    Ok(tmp_dir)
+}
 
-    let git_commit = std::process::Command::new("git")
-        .args(["commit", "-m", "initial"])
-        .current_dir(&tmp_dir)
-        .env("GIT_AUTHOR_NAME", "test")
-        .env("GIT_AUTHOR_EMAIL", "test@test.com")
-        .env("GIT_COMMITTER_NAME", "test")
-        .env("GIT_COMMITTER_EMAIL", "test@test.com")
-        .output()?;
-    anyhow::ensure!(
-        git_commit.status.success(),
-        "git commit failed: {}",
-        String::from_utf8_lossy(&git_commit.stderr)
-    );
+async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
+    let toml_path = cases_dir.join(format!("{name}.toml"));
+    let vcr_path = cases_dir.join(format!("{name}.vcr"));
+
+    let toml_content = std::fs::read_to_string(&toml_path)
+        .context(format!("Failed to read {}", toml_path.display()))?;
+    let case: TestCase = toml::from_str(&toml_content)?;
+
+    let tmp_dir = setup_test_dir(name, &case)?;
 
     // Set up VCR recording with trigger controller
     let (term_tx, term_rx) = mpsc::unbounded_channel();

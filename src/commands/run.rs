@@ -48,7 +48,7 @@ pub async fn run<W: Write>(
     } else {
         renderer.show_prompt();
         input.activate();
-        if let Some(runner) = wait_for_initial_prompt(
+        let Some(runner) = wait_for_initial_prompt(
             &mut input,
             &mut renderer,
             &mut state,
@@ -58,14 +58,13 @@ pub async fn run<W: Write>(
             vcr,
         )
         .await?
-        {
-            runner
-        } else {
+        else {
             if vcr.is_live() {
                 terminal::disable_raw_mode()?;
             }
             return Ok(());
-        }
+        };
+        runner
     };
 
     // Main session loop — run sessions with follow-up support
@@ -93,34 +92,29 @@ pub async fn run<W: Write>(
             SessionOutcome::Interrupted => {
                 runner.close_input();
                 let _ = runner.wait().await;
-                // If we have a session_id, offer to resume; otherwise just exit
-                if let Some(session_id) = state.session_id.take() {
-                    renderer.render_interrupted();
-
-                    match session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr)
-                        .await?
-                    {
-                        Some(text) => {
-                            let config = SessionConfig {
-                                prompt: Some(text),
-                                extra_args: extra_args.clone(),
-                                resume: Some(session_id),
-                                working_dir: working_dir.clone(),
-                                ..Default::default()
-                            };
-                            runner = vcr
-                                .call("spawn", config, async |c: &SessionConfig| {
-                                    let tx = io.replace_event_channel();
-                                    SessionRunner::spawn(c.clone(), tx).await
-                                })
-                                .await?;
-                            state = SessionState::default();
-                        }
-                        None => break,
-                    }
-                } else {
+                let Some(session_id) = state.session_id.take() else {
                     break;
-                }
+                };
+                renderer.render_interrupted();
+                let Some(text) =
+                    session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr).await?
+                else {
+                    break;
+                };
+                let config = SessionConfig {
+                    prompt: Some(text),
+                    extra_args: extra_args.clone(),
+                    resume: Some(session_id),
+                    working_dir: working_dir.clone(),
+                    ..Default::default()
+                };
+                runner = vcr
+                    .call("spawn", config, async |c: &SessionConfig| {
+                        let tx = io.replace_event_channel();
+                        SessionRunner::spawn(c.clone(), tx).await
+                    })
+                    .await?;
+                state = SessionState::default();
             }
             SessionOutcome::ProcessExited => break,
         }
