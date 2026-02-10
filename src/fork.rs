@@ -165,7 +165,11 @@ pub fn compose_reintegration_message(results: &[(String, Result<String, String>)
     let mut xml = String::from("<fork-results>\n");
     for (label, outcome) in results {
         // Escape label for XML attribute
-        let safe_label = label.replace('"', "&quot;");
+        let safe_label = label
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;");
         match outcome {
             Ok(text) => {
                 let _ = write!(
@@ -286,6 +290,17 @@ mod tests {
         let results = vec![("Fix \"quotes\"".to_string(), Ok("done".to_string()))];
         let msg = compose_reintegration_message(&results);
         assert!(msg.contains("label=\"Fix &quot;quotes&quot;\""));
+    }
+
+    #[test]
+    fn compose_reintegration_message_escapes_ampersand_and_angle() {
+        let results = vec![("Fix A & B".to_string(), Ok("done".to_string()))];
+        let msg = compose_reintegration_message(&results);
+        assert!(msg.contains("label=\"Fix A &amp; B\""));
+
+        let results = vec![("Fix <thing>".to_string(), Ok("done".to_string()))];
+        let msg = compose_reintegration_message(&results);
+        assert!(msg.contains("label=\"Fix &lt;thing&gt;\""));
     }
 
     #[test]
