@@ -47,12 +47,15 @@ async fn main() -> Result<()> {
 
             let mut errors = Vec::new();
             for handle in handles {
-                let (name, outcome) = handle.await.expect("task should not panic");
-                match outcome {
-                    Ok(()) => eprintln!("  Done: {name}.vcr"),
-                    Err(e) => {
+                match handle.await {
+                    Ok((name, Ok(()))) => eprintln!("  Done: {name}.vcr"),
+                    Ok((name, Err(e))) => {
                         eprintln!("  FAILED: {name}: {e}");
                         errors.push((name, e));
+                    }
+                    Err(e) => {
+                        eprintln!("  FAILED: task panicked: {e}");
+                        errors.push(("(panicked)".to_string(), e.into()));
                     }
                 }
             }
@@ -161,7 +164,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let mut output = Vec::new();
 
     if case.is_ralph() {
-        let ralph_config = case.ralph.as_ref().unwrap();
+        let ralph_config = case.ralph.as_ref().context("ralph config missing")?;
         let mut extra_args = ralph_config.claude_args.clone();
         if !extra_args.iter().any(|a| a == "--model") {
             extra_args.extend(["--model".to_string(), default_model.to_string()]);
@@ -182,7 +185,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
         )
         .await?;
     } else {
-        let run_config = case.run.as_ref().unwrap();
+        let run_config = case.run.as_ref().context("run config missing")?;
         let mut claude_args = run_config.claude_args.clone();
         if !claude_args.iter().any(|a| a == "--model") {
             claude_args.extend(["--model".to_string(), default_model.to_string()]);
