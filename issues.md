@@ -9,5 +9,5 @@
 - [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
 - [P0] flush_event_buffer mishandles Result and ProcessExit events — Done line shown with pending followups, followup queue order violated, dead-process send on buffered exit (plan: plans/flush-event-buffer-result-handling.md)
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior.
-- [P2] We should unwrap <tool_use_error> when rendering
+- [P2] We should unwrap <tool_use_error> when rendering (plan: plans/unwrap-tool-use-error.md)
 - [P1] A single Ctrl+C Kills coven instead of just interrupting claude (plan: plans/ctrl-c-interrupt.md)
