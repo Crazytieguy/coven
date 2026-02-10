@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use crossterm::terminal;
+use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
 use crate::agents::{self, AgentDef};
@@ -35,6 +36,23 @@ pub struct WorkerConfig {
     pub extra_args: Vec<String>,
 }
 
+/// Serializable args for VCR-recording `worktree::spawn`.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct SpawnArgs {
+    repo_path: String,
+    branch: Option<String>,
+    base_path: String,
+}
+
+/// Serializable args for VCR-recording `worker_state::update`.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct WorkerUpdateArgs {
+    path: String,
+    branch: String,
+    agent: Option<String>,
+    args: HashMap<String, String>,
+}
+
 /// Run a worker: spawn a worktree, loop dispatch → agent → land.
 pub async fn worker<W: Write>(
     mut config: WorkerConfig,
@@ -53,11 +71,20 @@ pub async fn worker<W: Write>(
 
     let project_root = std::env::current_dir()?;
 
-    let spawn_result = worktree::spawn(&SpawnOptions {
-        repo_path: &project_root,
-        branch: config.branch.as_deref(),
-        base_path: &config.worktree_base,
-    })?;
+    let spawn_args = SpawnArgs {
+        repo_path: project_root.display().to_string(),
+        branch: config.branch.clone(),
+        base_path: config.worktree_base.display().to_string(),
+    };
+    let spawn_result = vcr
+        .call_typed_err("worktree::spawn", spawn_args, async |a: &SpawnArgs| {
+            worktree::spawn(&SpawnOptions {
+                repo_path: Path::new(&a.repo_path),
+                branch: a.branch.as_deref(),
+                base_path: Path::new(&a.base_path),
+            })
+        })
+        .await??;
 
     if vcr.is_live() {
         terminal::enable_raw_mode()?;
@@ -68,7 +95,13 @@ pub async fn worker<W: Write>(
     let mut input = InputHandler::new();
     let mut total_cost = 0.0;
 
-    worker_state::register(&spawn_result.worktree_path, &spawn_result.branch)?;
+    let wt_str = spawn_result.worktree_path.display().to_string();
+    vcr.call(
+        "worker_state::register",
+        (wt_str.clone(), spawn_result.branch.clone()),
+        async |a: &(String, String)| worker_state::register(Path::new(&a.0), &a.1),
+    )
+    .await?;
 
     renderer.set_title(&format!("coven: {}", spawn_result.branch));
     renderer.write_raw(&format!(
@@ -98,10 +131,23 @@ pub async fn worker<W: Write>(
     }
     renderer.set_title("");
 
-    worker_state::deregister(&spawn_result.worktree_path);
+    vcr.call(
+        "worker_state::deregister",
+        wt_str.clone(),
+        async |p: &String| -> Result<()> {
+            worker_state::deregister(Path::new(p));
+            Ok(())
+        },
+    )
+    .await?;
 
     renderer.write_raw("\r\nRemoving worktree...\r\n");
-    if let Err(e) = worktree::remove(&spawn_result.worktree_path) {
+    if let Err(e) = vcr
+        .call_typed_err("worktree::remove", wt_str, async |p: &String| {
+            worktree::remove(Path::new(p))
+        })
+        .await?
+    {
         renderer.write_raw(&format!("Warning: failed to remove worktree: {e}\r\n"));
     }
 
@@ -128,7 +174,13 @@ async fn run_dispatch<W: Write>(
     ctx.renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
 
     let agents_dir = worktree_path.join(agents::AGENTS_DIR);
-    let agent_defs = agents::load_agents(&agents_dir)?;
+    let agents_dir_str = agents_dir.display().to_string();
+    let agent_defs = ctx
+        .vcr
+        .call("agents::load_agents", agents_dir_str, async |d: &String| {
+            agents::load_agents(Path::new(d))
+        })
+        .await?;
     if agent_defs.is_empty() {
         bail!("no agent definitions found in {}", agents_dir.display());
     }
@@ -218,11 +270,33 @@ async fn worker_loop<W: Write>(
 ) -> Result<()> {
     loop {
         // Sync worktree to latest main so dispatch sees current issue state
-        worktree::sync_to_main(worktree_path).context("failed to sync worktree to main")?;
+        let wt_str = worktree_path.display().to_string();
+        ctx.vcr
+            .call_typed_err(
+                "worktree::sync_to_main",
+                wt_str.clone(),
+                async |p: &String| worktree::sync_to_main(Path::new(p)),
+            )
+            .await?
+            .context("failed to sync worktree to main")?;
 
         // === Phase 1: Dispatch (under lock) ===
-        let lock = worker_state::acquire_dispatch_lock(worktree_path)?;
-        let all_workers = worker_state::read_all(worktree_path)?;
+        let lock = ctx
+            .vcr
+            .call(
+                "worker_state::acquire_dispatch_lock",
+                wt_str.clone(),
+                async |p: &String| worker_state::acquire_dispatch_lock(Path::new(p)),
+            )
+            .await?;
+        let all_workers = ctx
+            .vcr
+            .call(
+                "worker_state::read_all",
+                wt_str.clone(),
+                async |p: &String| worker_state::read_all(Path::new(p)),
+            )
+            .await?;
         let worker_status = worker_state::format_status(&all_workers);
 
         let Some(dispatch) = run_dispatch(
@@ -238,14 +312,12 @@ async fn worker_loop<W: Write>(
         };
 
         // Update worker state before releasing lock so the next dispatch sees it
-        match &dispatch.decision {
-            DispatchDecision::Sleep => {
-                worker_state::update(worktree_path, branch, None, &HashMap::new())?;
-            }
-            DispatchDecision::RunAgent { agent, args } => {
-                worker_state::update(worktree_path, branch, Some(agent), args)?;
-            }
-        }
+        let empty = HashMap::new();
+        let (agent_name, agent_args) = match &dispatch.decision {
+            DispatchDecision::Sleep => (None, &empty),
+            DispatchDecision::RunAgent { agent, args } => (Some(agent.as_str()), args),
+        };
+        vcr_update_worker_state(ctx.vcr, &wt_str, branch, agent_name, agent_args).await?;
         drop(lock);
 
         *total_cost += dispatch.cost;
@@ -302,7 +374,7 @@ async fn worker_loop<W: Write>(
                 }
 
                 // Clear state so other dispatchers don't see stale agent info
-                worker_state::update(worktree_path, branch, None, &HashMap::new())?;
+                vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;
             }
         }
     }
@@ -334,7 +406,7 @@ async fn run_agent<W: Write>(
     // Clean untracked files before landing. Agents should commit
     // their work; leftover files (test artifacts, temp files) must
     // not block landing and cause committed work to be discarded.
-    warn_clean(worktree_path, ctx.renderer);
+    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
     let commit_result =
         ensure_commits(worktree_path, agent_session_id, extra_args, ctx, total_cost).await?;
@@ -380,7 +452,16 @@ async fn ensure_commits<W: Write>(
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<CommitCheck> {
-    if worktree::has_unique_commits(worktree_path)? {
+    let wt_str = worktree_path.display().to_string();
+    if ctx
+        .vcr
+        .call_typed_err(
+            "worktree::has_unique_commits",
+            wt_str.clone(),
+            async |p: &String| worktree::has_unique_commits(Path::new(p)),
+        )
+        .await??
+    {
         return Ok(CommitCheck::HasCommits {
             session_id: agent_session_id,
         });
@@ -412,9 +493,17 @@ async fn ensure_commits<W: Write>(
             *total_cost += cost;
             ctx.renderer
                 .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-            warn_clean(worktree_path, ctx.renderer);
+            warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-            if worktree::has_unique_commits(worktree_path)? {
+            if ctx
+                .vcr
+                .call_typed_err(
+                    "worktree::has_unique_commits",
+                    wt_str,
+                    async |p: &String| worktree::has_unique_commits(Path::new(p)),
+                )
+                .await??
+            {
                 Ok(CommitCheck::HasCommits { session_id })
             } else {
                 Ok(CommitCheck::NoCommits)
@@ -448,9 +537,16 @@ async fn land_or_resolve<W: Write>(
     // subsequent rounds of conflicts can be resolved in-context.
     let mut resume_session_id = session_id.map(String::from);
     let mut attempts: u32 = 0;
+    let wt_str = worktree_path.display().to_string();
 
     loop {
-        let conflict_files = match worktree::land(worktree_path) {
+        let conflict_files = match ctx
+            .vcr
+            .call_typed_err("worktree::land", wt_str.clone(), async |p: &String| {
+                worktree::land(Path::new(p))
+            })
+            .await?
+        {
             Ok(result) => {
                 ctx.renderer.write_raw(&format!(
                     "Landed {} onto {}\r\n",
@@ -478,7 +574,7 @@ async fn land_or_resolve<W: Write>(
             }
             Err(e) => {
                 // Abort any in-progress rebase (harmless no-op if rebase hasn't started).
-                let _ = worktree::abort_rebase(worktree_path);
+                let _ = vcr_abort_rebase(ctx.vcr, wt_str.clone()).await?;
                 // No attempts counter — user manually presses Enter each time,
                 // so they can inspect the worktree and fix the issue before retrying.
                 ctx.renderer.write_raw(&format!(
@@ -496,7 +592,7 @@ async fn land_or_resolve<W: Write>(
         // After too many failed attempts, pause and let the user decide when to retry
         // (e.g. after other workers quiesce). Abort rebase but keep branch commits.
         if attempts > MAX_ATTEMPTS {
-            worktree::abort_rebase(worktree_path)?;
+            vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
             ctx.renderer.write_raw(&format!(
                 "Conflict resolution failed after {MAX_ATTEMPTS} attempts \
                  — pausing worker. Press Enter to retry.\r\n",
@@ -513,7 +609,7 @@ async fn land_or_resolve<W: Write>(
         // A conflict with no session ID should be impossible — the session ID
         // is captured from the Init event at the start of the agent session.
         let Some(sid) = resume_session_id.as_deref() else {
-            worktree::abort_rebase(worktree_path)?;
+            vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
             bail!(
                 "Rebase conflict in {files_display} but no session ID available \
                  — this should be impossible"
@@ -573,17 +669,28 @@ async fn resolve_conflict<W: Write>(
     extra_args: &[String],
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<ResolveOutcome> {
+    let wt_str = worktree_path.display().to_string();
+
     let PhaseOutcome::Completed {
         cost, session_id, ..
     } = run_phase_session(prompt, worktree_path, extra_args, Some(sid), ctx).await?
     else {
-        abort_and_reset(worktree_path, ctx.renderer)?;
+        abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
         return Ok(ResolveOutcome::Exited);
     };
 
-    warn_clean(worktree_path, ctx.renderer);
+    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-    if !worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+    let is_rebasing = ctx
+        .vcr
+        .call_typed_err(
+            "worktree::is_rebase_in_progress",
+            wt_str.clone(),
+            async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
+        )
+        .await?
+        .unwrap_or(false);
+    if !is_rebasing {
         if session_id.as_deref() != Some(sid) {
             ctx.renderer.write_raw(
                 "Warning: resolution session returned a different session ID than expected.\r\n",
@@ -610,17 +717,26 @@ async fn resolve_conflict<W: Write>(
     )
     .await?
     else {
-        abort_and_reset(worktree_path, ctx.renderer)?;
+        abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
         return Ok(ResolveOutcome::Exited);
     };
 
     let total_cost = cost + nudge_cost;
-    warn_clean(worktree_path, ctx.renderer);
+    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
-    if worktree::is_rebase_in_progress(worktree_path).unwrap_or(false) {
+    let is_rebasing = ctx
+        .vcr
+        .call_typed_err(
+            "worktree::is_rebase_in_progress",
+            wt_str.clone(),
+            async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
+        )
+        .await?
+        .unwrap_or(false);
+    if is_rebasing {
         ctx.renderer
             .write_raw("Rebase still in progress after nudge — aborting this attempt.\r\n");
-        worktree::abort_rebase(worktree_path)?;
+        vcr_abort_rebase(ctx.vcr, wt_str).await??;
         return Ok(ResolveOutcome::Incomplete {
             session_id: nudge_session_id,
             cost: total_cost,
@@ -650,18 +766,71 @@ async fn wait_for_enter_or_exit(io: &mut Io) -> Result<bool> {
 }
 
 /// Abort any in-progress rebase, reset to main, and clean the worktree.
-fn abort_and_reset<W: Write>(worktree_path: &Path, renderer: &mut Renderer<W>) -> Result<()> {
-    let _ = worktree::abort_rebase(worktree_path);
-    worktree::reset_to_main(worktree_path)?;
-    warn_clean(worktree_path, renderer);
+async fn abort_and_reset<W: Write>(
+    worktree_path: &Path,
+    renderer: &mut Renderer<W>,
+    vcr: &VcrContext,
+) -> Result<()> {
+    let wt_str = worktree_path.display().to_string();
+    let _ = vcr_abort_rebase(vcr, wt_str.clone()).await?;
+    vcr.call_typed_err("worktree::reset_to_main", wt_str, async |p: &String| {
+        worktree::reset_to_main(Path::new(p))
+    })
+    .await??;
+    warn_clean(worktree_path, renderer, vcr).await?;
     Ok(())
 }
 
 /// Run `git clean -fd` and warn (but don't fail) if it errors.
-fn warn_clean<W: Write>(worktree_path: &Path, renderer: &mut Renderer<W>) {
-    if let Err(e) = worktree::clean(worktree_path) {
+async fn warn_clean<W: Write>(
+    worktree_path: &Path,
+    renderer: &mut Renderer<W>,
+    vcr: &VcrContext,
+) -> Result<()> {
+    let wt_str = worktree_path.display().to_string();
+    if let Err(e) = vcr
+        .call_typed_err("worktree::clean", wt_str, async |p: &String| {
+            worktree::clean(Path::new(p))
+        })
+        .await?
+    {
         renderer.write_raw(&format!("Warning: worktree clean failed: {e}\r\n"));
     }
+    Ok(())
+}
+
+/// VCR-wrapped `worktree::abort_rebase`.
+async fn vcr_abort_rebase(
+    vcr: &VcrContext,
+    wt_str: String,
+) -> Result<Result<(), worktree::WorktreeError>> {
+    vcr.call_typed_err("worktree::abort_rebase", wt_str, async |p: &String| {
+        worktree::abort_rebase(Path::new(p))
+    })
+    .await
+}
+
+/// VCR-wrapped `worker_state::update`.
+async fn vcr_update_worker_state(
+    vcr: &VcrContext,
+    path: &str,
+    branch: &str,
+    agent: Option<&str>,
+    args: &HashMap<String, String>,
+) -> Result<()> {
+    vcr.call(
+        "worker_state::update",
+        WorkerUpdateArgs {
+            path: path.to_string(),
+            branch: branch.to_string(),
+            agent: agent.map(String::from),
+            args: args.clone(),
+        },
+        async |a: &WorkerUpdateArgs| {
+            worker_state::update(Path::new(&a.path), &a.branch, a.agent.as_deref(), &a.args)
+        },
+    )
+    .await
 }
 
 enum PhaseOutcome {

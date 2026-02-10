@@ -281,8 +281,7 @@ impl VcrContext {
             VcrMode::Live => Ok(f(&args).await),
             VcrMode::Record(entries) => {
                 let result = f(&args).await;
-                let recorded_result: std::result::Result<T::Recorded, E::Recorded> = match &result
-                {
+                let recorded_result: std::result::Result<T::Recorded, E::Recorded> = match &result {
                     Ok(t) => Ok(t.to_recorded()?),
                     Err(e) => Err(e.to_recorded_err()?),
                 };
