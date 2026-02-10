@@ -5,7 +5,7 @@ use anyhow::Result;
 use crossterm::terminal;
 
 use crate::display::input::InputHandler;
-use crate::display::renderer::Renderer;
+use crate::display::renderer::{Renderer, StoredMessage};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
@@ -40,7 +40,7 @@ pub async fn ralph<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
-) -> Result<()> {
+) -> Result<Vec<StoredMessage>> {
     if vcr.is_live() {
         terminal::enable_raw_mode()?;
     }
@@ -155,7 +155,7 @@ pub async fn ralph<W: Write>(
     if vcr.is_live() {
         terminal::disable_raw_mode()?;
     }
-    Ok(())
+    Ok(renderer.into_messages())
 }
 
 #[cfg(test)]

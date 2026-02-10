@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use coven::display::renderer::{StoredMessage, format_message};
 use coven::vcr::{Io, TestCase, VcrContext};
 
 /// Strip ANSI escape codes for readable snapshots.
@@ -23,9 +24,15 @@ fn strip_ansi(s: &str) -> String {
     result
 }
 
+struct TestResult {
+    display: String,
+    messages: Vec<StoredMessage>,
+    views: Vec<usize>,
+}
+
 /// Run a test case through the real command function with VCR replay,
 /// capturing renderer output for snapshot comparison.
-async fn run_vcr_test(name: &str) -> String {
+async fn run_vcr_test(name: &str) -> TestResult {
     let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
     let toml_path = base.join(format!("{name}.toml"));
     let vcr_path = base.join(format!("{name}.vcr"));
@@ -38,11 +45,12 @@ async fn run_vcr_test(name: &str) -> String {
     let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse VCR file");
     let mut io = Io::dummy();
     let mut output = Vec::new();
+    let views = case.views.clone();
 
     // Default to haiku, matching what record-vcr uses during recording.
     let default_model = coven::vcr::DEFAULT_TEST_MODEL;
 
-    if case.is_ralph() {
+    let messages = if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().unwrap();
         let mut extra_args = ralph_config.claude_args.clone();
         if !extra_args.iter().any(|a| a == "--model") {
@@ -63,7 +71,7 @@ async fn run_vcr_test(name: &str) -> String {
             &mut output,
         )
         .await
-        .expect("Command failed during VCR replay");
+        .expect("Command failed during VCR replay")
     } else {
         let run_config = case.run.as_ref().unwrap();
         let mut claude_args = run_config.claude_args.clone();
@@ -80,24 +88,51 @@ async fn run_vcr_test(name: &str) -> String {
             &mut output,
         )
         .await
-        .expect("Command failed during VCR replay");
-    }
+        .expect("Command failed during VCR replay")
+    };
 
     let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
-    strip_ansi(&raw)
+    TestResult {
+        display: strip_ansi(&raw),
+        messages,
+        views,
+    }
+}
+
+/// Format view output for snapshot: one section per viewed message.
+fn format_views(messages: &[StoredMessage], views: &[usize]) -> String {
+    let mut out = String::new();
+    for (i, &n) in views.iter().enumerate() {
+        if i > 0 {
+            out.push_str("\n--- :next ---\n\n");
+        }
+        out.push_str(&format!(":{}  ", n));
+        out.push_str(&format_message(messages, n).expect("view index out of bounds"));
+        out.push('\n');
+    }
+    out
 }
 
 macro_rules! vcr_test {
     ($name:ident) => {
         #[tokio::test]
         async fn $name() {
-            let clean = run_vcr_test(stringify!($name)).await;
+            let result = run_vcr_test(stringify!($name)).await;
             insta::with_settings!({
                 snapshot_path => "../tests/cases",
                 prepend_module_to_snapshot => false,
             }, {
-                insta::assert_snapshot!(stringify!($name), clean);
+                insta::assert_snapshot!(stringify!($name), result.display);
             });
+            if !result.views.is_empty() {
+                let views = format_views(&result.messages, &result.views);
+                insta::with_settings!({
+                    snapshot_path => "../tests/cases",
+                    prepend_module_to_snapshot => false,
+                }, {
+                    insta::assert_snapshot!(concat!(stringify!($name), "__views"), views);
+                });
+            }
         }
     };
 }

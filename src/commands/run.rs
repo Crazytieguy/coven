@@ -6,14 +6,14 @@ use crossterm::event::Event;
 use crossterm::terminal;
 
 use crate::display::input::{InputAction, InputHandler};
-use crate::display::renderer::Renderer;
+use crate::display::renderer::{Renderer, StoredMessage};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
 
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
-/// Run a single interactive session.
+/// Run a single interactive session. Returns the stored messages for inspection.
 pub async fn run<W: Write>(
     prompt: Option<String>,
     extra_args: Vec<String>,
@@ -22,7 +22,7 @@ pub async fn run<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
-) -> Result<()> {
+) -> Result<Vec<StoredMessage>> {
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(show_thinking);
     let mut input = InputHandler::new();
@@ -62,7 +62,7 @@ pub async fn run<W: Write>(
             if vcr.is_live() {
                 terminal::disable_raw_mode()?;
             }
-            return Ok(());
+            return Ok(vec![]);
         };
         runner
     };
@@ -125,7 +125,7 @@ pub async fn run<W: Write>(
     }
     runner.close_input();
     let _ = runner.wait().await;
-    Ok(())
+    Ok(renderer.into_messages())
 }
 
 /// Wait for the user to type an initial prompt. Returns the spawned runner, or None to exit.

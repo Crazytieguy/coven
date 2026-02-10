@@ -1,2 +1,4 @@
+views = [1, 2]
+
 [run]
 prompt = "List files in the current directory"

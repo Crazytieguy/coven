@@ -408,19 +408,11 @@ async fn wait_for_text_input<W: Write>(
 
 /// Open message N in $PAGER.
 pub fn view_message<W: Write>(renderer: &mut Renderer<W>, n: usize) {
-    let messages = renderer.messages();
-    if n == 0 || n > messages.len() {
+    use crate::display::renderer::format_message;
+
+    let Some(content) = format_message(renderer.messages(), n) else {
         renderer.write_raw(&format!("No message {n}\r\n"));
         return;
-    }
-
-    let msg = &messages[n - 1];
-    let content = match &msg.result {
-        Some(result) => format!(
-            "{}\n\n{}\n\n--- Result ---\n\n{}",
-            msg.label, msg.content, result
-        ),
-        None => format!("{}\n\n{}", msg.label, msg.content),
     };
 
     // Leave raw mode so the pager can handle keyboard input.

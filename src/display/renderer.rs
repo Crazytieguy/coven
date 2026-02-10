@@ -18,6 +18,19 @@ pub struct StoredMessage {
     pub result: Option<String>,
 }
 
+/// Format the content of message `n` (1-indexed) for display.
+/// Returns `None` if `n` is out of bounds.
+pub fn format_message(messages: &[StoredMessage], n: usize) -> Option<String> {
+    let msg = messages.get(n.checked_sub(1)?)?;
+    Some(match &msg.result {
+        Some(result) => format!(
+            "{}\n\n{}\n\n--- Result ---\n\n{}",
+            msg.label, msg.content, result
+        ),
+        None => format!("{}\n\n{}", msg.label, msg.content),
+    })
+}
+
 /// Tracks an active subagent (Task tool call) for concurrent rendering.
 struct ActiveSubagent {
     tool_number: usize,
@@ -101,6 +114,10 @@ impl<W: Write> Renderer<W> {
 
     pub fn messages(&self) -> &[StoredMessage] {
         &self.messages
+    }
+
+    pub fn into_messages(self) -> Vec<StoredMessage> {
+        self.messages
     }
 
     // --- Session lifecycle ---

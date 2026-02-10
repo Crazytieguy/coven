@@ -1,0 +1,36 @@
+---
+source: tests/vcr_test.rs
+expression: views
+---
+:2  [2] Read
+
+{
+  "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py"
+}
+
+--- Result ---
+
+     1→def greet(name):
+     2→    print(f'hello, {name}!')
+     3→
+     4→greet('world')
+     5→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+
+--- :next ---
+
+:4  [4] Edit
+
+{
+  "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py",
+  "new_string": "def greet(name):\n    print(f'goodbye, {name}!')\n    print('See you soon!')",
+  "old_string": "def greet(name):\n    print(f'hello, {name}!')"
+}
+
+--- Result ---
+
+The file /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py has been updated successfully.

@@ -1,0 +1,30 @@
+---
+source: tests/vcr_test.rs
+expression: views
+---
+:2  [2] llms-fetch-mcp:llms-fetch:fetch
+
+{
+  "url": "https://docs.rs/tokio"
+}
+
+--- Result ---
+
+## https://docs.rs/tokio
+Saved to: /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-mcp_tool/.llms-fetch-mcp/docs.rs/tokio/index
+Type: html-converted (363 lines, 2195 words, 19410 chars)
+
+### Table of Contents
+  17→[§](#a-tour-of-tokio)A Tour of Tokio
+  37→##### [§](#example)Example #####
+  45→#### [§](#authoring-libraries)Authoring libraries ####
+  52→##### [§](#example-1)Example #####
+  61→### [§](#working-with-tasks)Working With Tasks ###
+ 108→### [§](#cpu-bound-tasks-and-blocking-code)CPU-bound tasks and blocking code ###
+ 156→### [§](#asynchronous-io)Asynchronous IO ###
+ 178→[§](#examples)Examples
+ 220→[§](#feature-flags)Feature flags
+ 257→### [§](#unstable-features)Unstable features ###
+ 302→[§](#supported-platforms)Supported platforms
+ 327→### [§](#wasm-support)`WASM` support ###
+ 347→### [§](#unstable-wasm-support)Unstable `WASM` support ###

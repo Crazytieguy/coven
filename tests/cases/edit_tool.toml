@@ -1,3 +1,5 @@
+views = [2, 4]
+
 [run]
 prompt = "In greeting.py, change the greeting from 'hello' to 'goodbye' and add a farewell line"
 

@@ -1,0 +1,24 @@
+---
+source: tests/vcr_test.rs
+expression: views
+---
+:1  [1] Thinking
+
+The user wants to see the files in the current directory. I should use the Bash tool to list the files. Let me do that.
+
+--- :next ---
+
+:2  [2] Bash
+
+{
+  "command": "ls -la",
+  "description": "List files in current directory with details"
+}
+
+--- Result ---
+
+total 0
+drwxr-xr-x@    4 yoav  staff     128 Feb  9 20:09 .
+drwx------@ 9801 yoav  staff  313632 Feb  9 20:09 ..
+drwxr-xr-x@    5 yoav  staff     160 Feb  9 20:09 .claude
+drwxr-xr-x@   12 yoav  staff     384 Feb  9 20:09 .git
