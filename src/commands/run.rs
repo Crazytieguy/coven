@@ -41,43 +41,22 @@ pub async fn run<W: Write>(
     let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
-    // Get initial runner: either from prompt or by waiting for user input
-    let mut runner = if let Some(prompt) = config.prompt {
-        let session_cfg = SessionConfig {
-            prompt: Some(prompt),
-            extra_args: config.extra_args.clone(),
-            append_system_prompt: fork_system_prompt.clone(),
-            working_dir: config.working_dir.clone(),
-            ..Default::default()
-        };
-        vcr.call("spawn", session_cfg, async |c: &SessionConfig| {
-            let tx = io.replace_event_channel();
-            SessionRunner::spawn(c.clone(), tx).await
-        })
-        .await?
-    } else {
-        renderer.show_prompt();
-        input.activate();
-        let Some(runner) = wait_for_initial_prompt(
-            &mut input,
-            &mut renderer,
-            &mut state,
-            fork_system_prompt.as_deref(),
-            &config,
-            io,
-            vcr,
-        )
-        .await?
-        else {
-            if vcr.is_live() {
-                terminal::disable_raw_mode()?;
-            }
-            return Ok(vec![]);
-        };
-        runner
+    let Some(mut runner) = get_initial_runner(
+        &config,
+        &mut renderer,
+        &mut input,
+        &mut state,
+        fork_system_prompt.as_deref(),
+        io,
+        vcr,
+    )
+    .await?
+    else {
+        if vcr.is_live() {
+            terminal::disable_raw_mode()?;
+        }
+        return Ok(vec![]);
     };
-
-    // Main session loop — run sessions with follow-up support
     loop {
         let outcome = session_loop::run_session(
             &mut runner,
@@ -126,12 +105,7 @@ pub async fn run<W: Write>(
                     resume: Some(session_id),
                     working_dir: config.working_dir.clone(),
                 };
-                runner = vcr
-                    .call("spawn", session_cfg, async |c: &SessionConfig| {
-                        let tx = io.replace_event_channel();
-                        SessionRunner::spawn(c.clone(), tx).await
-                    })
-                    .await?;
+                runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
                 state = SessionState::default();
             }
             SessionOutcome::ProcessExited => break,
@@ -146,16 +120,33 @@ pub async fn run<W: Write>(
     Ok(renderer.into_messages())
 }
 
-/// Wait for the user to type an initial prompt. Returns the spawned runner, or None to exit.
-async fn wait_for_initial_prompt<W: Write>(
-    input: &mut InputHandler,
+/// Get the initial runner: either from prompt or by waiting for interactive input.
+/// Returns None if the user exits without submitting.
+async fn get_initial_runner<W: Write>(
+    config: &RunConfig,
     renderer: &mut Renderer<W>,
+    input: &mut InputHandler,
     state: &mut SessionState,
     fork_system_prompt: Option<&str>,
-    run_config: &RunConfig,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
+    if let Some(ref prompt) = config.prompt {
+        let session_cfg = SessionConfig {
+            prompt: Some(prompt.clone()),
+            extra_args: config.extra_args.clone(),
+            append_system_prompt: fork_system_prompt.map(String::from),
+            working_dir: config.working_dir.clone(),
+            ..Default::default()
+        };
+        return Ok(Some(
+            session_loop::spawn_session(session_cfg, io, vcr).await?,
+        ));
+    }
+
+    renderer.show_prompt();
+    input.activate();
+
     loop {
         let io_event: IoEvent = vcr
             .call("next_event", (), async |(): &()| io.next_event().await)
@@ -167,17 +158,12 @@ async fn wait_for_initial_prompt<W: Write>(
                     InputAction::Submit(text, _) => {
                         let session_cfg = SessionConfig {
                             prompt: Some(text),
-                            extra_args: run_config.extra_args.clone(),
+                            extra_args: config.extra_args.clone(),
                             append_system_prompt: fork_system_prompt.map(String::from),
-                            working_dir: run_config.working_dir.clone(),
+                            working_dir: config.working_dir.clone(),
                             ..Default::default()
                         };
-                        let runner = vcr
-                            .call("spawn", session_cfg, async |c: &SessionConfig| {
-                                let tx = io.replace_event_channel();
-                                SessionRunner::spawn(c.clone(), tx).await
-                            })
-                            .await?;
+                        let runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
                         state.status = SessionStatus::Running;
                         return Ok(Some(runner));
                     }

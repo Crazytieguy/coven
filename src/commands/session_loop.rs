@@ -11,7 +11,7 @@ use crate::event::{AppEvent, InputMode};
 use crate::fork::{self, ForkConfig};
 use crate::handle_inbound;
 use crate::protocol::types::InboundEvent;
-use crate::session::runner::SessionRunner;
+use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
 
@@ -442,6 +442,19 @@ async fn wait_for_text_input<W: Write>(
             IoEvent::Terminal(_) | IoEvent::Claude(_) => {}
         }
     }
+}
+
+/// Spawn a new Claude session via VCR.
+pub async fn spawn_session(
+    config: SessionConfig,
+    io: &mut Io,
+    vcr: &VcrContext,
+) -> Result<SessionRunner> {
+    vcr.call("spawn", config, async |c: &SessionConfig| {
+        let tx = io.replace_event_channel();
+        SessionRunner::spawn(c.clone(), tx).await
+    })
+    .await
 }
 
 /// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").

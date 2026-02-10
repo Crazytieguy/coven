@@ -82,12 +82,7 @@ pub async fn ralph<W: Write>(
             ..Default::default()
         };
 
-        let mut runner = vcr
-            .call("spawn", session_config, async |c: &SessionConfig| {
-                let tx = io.replace_event_channel();
-                SessionRunner::spawn(c.clone(), tx).await
-            })
-            .await?;
+        let mut runner = session_loop::spawn_session(session_config, io, vcr).await?;
         let mut state = SessionState::default();
         let mut iteration_cost = 0.0;
 
@@ -140,12 +135,7 @@ pub async fn ralph<W: Write>(
                                 resume: Some(session_id),
                                 working_dir: config.working_dir.clone(),
                             };
-                            runner = vcr
-                                .call("spawn", resume_config, async |c: &SessionConfig| {
-                                    let tx = io.replace_event_channel();
-                                    SessionRunner::spawn(c.clone(), tx).await
-                                })
-                                .await?;
+                            runner = session_loop::spawn_session(resume_config, io, vcr).await?;
                             state = SessionState::default();
                         }
                         None => break 'outer,
