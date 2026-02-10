@@ -2,6 +2,19 @@
 
 An oven for claude. A minimal streaming display and workflow runner for Claude Code's `-p` mode.
 
+## Install
+
+```bash
+# Homebrew
+brew install Crazytieguy/tap/coven
+
+# Shell (macOS/Linux)
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Crazytieguy/coven/releases/latest/download/coven-installer.sh | sh
+
+# Cargo
+cargo install coven
+```
+
 ## Why?
 
 The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` to provide a clean, lightweight display with support for follow-up messages, mid-stream steering, and looping workflows.

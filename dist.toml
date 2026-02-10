@@ -1,0 +1,3 @@
+# Only distribute the main binary, not dev tools like record-vcr
+[package]
+binaries = ["coven"]
