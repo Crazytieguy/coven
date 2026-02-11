@@ -961,7 +961,7 @@ async fn run_phase_session<W: Write>(
         working_dir: Some(working_dir.to_path_buf()),
     };
 
-    let mut runner = session_loop::spawn_session(session_config, ctx.io, ctx.vcr).await?;
+    let mut runner = session_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
     let mut state = SessionState::default();
 
     loop {
@@ -998,15 +998,7 @@ async fn run_phase_session<W: Write>(
                     .await?
                 {
                     Some(text) => {
-                        let resume_config = SessionConfig {
-                            prompt: Some(text),
-                            extra_args: extra_args.to_vec(),
-                            append_system_prompt: ctx
-                                .fork_config
-                                .map(|_| fork::fork_system_prompt().to_string()),
-                            resume: Some(session_id),
-                            working_dir: Some(working_dir.to_path_buf()),
-                        };
+                        let resume_config = session_config.resume_with(text, session_id);
                         runner =
                             session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
                         let prev_session_id = state.session_id.clone();

@@ -42,6 +42,13 @@ pub async fn run<W: Write>(
     }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
+    let base_session_cfg = SessionConfig {
+        extra_args: config.extra_args.clone(),
+        append_system_prompt: fork_system_prompt.clone(),
+        working_dir: config.working_dir.clone(),
+        ..Default::default()
+    };
+
     let Some(mut runner) = get_initial_runner(
         &config,
         &mut renderer,
@@ -96,13 +103,7 @@ pub async fn run<W: Write>(
                 else {
                     break;
                 };
-                let session_cfg = SessionConfig {
-                    prompt: Some(text),
-                    extra_args: config.extra_args.clone(),
-                    append_system_prompt: fork_system_prompt.clone(),
-                    resume: Some(session_id),
-                    working_dir: config.working_dir.clone(),
-                };
+                let session_cfg = base_session_cfg.resume_with(text, session_id);
                 runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
                 let prev_session_id = state.session_id.clone();
                 state = SessionState::default();

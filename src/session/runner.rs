@@ -28,6 +28,18 @@ pub struct SessionConfig {
     pub working_dir: Option<PathBuf>,
 }
 
+impl SessionConfig {
+    /// Create a resume config by cloning this config and setting the prompt and session ID.
+    #[must_use]
+    pub fn resume_with(&self, prompt: String, session_id: String) -> Self {
+        SessionConfig {
+            prompt: Some(prompt),
+            resume: Some(session_id),
+            ..self.clone()
+        }
+    }
+}
+
 /// Manages a claude -p subprocess with bidirectional stream-json.
 ///
 /// The `child` field is optional to support VCR replay mode, where a stub

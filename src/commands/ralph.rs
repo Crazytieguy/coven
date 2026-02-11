@@ -83,7 +83,7 @@ pub async fn ralph<W: Write>(
             ..Default::default()
         };
 
-        let mut runner = session_loop::spawn_session(session_config, io, vcr).await?;
+        let mut runner = session_loop::spawn_session(session_config.clone(), io, vcr).await?;
         let mut state = SessionState::default();
         let mut iteration_cost = 0.0;
 
@@ -132,13 +132,7 @@ pub async fn ralph<W: Write>(
                         .await?
                     {
                         Some(text) => {
-                            let resume_config = SessionConfig {
-                                prompt: Some(text),
-                                extra_args: config.extra_args.clone(),
-                                append_system_prompt: Some(system_prompt.clone()),
-                                resume: Some(session_id),
-                                working_dir: config.working_dir.clone(),
-                            };
+                            let resume_config = session_config.resume_with(text, session_id);
                             runner = session_loop::spawn_session(resume_config, io, vcr).await?;
                             let prev_session_id = state.session_id.clone();
                             state = SessionState::default();
