@@ -158,6 +158,7 @@
       "Bash(git checkout *)",
       "Bash(git clean *)",
       "Bash(git mv *)",
+      "Bash(git rm *)",
       "Bash(set -C)"
     ],
     "deny": [
