@@ -3,25 +3,38 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 66e0719b-cba3-4543-8dad-493db673d600 (claude-haiku-4-5-20251001)
+Session e593aad8-7438-471c-9c18-002ebe57c429 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-> <fork>
+> I'll use fork to delegate these two file creation tasks in parallel:
+
+<fork>
 - Create hello.txt with 'hello world'
 - Create goodbye.txt with 'goodbye world'
 </fork>
 
+[2] ⑂ Fork  Create hello.txt with 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+⏳ queued: x
+[5] Thinking...
+Perfect! Both files have been created successfully:
+- ✓ hello.txt with 'hello world'
+- ✓ goodbye.txt with 'goodbye world'
+
+The fork delegated both tasks to run concurrently, and they completed in parallel.
+
+⤷ follow-up: x
+[6] Thinking...
+I'm not sure what you need—could you clarify? Are you looking to:
+- Delete those files?
+- Verify the files were created?
+- Do something else?
+
+Let me know how I can help!
 
 
-[2] Thinking...
-I've delegated both file creation tasks. They'll run concurrently and I'll get the results back shortly.
-
-
-Done  $0.02 · 4.1s · 1 turn  (:N to view)
-> x
-[3] Thinking...
-I'm here! Are you waiting for the fork tasks to complete, or is there something else you'd like me to do?
-
-
-Done  $0.03 · 3.6s · 1 turn  (:N to view)
+Done  $0.01 · 2.6s · 1 turn  (:N to view)
 >

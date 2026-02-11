@@ -3,7 +3,7 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session efe32f2b-955f-45f1-b8fb-7aa01dbb12c2 (claude-haiku-4-5-20251001)
+Session db9f69cb-df58-4f5d-9d0d-12f1d2fd3105 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
@@ -13,14 +13,10 @@ Session efe32f2b-955f-45f1-b8fb-7aa01dbb12c2 (claude-haiku-4-5-20251001)
 ---
 
 [3] Thinking...
-I've already completed your request—I read hello.txt and found that it contains:
-
-```
-Hello from the test file!
-```
-
-What would you like me to do next?
+[4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[5] Thinking...
+The file `hello.txt` says: **"Hello from the test file!"**
 
 
-Done  $0.01 · 2.5s · 1 turn  (:N to view)
+Done  $0.03 · 6.6s · 2 turns  (:N to view)
 >

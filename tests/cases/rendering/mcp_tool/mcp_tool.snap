@@ -3,29 +3,27 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 1efa3265-a2d3-4ecf-a103-b13a3555e59f (claude-haiku-4-5-20251001)
+Session c03a0a1e-80f6-4838-af78-3d0f605365b6 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ llms-fetch-mcp:llms-fetch:fetch  https://docs.rs/tokio
 [3] Thinking...
-I've fetched the tokio documentation from https://docs.rs/tokio. The content has been saved and converted to markdown at:
+I've fetched the tokio documentation from https://docs.rs/tokio. The content has been saved locally and includes:
 
-```
-/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-mcp_tool/.llms-fetch-mcp/docs.rs/tokio/index
-```
-
-The documentation includes these main sections:
+**Main sections:**
 - **A Tour of Tokio** - Introduction with examples
-- **Authoring libraries** - How to use tokio when writing libraries
-- **Working With Tasks** - Task management and async patterns
+- **Authoring libraries** - Best practices for library authors
+- **Working With Tasks** - Task management and spawning
 - **CPU-bound tasks and blocking code** - Handling blocking operations
-- **Asynchronous IO** - Async I/O patterns
+- **Asynchronous IO** - Non-blocking I/O patterns
 - **Examples** - Code examples
-- **Feature flags** - Available cargo features
-- **Platform support** - Supported platforms including WASM support
+- **Feature flags** - Configuration options
+- **Unstable features** - Experimental APIs
+- **Supported platforms** - Platform compatibility
+- **WASM support** - WebAssembly compatibility
 
-You can read the full documentation from the saved file. Would you like me to explore any specific section or help you with something related to tokio?
+The documentation is now cached locally at `.llms-fetch-mcp/docs.rs/tokio/index`. What would you like to do with the tokio documentation?
 
 
-Done  $0.01 · 6.5s · 2 turns  (:N to view)
+Done  $0.01 · 10.0s · 2 turns  (:N to view)
 >

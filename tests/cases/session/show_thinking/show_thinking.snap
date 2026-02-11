@@ -3,27 +3,23 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 85c9f38d-e3e4-4a17-9020-7f8850bc1d9e (claude-haiku-4-5-20251001)
+Session 4f69867d-319a-4b1c-8ed6-4acffbba975a (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 The user wants me to:
 1. Write a hello world script to hello.py
-2. Change the greeting to say "hi" instead of "hello"
+2. Change the greeting to "hi" instead of "hello"
 
-This is straightforward. I should create a hello.py file with a simple script that prints "hi world" (or similar with "hi" instead of "hello").
+This is straightforward - I should create a simple Python script that prints "hi world" instead of "hello world".
 
-Let me write this file.
+Since the file doesn't exist yet, I'll use the Write tool to create it with the content.
 
 [2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 [3] Thinking...
-Great! I've created the hello.py file with the greeting changed to "hi" instead of "hello". The file now contains a simple Python script that prints "hi world".
+Done! I've created a hello.py file with the greeting changed to "hi" as requested. The script prints "hi world" instead of the traditional "hello world".
 
-Done! I've created `hello.py` with the greeting changed to "hi":
-
-```python
-print("hi world")
-```
+Done! I've created `hello.py` with a greeting of "hi world".
 
 
-Done  $0.01 · 6.2s · 2 turns  (:N to view)
+Done  $0.01 · 9.1s · 2 turns  (:N to view)
 >
