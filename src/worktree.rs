@@ -147,6 +147,12 @@ fn generate_branch_name() -> String {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
+/// Get the main branch name by parsing `git worktree list --porcelain`.
+pub fn main_branch_name(repo: &Path) -> Result<String, WorktreeError> {
+    let (_, branch) = find_main_worktree(repo)?;
+    Ok(branch)
+}
+
 /// A git worktree entry from `git worktree list --porcelain`.
 #[derive(Serialize, Deserialize)]
 pub struct WorktreeEntry {

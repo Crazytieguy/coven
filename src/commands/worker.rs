@@ -989,23 +989,12 @@ async fn wait_for_new_commits<W: Write>(
 
 /// Get the SHA of the main branch's HEAD.
 fn main_head_sha(worktree_path: &Path) -> Result<String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(worktree_path)
-        .args(["worktree", "list", "--porcelain"])
-        .output()
-        .context("failed to run git worktree list")?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let main_branch = stdout
-        .lines()
-        .find_map(|line| line.strip_prefix("branch refs/heads/"))
-        .context("could not find main branch in worktree list")?;
+    let main_branch = worktree::main_branch_name(worktree_path)?;
 
     let output = std::process::Command::new("git")
         .arg("-C")
         .arg(worktree_path)
-        .args(["rev-parse", main_branch])
+        .args(["rev-parse", &main_branch])
         .output()
         .context("failed to run git rev-parse")?;
 
