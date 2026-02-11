@@ -1,6 +1,6 @@
 # Orchestration Workflow
 
-This project uses [coven](https://github.com/yoavshapira/coven) for orchestrated development. Multiple workers run simultaneously, each picking up tasks from the issue queue.
+This project uses [coven](https://github.com/Crazytieguy/coven) for orchestrated development. Multiple workers run simultaneously, each picking up tasks from the issue queue.
 
 ## Issue Files
 
