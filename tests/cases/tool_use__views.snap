@@ -12,10 +12,7 @@ I'll use `ls -la` to show all files including hidden ones with details.
 
 :Bash  [2] Bash
 
-{
-  "command": "ls -la",
-  "description": "List all files in current directory with details"
-}
+$ ls -la
 
 --- Result ---
 

@@ -4,10 +4,7 @@ expression: views
 ---
 :Bash[0]  [2] Bash
 
-{
-  "command": "bash test.sh",
-  "description": "Run the test script"
-}
+$ bash test.sh
 
 --- Result ---
 
@@ -24,11 +21,13 @@ The test script ran but exited with code 1 (failure) and gave us "Running tests.
 
 :Edit  [14] Edit
 
-{
-  "file_path": "/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh",
-  "new_string": "#!/bin/bash\necho 'Running tests...'\nexit 0",
-  "old_string": "#!/bin/bash\necho 'Running tests...'\nexit 1"
-}
+/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh
+- #!/bin/bash
+- echo 'Running tests...'
+- exit 1
++ #!/bin/bash
++ echo 'Running tests...'
++ exit 0
 
 --- Result ---
 
@@ -38,10 +37,7 @@ The file /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-erro
 
 :Bash[-1]  [16] Bash
 
-{
-  "command": "bash test.sh",
-  "description": "Run the test script again"
-}
+$ bash test.sh
 
 --- Result ---
 

@@ -260,7 +260,8 @@ fn format_views(messages: &[StoredMessage], views: &[String]) -> String {
             out.push_str("\n--- :next ---\n\n");
         }
         let _ = write!(out, ":{query}  ");
-        out.push_str(&format_message(messages, query).expect("view query not found"));
+        let view = format_message(messages, query).expect("view query not found");
+        out.push_str(&strip_ansi(&view));
         out.push('\n');
     }
     out

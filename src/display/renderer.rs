@@ -28,12 +28,20 @@ pub struct StoredMessage {
 /// Returns `None` if no message matches.
 pub fn format_message(messages: &[StoredMessage], query: &str) -> Option<String> {
     let msg = resolve_query(messages, query)?;
+    let tool_name = tool_name_from_label(&msg.label);
+
+    // Try tool-specific formatting; fall back to stored content (pretty JSON or plain text)
+    let content = serde_json::from_str::<Value>(&msg.content)
+        .ok()
+        .and_then(|input| format_tool_view(tool_name, &input))
+        .unwrap_or_else(|| msg.content.clone());
+
     Some(match &msg.result {
         Some(result) => format!(
             "{}\n\n{}\n\n--- Result ---\n\n{}",
-            msg.label, msg.content, result
+            msg.label, content, result
         ),
-        None => format!("{}\n\n{}", msg.label, msg.content),
+        None => format!("{}\n\n{}", msg.label, content),
     })
 }
 
@@ -755,7 +763,86 @@ impl<W: Write> Renderer<W> {
     }
 }
 
-/// Format tool detail based on tool name and input.
+/// Format a tool call's input for the `:N` detail view, dispatching on tool name.
+/// Returns `None` for unknown tools (falls back to pretty JSON).
+/// NOTE: When adding a tool here, also update [`format_tool_detail`].
+fn format_tool_view(tool_name: &str, input: &Value) -> Option<String> {
+    match tool_name {
+        "Read" => {
+            let path = get_str(input, "file_path")?;
+            let offset = input.get("offset").and_then(Value::as_u64);
+            let limit = input.get("limit").and_then(Value::as_u64);
+            Some(match (offset, limit) {
+                (Some(o), Some(l)) => format!("{path} (offset: {o}, limit: {l})"),
+                (Some(o), None) => format!("{path} (offset: {o})"),
+                (None, Some(l)) => format!("{path} (limit: {l})"),
+                (None, None) => path.to_string(),
+            })
+        }
+        "Edit" => {
+            let path = get_str(input, "file_path")?;
+            let old = get_str(input, "old_string").unwrap_or("");
+            let new = get_str(input, "new_string").unwrap_or("");
+            let mut lines = vec![path.to_string()];
+            for line in old.lines() {
+                lines.push(format!("\x1b[31m- {line}\x1b[0m"));
+            }
+            for line in new.lines() {
+                lines.push(format!("\x1b[32m+ {line}\x1b[0m"));
+            }
+            Some(lines.join("\n"))
+        }
+        "Write" => {
+            let path = get_str(input, "file_path")?;
+            let content = get_str(input, "content").unwrap_or("");
+            let mut lines = vec![path.to_string()];
+            for (i, line) in content.lines().enumerate() {
+                lines.push(format!("{:>4}  {line}", i + 1));
+            }
+            Some(lines.join("\n"))
+        }
+        "Bash" => {
+            let cmd = get_str(input, "command")?;
+            Some(format!("$ {cmd}"))
+        }
+        "Glob" => {
+            let pattern = get_str(input, "pattern")?;
+            match get_str(input, "path") {
+                Some(path) => Some(format!("{pattern}  in {path}")),
+                None => Some(pattern.to_string()),
+            }
+        }
+        "Grep" => {
+            let pattern = get_str(input, "pattern")?;
+            match get_str(input, "path") {
+                Some(path) => Some(format!("/{pattern}/  in {path}")),
+                None => Some(format!("/{pattern}/")),
+            }
+        }
+        "WebFetch" => {
+            let url = get_str(input, "url")?;
+            match get_str(input, "prompt") {
+                Some(prompt) => Some(format!("{url}\n\n{prompt}")),
+                None => Some(url.to_string()),
+            }
+        }
+        "WebSearch" => {
+            let query = get_str(input, "query")?;
+            Some(query.to_string())
+        }
+        "Task" => {
+            let desc = get_str(input, "description")?;
+            match get_str(input, "subagent_type") {
+                Some(agent_type) => Some(format!("[{agent_type}] {desc}")),
+                None => Some(desc.to_string()),
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Format a compact one-liner for the streaming tool call display.
+/// NOTE: When adding a tool here, also update [`format_tool_view`].
 fn format_tool_detail(name: &str, input: &Value) -> String {
     match name {
         "Read" => get_str(input, "file_path").unwrap_or_default().to_string(),
