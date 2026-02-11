@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: new
+state: review
 ---
 
 # `main_head_sha` doesn't check git command exit status
@@ -36,3 +36,20 @@ if !output.status.success() {
 ```
 
 Alternatively, reuse `worktree::main_branch_name` + a hypothetical `worktree::rev_parse` helper, or call the existing `worktree::git()` helper (though it's private to the worktree module).
+
+## Plan
+
+Add an `output.status.success()` check to `main_head_sha` in `src/commands/worker.rs:1134-1145`, matching the pattern already used by `resolve_ref_paths` at line 1077 and `worktree::git()` at `src/worktree.rs:84-93`.
+
+In `main_head_sha`, after the `.output()` call succeeds, add:
+
+```rust
+if !output.status.success() {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    bail!("git rev-parse failed: {}", stderr.trim());
+}
+```
+
+This turns a git failure into an `Err`, which propagates up through `vcr_main_head_sha` → `wait_for_new_commits`. The caller already uses `?` on both the `initial_head` (line 1105) and `current` (line 1113) calls, so a transient git error will abort the wait loop with an error instead of silently producing a garbage SHA that triggers a false "new commits detected" wake-up.
+
+No new tests needed — this is a one-line guard on an existing code path, and the function is already VCR-wrapped so its behavior in tests is determined by recorded fixtures.
