@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Design VCR tests that evaluate orchestration quality
@@ -300,4 +300,4 @@ Both issues modify line 1 of README.md, guaranteeing a rebase conflict for which
 
 ## Questions
 
-**Should all four tests use haiku (the current default `DEFAULT_TEST_MODEL`) or should any use a more capable model?** Haiku is cheaper/faster but may struggle with the `needs_replan` scenario (correctly detecting the plan is broken and setting needs-replan). The existing orchestration tests all use haiku.
+**Should all four tests use haiku (the current default `DEFAULT_TEST_MODEL`) or should any use a more capable model?** Use haiku for all — this stress-tests the prompts so they're flawless for more capable models.
