@@ -228,7 +228,7 @@ async fn handle_session_key_event<W: Write>(
             }
         }
         InputAction::ViewMessage(ref query) => {
-            view_message(renderer, query);
+            view_message(renderer, query)?;
             let flush = flush_event_buffer(locals, state, renderer);
             if let FlushResult::Completed(ref result_text) = flush {
                 return Ok(LoopAction::Return(SessionOutcome::Completed {
@@ -469,7 +469,7 @@ async fn wait_for_text_input<W: Write>(
                         return Ok(Some(text));
                     }
                     InputAction::ViewMessage(ref query) => {
-                        view_message(renderer, query);
+                        view_message(renderer, query)?;
                     }
                     InputAction::Cancel => {
                         renderer.show_prompt();
@@ -505,12 +505,12 @@ pub async fn spawn_session(
 }
 
 /// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").
-pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) {
+pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) -> Result<()> {
     use crate::display::renderer::format_message;
 
     let Some(mut content) = format_message(renderer.messages(), query) else {
         renderer.write_raw(&format!("No message {query}\r\n"));
-        return;
+        return Ok(());
     };
 
     // Pad short content with trailing newlines so the pager shows it top-aligned.
@@ -526,24 +526,36 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) {
     terminal::disable_raw_mode().ok();
 
     let pager = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    let mut child = StdCommand::new(&pager)
+    let mut child = match StdCommand::new(&pager)
         .arg("-R") // handle ANSI colors
         .stdin(std::process::Stdio::piped())
-        .spawn();
-
-    if let Ok(ref mut child) = child {
-        if let Some(ref mut stdin) = child.stdin {
-            stdin.write_all(content.as_bytes()).ok();
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(e) => {
+            // Re-enable raw mode before writing the error, since write_raw expects raw mode
+            terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
+            renderer.write_raw(&format!("Failed to open pager '{pager}': {e}\r\n"));
+            return Ok(());
         }
-        // Close stdin so pager reads EOF
-        child.stdin.take();
-        child.wait().ok();
+    };
+
+    if let Some(ref mut stdin) = child.stdin
+        && let Err(e) = stdin.write_all(content.as_bytes())
+    {
+        // Not fatal — pager may have quit early (broken pipe). Log and continue
+        // so we still wait on the child and restore terminal state.
+        eprintln!("pager write error: {e}");
     }
+    // Close stdin so pager reads EOF
+    child.stdin.take();
+    child.wait().ok();
 
     // Discard any keystrokes buffered in the kernel's terminal input queue
     // while the pager was active — prevents stale keys from leaking into the prompt.
     // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
     // discards buffered input bytes — no memory or resource safety concerns.
     unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
-    terminal::enable_raw_mode().ok();
+    terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
+    Ok(())
 }
