@@ -361,11 +361,9 @@ async fn worker_loop<W: Write>(
                 }
             }
             DispatchDecision::RunAgent { agent, args } => {
-                let args_display = args
-                    .iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
+                let mut args_parts: Vec<_> = args.iter().map(|(k, v)| format!("{k}={v}")).collect();
+                args_parts.sort();
+                let args_display = args_parts.join(" ");
                 ctx.renderer
                     .write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
 
