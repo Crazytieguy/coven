@@ -10,8 +10,30 @@ pub fn extract_tag_inner<'a>(text: &'a str, tag: &str) -> Option<&'a str> {
     let close = format!("</{tag}>");
     let start = text.find(&open)?;
     let after_open = start + open.len();
-    let end = text[after_open..].find(&close)?;
-    Some(&text[after_open..after_open + end])
+    let rest = &text[after_open..];
+    let mut depth = 1u32;
+    let mut pos = 0;
+    while depth > 0 {
+        let next_open = rest[pos..].find(&open).map(|i| (pos + i, true));
+        let next_close = rest[pos..].find(&close).map(|i| (pos + i, false));
+        let next = match (next_open, next_close) {
+            (Some(o), Some(c)) if o.0 < c.0 => o,
+            (_, Some(c)) => c,
+            (Some(o), None) => o,
+            (None, None) => return None,
+        };
+        if next.1 {
+            depth += 1;
+            pos = next.0 + open.len();
+        } else {
+            depth -= 1;
+            if depth == 0 {
+                return Some(&rest[..next.0]);
+            }
+            pos = next.0 + close.len();
+        }
+    }
+    None
 }
 
 /// Parse a single NDJSON line into an `InboundEvent`.
@@ -55,6 +77,30 @@ mod tests {
         assert_eq!(
             extract_tag_inner("<t>  spaced  </t>", "t"),
             Some("  spaced  ")
+        );
+    }
+
+    #[test]
+    fn extract_tag_nested() {
+        assert_eq!(
+            extract_tag_inner("<break>outer <break>inner</break> after</break>", "break"),
+            Some("outer <break>inner</break> after")
+        );
+    }
+
+    #[test]
+    fn extract_tag_two_separate_pairs() {
+        assert_eq!(
+            extract_tag_inner("<foo>first</foo> gap <foo>second</foo>", "foo"),
+            Some("first")
+        );
+    }
+
+    #[test]
+    fn extract_tag_deeply_nested() {
+        assert_eq!(
+            extract_tag_inner("<t><t><t>deep</t></t></t>", "t"),
+            Some("<t><t>deep</t></t>")
         );
     }
 
