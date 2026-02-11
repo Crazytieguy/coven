@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # `set_title` doesn't sanitize input for terminal escape sequences
