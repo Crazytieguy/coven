@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: new
+state: review
 ---
 
 # flush_event_buffer loses Result when ProcessExit follows
@@ -32,3 +32,31 @@ The session's result text (and the fact it completed successfully) is lost.
 ## Fix
 
 `flush_event_buffer` should not allow `ProcessExited` to override `Completed` or `Followup`. A `Result` event followed by a `ProcessExit` is the normal completion sequence — the completion should take precedence. One approach: skip the `ProcessExited` assignment if `result` is already `Completed` or `Followup` or `Fork`.
+
+## Plan
+
+In `src/commands/session_loop.rs`, in the `flush_event_buffer` function (~line 356-360), change the `AppEvent::ProcessExit` arm from unconditionally overwriting `result` to only setting `ProcessExited` when `result` is still `Continue`. The current code:
+
+```rust
+AppEvent::ProcessExit(code) => {
+    renderer.render_exit(code);
+    state.status = SessionStatus::Ended;
+    result = FlushResult::ProcessExited;
+}
+```
+
+becomes:
+
+```rust
+AppEvent::ProcessExit(code) => {
+    renderer.render_exit(code);
+    state.status = SessionStatus::Ended;
+    if matches!(result, FlushResult::Continue) {
+        result = FlushResult::ProcessExited;
+    }
+}
+```
+
+This means `ProcessExited` only wins when nothing meaningful preceded it in the buffer. If a `Result` (yielding `Completed`, `Followup`, or `Fork`) was already processed, the process exit is treated as the expected follow-on — the exit code is still rendered and status still set to `Ended`, but the `FlushResult` preserves the completion info.
+
+No other files need changes.
