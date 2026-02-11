@@ -15,28 +15,69 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Crazytieguy/coven/relea
 cargo install coven
 ```
 
-**Platform support:** macOS and Linux only. Coven uses Unix-specific APIs (terminal control, process signals).
+**Platform support:** macOS and Linux only.
 
 ## Why?
 
-The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` to provide a clean, lightweight display with support for follow-up messages, mid-stream steering, and looping workflows.
+The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` for a clean, lightweight display with follow-up messages, mid-stream steering, and looping workflows.
 
-## Features
+## Quick Start
 
-- **Streaming display**: One line per tool call, streaming text, collapsed thinking
-- **Follow-up messages**: Continue sessions with additional prompts after results
-- **Ralph mode**: Loop Claude with fresh sessions, filesystem state persists between iterations
-- **Mid-stream steering**: Type messages while Claude is working to redirect it
-- **Message inspection**: View full details of any message via `:N` pager command
+```bash
+coven "explain this codebase"             # one-shot prompt
+coven                                      # interactive (type prompt at stdin)
+coven ralph "fix lint warnings"            # loop until done
+coven init && coven worker                 # orchestration
+```
 
-### Planned
+## Commands
 
-- **Fixed bottom prompt**: Terminal scroll regions for simultaneous output and typing
-- **Recurring tasks**: Periodic maintenance tasks (test review, refactoring) as a first-class workflow concept
+### `coven [PROMPT]`
+
+Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), and message inspection (`:N` to view message N).
+
+### `coven ralph <PROMPT>`
+
+Loop Claude with fresh sessions — filesystem state persists between iterations. The model outputs `<break>reason</break>` to stop.
+
+| Flag | Description |
+|------|-------------|
+| `--iterations N` | Max iterations (0 = infinite, default) |
+| `--break-tag TAG` | Custom break tag (default: `break`) |
+| `--no-break` | Disable break detection (requires `--iterations`) |
+
+### `coven worker`
+
+Orchestration worker: dispatch → agent → land loop. Creates a git worktree, picks issues, runs agents, and lands changes.
+
+| Flag | Description |
+|------|-------------|
+| `--branch NAME` | Worktree branch name (random if omitted) |
+| `--worktree-base DIR` | Base directory for worktrees (default: `~/worktrees`) |
+
+### `coven init`
+
+Set up orchestration for a project — creates `.coven/agents/`, `issues/`, and `review/` directories with default prompts.
+
+### `coven status` / `coven gc`
+
+Show active workers / clean up orphaned worktrees.
+
+## Shared Flags
+
+All session commands (`coven`, `ralph`, `worker`) accept:
+
+- `--show-thinking` — stream thinking text inline instead of collapsing
+- `--fork` — let the model spawn parallel sub-sessions via `<fork>` tags
+- `-- [ARGS]` — pass extra arguments to the claude CLI (e.g. `-- --permission-mode plan`)
+
+## Orchestration
+
+`coven init` + `coven worker` enable multi-agent orchestration: workers pick issues, run agent prompts, and land changes on branches. `coven init` generates a `.coven/workflow.md` with full details.
 
 ## Testing
 
-Tests are recorded from real Claude sessions using a VCR approach. Each test case has a `.toml` (config), `.vcr` (recorded NDJSON), and `.snap` (expected display) in `tests/cases/`.
+Tests use VCR-recorded Claude sessions. Each test case has `.toml`, `.vcr`, and `.snap` files in `tests/cases/`.
 
 ```bash
 cargo run --bin record-vcr           # re-record all fixtures

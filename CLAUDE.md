@@ -20,6 +20,7 @@ See @README.md for user-facing documentation.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
 - Always record issues you encounter that are unrelated to your current work — add them as one-liners to issues.md so they can be planned and fixed later. This includes bugs you notice, UI problems, technical debt you knowingly add, requirements you skip, and improvements you spot. Don't let things slip through the cracks. When an issue is resolved, remove it from the list.
 - Never make security-relevant decisions without confirmation. This includes permission modes, authentication, access control, and anything that affects the trust boundary of the system. Always apply least-privilege: when granting permissions to spawned agents (e.g. in test fixtures), allow only the specific commands needed, never broad wildcards like `Bash(*)`.
+- Update README.md when adding/removing commands, changing flags, or altering user-facing behavior. Keep it under 100 lines.
 - See workflow.md for the autonomous ralph-mode workflow (plan-based issue tracking, priorities, session discipline).
 
 ## Publishing
