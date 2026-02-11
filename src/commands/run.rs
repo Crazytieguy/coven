@@ -104,7 +104,9 @@ pub async fn run<W: Write>(
                     working_dir: config.working_dir.clone(),
                 };
                 runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
+                let prev_session_id = state.session_id.clone();
                 state = SessionState::default();
+                state.session_id = prev_session_id;
             }
             SessionOutcome::ProcessExited => break,
         }
