@@ -804,7 +804,11 @@ fn format_tool_view(tool_name: &str, input: &Value) -> Option<String> {
         }
         "Bash" => {
             let cmd = get_str(input, "command")?;
-            Some(format!("$ {cmd}"))
+            let timeout = input.get("timeout").and_then(Value::as_u64);
+            match timeout {
+                Some(t) => Some(format!("$ {cmd}\n\ntimeout: {t}ms")),
+                None => Some(format!("$ {cmd}")),
+            }
         }
         "Glob" => {
             let pattern = get_str(input, "pattern")?;
@@ -891,7 +895,11 @@ fn format_tool_detail(name: &str, input: &Value) -> String {
         }
         "Bash" => {
             let cmd = get_str(input, "command").unwrap_or_default();
-            first_line(cmd).to_string()
+            let timeout = input.get("timeout").and_then(Value::as_u64);
+            match timeout {
+                Some(t) => format!("{} (timeout: {t}ms)", first_line(cmd)),
+                None => first_line(cmd).to_string(),
+            }
         }
         "Task" => get_str(input, "description")
             .unwrap_or_default()
