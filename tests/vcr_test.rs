@@ -153,7 +153,7 @@ async fn run_vcr_test(name: &str) -> TestResult {
                 prompt: Some(run_config.prompt.clone()),
                 extra_args: claude_args,
                 show_thinking: case.display.show_thinking,
-                fork: false,
+                fork: run_config.fork,
                 working_dir: None,
             },
             &mut io,
@@ -229,3 +229,4 @@ vcr_test!(interrupt_resume);
 vcr_test!(status_no_workers);
 vcr_test!(gc_no_orphans);
 vcr_test!(init_fresh);
+vcr_test!(fork_basic);

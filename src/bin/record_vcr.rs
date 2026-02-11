@@ -215,7 +215,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
                 prompt: Some(run_config.prompt.clone()),
                 extra_args: claude_args,
                 show_thinking: case.display.show_thinking,
-                fork: false,
+                fork: run_config.fork,
                 working_dir: Some(tmp_dir.clone()),
             },
             &mut io,

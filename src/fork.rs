@@ -8,6 +8,7 @@ use crate::display::renderer::Renderer;
 use crate::event::AppEvent;
 use crate::protocol::types::{AssistantContentBlock, InboundEvent};
 use crate::session::runner::{SessionConfig, SessionRunner};
+use crate::vcr::VcrContext;
 
 /// Configuration for fork behavior, threaded through the session loop.
 pub struct ForkConfig {
@@ -41,6 +42,7 @@ pub async fn run_fork<W: Write>(
     tasks: Vec<String>,
     config: &ForkConfig,
     renderer: &mut Renderer<W>,
+    vcr: &VcrContext,
 ) -> Result<String> {
     renderer.render_fork_start(&tasks);
 
@@ -60,7 +62,13 @@ pub async fn run_fork<W: Write>(
             ..Default::default()
         };
 
-        let runner = SessionRunner::spawn(child_config, child_tx).await?;
+        // In replay mode, the closure is never called: child_tx is dropped,
+        // child_rx.recv() returns None, and the multiplexer task exits cleanly.
+        let runner = vcr
+            .call("fork_spawn", child_config, async |c: &SessionConfig| {
+                SessionRunner::spawn(c.clone(), child_tx).await
+            })
+            .await?;
         runners.push(runner);
 
         let merged_tx = merged_tx.clone();
@@ -74,11 +82,17 @@ pub async fn run_fork<W: Write>(
     }
     drop(merged_tx);
 
-    // Process events from all children
+    // Process events from all children. Each event is individually recorded
+    // so fork child tool calls and completions appear in VCR test snapshots.
     let mut results: Vec<Option<std::result::Result<String, String>>> = vec![None; num_tasks];
     let mut completed = 0;
 
-    while let Some((idx, event)) = merged_rx.recv().await {
+    loop {
+        let event: Option<(usize, AppEvent)> = vcr
+            .call("fork_event", (), async |(): &()| Ok(merged_rx.recv().await))
+            .await?;
+        let Some((idx, event)) = event else { break };
+
         match event {
             AppEvent::Claude(inbound) => match &*inbound {
                 InboundEvent::Assistant(msg) if msg.parent_tool_use_id.is_none() => {

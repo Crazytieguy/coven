@@ -659,6 +659,9 @@ pub struct RunConfig {
     /// Extra arguments to pass through to claude.
     #[serde(default)]
     pub claude_args: Vec<String>,
+    /// Whether to enable fork support.
+    #[serde(default)]
+    pub fork: bool,
 }
 
 /// CLI configuration for ralph loop mode (mirrors coven's ralph subcommand args).

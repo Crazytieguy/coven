@@ -225,14 +225,9 @@ async fn process_claude_event<W: Write>(
                 locals.result_text.clone_from(&result.result);
             }
 
-            // Detect fork tag in result text (live mode only — fork children
-            // spawn real sessions, which isn't compatible with VCR replay).
-            let fork_tasks = if vcr.is_live() {
-                if let InboundEvent::Result(_) = *inbound {
-                    fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
-                } else {
-                    None
-                }
+            // Detect fork tag in result text.
+            let fork_tasks = if let InboundEvent::Result(_) = *inbound {
+                fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
             } else {
                 None
             };
@@ -248,8 +243,11 @@ async fn process_claude_event<W: Write>(
                 let Some(fork_cfg) = fork_config else {
                     unreachable!("fork_tasks set without fork_config");
                 };
-                let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer).await?;
-                runner.send_message(&msg).await?;
+                let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
+                vcr.call("send_message", msg, async |t: &String| {
+                    runner.send_message(t).await
+                })
+                .await?;
                 state.suppress_next_separator = true;
                 state.status = SessionStatus::Running;
                 return Ok(None);
