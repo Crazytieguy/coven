@@ -419,27 +419,6 @@ pub fn is_rebase_in_progress(worktree_path: &Path) -> Result<bool, WorktreeError
     Ok(git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists())
 }
 
-/// Fast-forward merge main to the worktree branch tip.
-///
-/// Use after resolving rebase conflicts externally (e.g., via a resumed Claude
-/// session) to complete the landing process. Only the ff-merge step — assumes
-/// the rebase is already complete.
-pub fn ff_merge_main(worktree_path: &Path) -> Result<LandResult, WorktreeError> {
-    let (main_path, main_branch) = find_main_worktree(worktree_path)?;
-
-    let current_branch = git(worktree_path, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-    let current_branch = current_branch.trim().to_string();
-
-    if !git_status(&main_path, &["merge", "--ff-only", &current_branch])? {
-        return Err(WorktreeError::FastForwardFailed);
-    }
-
-    Ok(LandResult {
-        branch: current_branch,
-        main_branch,
-    })
-}
-
 // ── Private helpers ─────────────────────────────────────────────────────
 
 fn rsync_ignored(main_path: &Path, worktree_path: &Path) -> Result<(), WorktreeError> {
@@ -875,45 +854,6 @@ mod tests {
         assert!(!spawned.worktree_path.join("stray.txt").exists());
         // Gitignored file should be preserved
         assert!(spawned.worktree_path.join("build/output.bin").exists());
-    }
-
-    #[test]
-    fn ff_merge_after_manual_conflict_resolution() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("ff-resolve"),
-        ))
-        .unwrap();
-
-        // Create a conflict
-        commit_file(repo_dir.path(), "file.txt", "main\n", "main side");
-        commit_file(&spawned.worktree_path, "file.txt", "worktree\n", "wt side");
-
-        // Land fails with conflict (rebase in progress)
-        let result = land(&spawned.worktree_path);
-        assert!(matches!(result, Err(WorktreeError::RebaseConflict(_))));
-        assert!(is_rebase_in_progress(&spawned.worktree_path).unwrap());
-
-        // Simulate conflict resolution: pick worktree's version
-        fs::write(spawned.worktree_path.join("file.txt"), "resolved\n").unwrap();
-        git(&spawned.worktree_path, &["add", "file.txt"]).unwrap();
-        git(&spawned.worktree_path, &["rebase", "--continue"]).unwrap();
-
-        // Rebase should be complete
-        assert!(!is_rebase_in_progress(&spawned.worktree_path).unwrap());
-
-        // Now ff-merge should succeed
-        let landed = ff_merge_main(&spawned.worktree_path).unwrap();
-        assert_eq!(landed.branch, "ff-resolve");
-
-        // Main should have the resolved content
-        let content = fs::read_to_string(repo_dir.path().join("file.txt")).unwrap();
-        assert_eq!(content, "resolved\n");
     }
 
     #[test]
