@@ -1,2 +1,0 @@
-- [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
-- [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)

@@ -131,8 +131,7 @@ async fn get_initial_runner<W: Write>(
     let text = if let Some(prompt) = prompt {
         prompt.to_string()
     } else {
-        let Some(text) = session_loop::wait_for_user_input(input, renderer, io, vcr).await?
-        else {
+        let Some(text) = session_loop::wait_for_user_input(input, renderer, io, vcr).await? else {
             return Ok(None);
         };
         text
