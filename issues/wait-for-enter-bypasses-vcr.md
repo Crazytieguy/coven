@@ -1,6 +1,6 @@
 ---
-priority: P1
-state: review
+priority: P0
+state: approved
 ---
 
 # `wait_for_enter_or_exit` bypasses VCR
@@ -9,7 +9,7 @@ state: review
 
 This violates the project convention that every external I/O call must go through `vcr.call()` so it's recorded during recording and replayed deterministically during tests.
 
-**Impact:** Any VCR test that exercises the worker retry paths (ff-retry limit exceeded, land error pause, conflict resolution pause) would hang during replay because `io.next_event()` blocks on an empty channel with no recorded data to replay.
+**Impact:** Any VCR test that exercises the worker retry paths (ff-retry limit exceeded, land error pause, conflict resolution pause) would hang during replay because `io.next_event()` blocks on an empty channel with no recorded data to replay. This is a blocker for orchestration testing.
 
 **Affected code paths:**
 - `handle_ff_retry` (worker.rs:554) — calls `wait_for_enter_or_exit` when `attempts > MAX_LAND_ATTEMPTS`
