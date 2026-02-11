@@ -15,7 +15,6 @@ See @README.md for user-facing documentation.
 - Never run `cargo doc --open`
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
-- Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
 - Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record-vcr`. Re-recording is cheap enough: `cargo run --bin record-vcr` re-records all fixtures, `cargo run --bin record-vcr simple_qa` re-records one. After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`.
 - Always prefer properly VCR-recording I/O operations over working around them. Every external I/O call (filesystem, process info, network, etc.) should go through `vcr.call()` so it's recorded during recording and replayed deterministically during tests. Never use `vcr.is_live()`/`vcr.is_replay()` guards to skip I/O — instead, wrap the I/O in a VCR call.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
@@ -28,8 +27,8 @@ See @README.md for user-facing documentation.
 Don't publish or release without asking.
 
 1. Bump version in `Cargo.toml` (patch version unless told otherwise)
-2. Update CHANGELOG.md and README.md
-3. `cargo publish`
+2. Update README.md if needed
+3. `cargo publish --allow-dirty`
 4. `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
 5. GitHub Actions builds binaries and updates Homebrew tap automatically
 
