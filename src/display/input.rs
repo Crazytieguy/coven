@@ -4,15 +4,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::{cursor, queue, terminal};
 use unicode_width::UnicodeWidthStr;
 
+use super::term_width;
 use super::theme;
 use crate::event::InputMode;
-
-fn term_width() -> usize {
-    terminal::size()
-        .map(|(w, _)| w as usize)
-        .unwrap_or(80)
-        .max(1)
-}
 
 /// Result of processing a key event.
 pub enum InputAction {

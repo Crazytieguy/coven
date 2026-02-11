@@ -954,12 +954,7 @@ fn truncate_line(line: &str) -> String {
     truncate_to_width(line, term_width())
 }
 
-/// Query the current terminal width, defaulting to 80.
-fn term_width() -> usize {
-    crossterm::terminal::size()
-        .map(|(w, _)| w as usize)
-        .unwrap_or(80)
-}
+use super::term_width;
 
 /// Shorten MCP tool names from `mcp__<server-key>__<tool>` to a colon-separated form.
 ///
