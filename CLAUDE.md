@@ -15,7 +15,7 @@ See @README.md for user-facing documentation.
 - Never run `cargo doc --open`
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
-- Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record-vcr`. Re-recording is cheap enough: `cargo run --bin record-vcr` re-records all fixtures, `cargo run --bin record-vcr simple_qa` re-records one. After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`.
+- Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record-vcr`. Re-recording is cheap enough: `cargo run --bin record-vcr` re-records all fixtures, `cargo run --bin record-vcr simple_qa` re-records one. After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`. Always run VCR recordings with a 1 minute timeout — they can hang indefinitely.
 - Always prefer properly VCR-recording I/O operations over working around them. Every external I/O call (filesystem, process info, network, etc.) should go through `vcr.call()` so it's recorded during recording and replayed deterministically during tests. Never use `vcr.is_live()`/`vcr.is_replay()` guards to skip I/O — instead, wrap the I/O in a VCR call.
 - VCR tests aren't just for CLI functionality — orchestration tests are also evals that check how well models pilot the system given our prompts and agents. Improving prompts can be validated by re-recording and checking snapshot diffs.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user

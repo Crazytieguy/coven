@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: approved
+state: needs-replan
 ---
 
 # Race condition in wait_for_new_commits between HEAD read and watcher setup
@@ -90,3 +90,12 @@ loop {
 ```
 
 **Why this is correct:** After the watcher is active, any commit that lands will either (a) be caught by the drain+re-check if it arrived during setup, or (b) trigger a watcher notification that feeds the loop. There is no gap.
+
+## Implementation Notes
+
+The code change itself is straightforward, but it adds an extra `vcr_main_head_sha` call (the re-check) which shifts the VCR replay sequence for `worker_basic` and `concurrent_workers` tests. Re-recording is required.
+
+- `cargo run --bin record-vcr worker_basic` succeeded on retry (first attempt hit transient "failed to parse dispatch decision after retry").
+- `cargo run --bin record-vcr concurrent_workers` hung indefinitely — the concurrent worker recording appears to get stuck, possibly due to the multi-step recording needing longer timeouts or having its own race conditions.
+
+Blocked on: understanding why `concurrent_workers` VCR recording hangs. The recording produces no output after starting, suggesting it may be waiting on something that never completes. Need to investigate whether the recorder needs a timeout or whether there's a deadlock in the concurrent recording path.
