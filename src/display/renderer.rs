@@ -758,7 +758,8 @@ impl<W: Write> Renderer<W> {
 
     /// Set the terminal window title via OSC escape sequence.
     pub fn set_title(&mut self, title: &str) {
-        queue!(self.out, Print(format!("\x1b]2;{title}\x07"))).ok();
+        let sanitized: String = title.chars().filter(|c| !c.is_ascii_control()).collect();
+        queue!(self.out, Print(format!("\x1b]2;{sanitized}\x07"))).ok();
         self.out.flush().ok();
     }
 }
