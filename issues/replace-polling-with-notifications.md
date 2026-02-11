@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Replace polling with instant notifications
@@ -85,8 +85,8 @@ If this assumption is wrong (i.e., if VCR replay does enter `wait_for_new_commit
 - Run `cargo clippy` and `cargo fmt`
 - Manually verify with `coven worker` that the watcher picks up new commits instantly
 
-## Questions
+## Answered Questions
 
-1. **VCR assumption**: I assumed `wait_for_new_commits` is never reached during VCR replay (since the dispatch decision and full loop are recorded). If that's wrong, I'll need to wrap the watcher notification in a VCR call. Can you confirm, or should I just check by running the tests?
+1. **VCR assumption**: Implementer to decide — check by running the tests whether `wait_for_new_commits` is reached during replay, and wrap in VCR if needed.
 
-2. **Fallback timeout**: The plan omits a fallback polling timeout. Should I add a long fallback (e.g., 60s) as belt-and-suspenders in case `notify` misses an event, or is the watcher reliable enough on its own?
+2. **Fallback timeout**: No fallback needed. The watcher is reliable enough on its own.
