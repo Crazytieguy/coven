@@ -35,9 +35,7 @@ async fn main() -> Result<()> {
             iterations,
             break_tag,
             no_break,
-            show_thinking,
-            fork,
-            claude_args,
+            claude_opts,
         }) => {
             if no_break && iterations == 0 {
                 anyhow::bail!("--no-break requires --iterations to prevent infinite looping");
@@ -49,9 +47,9 @@ async fn main() -> Result<()> {
                     iterations,
                     break_tag,
                     no_break,
-                    show_thinking,
-                    fork,
-                    extra_args: claude_args,
+                    show_thinking: claude_opts.show_thinking,
+                    fork: claude_opts.fork,
+                    extra_args: claude_opts.claude_args,
                     working_dir: None,
                 },
                 &mut io,
@@ -63,9 +61,7 @@ async fn main() -> Result<()> {
         Some(Command::Worker {
             branch,
             worktree_base,
-            show_thinking,
-            fork,
-            claude_args,
+            claude_opts,
         }) => {
             let base = match worktree_base {
                 Some(b) => b,
@@ -74,12 +70,12 @@ async fn main() -> Result<()> {
             let (mut io, vcr) = create_live_io();
             commands::worker::worker(
                 commands::worker::WorkerConfig {
-                    show_thinking,
+                    show_thinking: claude_opts.show_thinking,
                     branch,
                     worktree_base: base,
-                    extra_args: claude_args,
+                    extra_args: claude_opts.claude_args,
                     working_dir: None,
-                    fork,
+                    fork: claude_opts.fork,
                 },
                 &mut io,
                 &vcr,
@@ -92,9 +88,9 @@ async fn main() -> Result<()> {
             commands::run::run(
                 commands::run::RunConfig {
                     prompt: cli.prompt,
-                    extra_args: cli.claude_args,
-                    show_thinking: cli.show_thinking,
-                    fork: cli.fork,
+                    extra_args: cli.claude_opts.claude_args,
+                    show_thinking: cli.claude_opts.show_thinking,
+                    fork: cli.claude_opts.fork,
                     working_dir: None,
                 },
                 &mut io,

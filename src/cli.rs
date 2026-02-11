@@ -2,6 +2,22 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+/// Claude session options shared across all command modes.
+#[derive(clap::Args, Debug)]
+pub struct ClaudeOpts {
+    /// Stream thinking text inline in dim italic instead of collapsing.
+    #[arg(long)]
+    pub show_thinking: bool,
+
+    /// Enable model-driven context forking via <fork> tags.
+    #[arg(long)]
+    pub fork: bool,
+
+    /// Extra arguments to pass through to claude (after --).
+    #[arg(last = true)]
+    pub claude_args: Vec<String>,
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "coven",
@@ -16,17 +32,8 @@ pub struct Cli {
     #[arg(value_name = "PROMPT")]
     pub prompt: Option<String>,
 
-    /// Stream thinking text inline in dim italic instead of collapsing.
-    #[arg(long)]
-    pub show_thinking: bool,
-
-    /// Enable model-driven context forking via <fork> tags.
-    #[arg(long)]
-    pub fork: bool,
-
-    /// Extra arguments to pass through to claude (after --).
-    #[arg(last = true)]
-    pub claude_args: Vec<String>,
+    #[command(flatten)]
+    pub claude_opts: ClaudeOpts,
 }
 
 #[derive(Subcommand, Debug)]
@@ -49,17 +56,8 @@ pub enum Command {
         #[arg(long)]
         no_break: bool,
 
-        /// Stream thinking text inline in dim italic instead of collapsing.
-        #[arg(long)]
-        show_thinking: bool,
-
-        /// Enable model-driven context forking via <fork> tags.
-        #[arg(long)]
-        fork: bool,
-
-        /// Extra arguments to pass through to claude (after --).
-        #[arg(last = true)]
-        claude_args: Vec<String>,
+        #[command(flatten)]
+        claude_opts: ClaudeOpts,
     },
 
     /// Initialize project with default agent prompts and directory structure.
@@ -81,16 +79,7 @@ pub enum Command {
         #[arg(long)]
         worktree_base: Option<PathBuf>,
 
-        /// Stream thinking text inline in dim italic instead of collapsing.
-        #[arg(long)]
-        show_thinking: bool,
-
-        /// Enable model-driven context forking via <fork> tags.
-        #[arg(long)]
-        fork: bool,
-
-        /// Extra arguments to pass through to claude (after --).
-        #[arg(last = true)]
-        claude_args: Vec<String>,
+        #[command(flatten)]
+        claude_opts: ClaudeOpts,
     },
 }
