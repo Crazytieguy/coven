@@ -15,6 +15,18 @@ use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
 
+/// Send a message to the session via VCR.
+async fn vcr_send_message(
+    runner: &mut SessionRunner,
+    vcr: &VcrContext,
+    message: String,
+) -> Result<()> {
+    vcr.call("send_message", message, async |t: &String| {
+        runner.send_message(t).await
+    })
+    .await
+}
+
 /// How a session ended.
 pub enum SessionOutcome {
     /// Session produced a result (normal completion).
@@ -200,19 +212,13 @@ async fn handle_session_key_event<W: Write>(
             match mode {
                 InputMode::Steering => {
                     renderer.render_steering_sent(&text);
-                    vcr.call("send_message", text, async |t: &String| {
-                        runner.send_message(t).await
-                    })
-                    .await?;
+                    vcr_send_message(runner, vcr, text).await?;
                 }
                 InputMode::FollowUp => {
                     if state.status == SessionStatus::WaitingForInput {
                         renderer.render_user_message(&text);
                         state.suppress_next_separator = true;
-                        vcr.call("send_message", text, async |t: &String| {
-                            runner.send_message(t).await
-                        })
-                        .await?;
+                        vcr_send_message(runner, vcr, text).await?;
                         state.status = SessionStatus::Running;
                     } else {
                         renderer.render_followup_queued(&text);
@@ -288,20 +294,14 @@ async fn process_claude_event<W: Write>(
                         unreachable!("fork_tasks set without fork_config");
                     };
                     let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-                    vcr.call("send_message", msg, async |t: &String| {
-                        runner.send_message(t).await
-                    })
-                    .await?;
+                    vcr_send_message(runner, vcr, msg).await?;
                     state.suppress_next_separator = true;
                     state.status = SessionStatus::Running;
                 }
                 ClaudeEventAction::Followup(text) => {
                     renderer.render_followup_sent(&text);
                     state.suppress_next_separator = true;
-                    vcr.call("send_message", text, async |t: &String| {
-                        runner.send_message(t).await
-                    })
-                    .await?;
+                    vcr_send_message(runner, vcr, text).await?;
                     state.status = SessionStatus::Running;
                 }
                 ClaudeEventAction::Completed(result_text) => {
@@ -376,10 +376,7 @@ async fn handle_flush_result<W: Write>(
         FlushResult::Followup(text) => {
             renderer.render_followup_sent(&text);
             state.suppress_next_separator = true;
-            vcr.call("send_message", text, async |t: &String| {
-                runner.send_message(t).await
-            })
-            .await?;
+            vcr_send_message(runner, vcr, text).await?;
             state.status = SessionStatus::Running;
             Ok(None)
         }
@@ -390,10 +387,7 @@ async fn handle_flush_result<W: Write>(
                 unreachable!("Fork detected without fork_config");
             };
             let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-            vcr.call("send_message", msg, async |t: &String| {
-                runner.send_message(t).await
-            })
-            .await?;
+            vcr_send_message(runner, vcr, msg).await?;
             state.suppress_next_separator = true;
             state.status = SessionStatus::Running;
             Ok(None)
@@ -422,10 +416,7 @@ pub async fn wait_for_followup<W: Write>(
     match wait_for_text_input(input, renderer, io, vcr).await? {
         Some(text) => {
             state.suppress_next_separator = true;
-            vcr.call("send_message", text, async |t: &String| {
-                runner.send_message(t).await
-            })
-            .await?;
+            vcr_send_message(runner, vcr, text).await?;
             state.status = SessionStatus::Running;
             Ok(FollowUpAction::Sent)
         }
