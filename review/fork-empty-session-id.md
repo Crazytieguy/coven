@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: new
+state: review
 ---
 
 # Fork uses empty string when session_id is None
@@ -21,3 +21,10 @@ If `session_id` is `None` (e.g., before the first `Result` event sets it), this 
 let session_id = state.session_id.clone()
     .context("cannot fork: no session ID yet")?;
 ```
+
+## Plan
+
+Two-line fix in `src/commands/session_loop.rs`:
+
+1. Add `Context` to the existing anyhow import on line 4: `use anyhow::{Context, Result};`
+2. Replace `state.session_id.clone().unwrap_or_default()` with `state.session_id.clone().context("cannot fork: no session ID yet")?` at both call sites (line 292 and line 384)
