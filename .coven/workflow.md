@@ -51,18 +51,6 @@ Create a markdown file in `issues/` with the format above. Minimum fields: `stat
 
 **Skip path**: To skip planning and go straight to implementation, set `state: approved`.
 
-## Reviewing Plans
-
-Plans appear in `review/`. To review one:
-
-1. Read the `## Plan` section and any `## Questions`
-2. Answer questions inline (fill in below `**Answer:**` markers)
-3. Update frontmatter: `state: approved` or `state: changes-requested`
-4. Move the file from `review/` back to `issues/`
-5. Commit
-
-There's no time pressure — workers will wait or work on other issues.
-
 ## Recording Issues
 
 Always record issues you encounter that are unrelated to your current work — create a markdown file in `issues/` with YAML frontmatter (`priority: P2`, `state: new`) and a description. This includes bugs you notice, UI problems, technical debt, requirements you skip, and improvements you spot. Don't let things slip through the cracks.
