@@ -58,8 +58,11 @@ struct TestResult {
 
 /// Run a test case through the real command function with VCR replay,
 /// capturing renderer output for snapshot comparison.
-async fn run_vcr_test(name: &str) -> TestResult {
-    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
+async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
+    let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/cases")
+        .join(theme)
+        .join(name);
     let toml_path = base.join(format!("{name}.toml"));
     let vcr_path = base.join(format!("{name}.vcr"));
 
@@ -174,8 +177,11 @@ async fn run_vcr_test(name: &str) -> TestResult {
 
 /// Run a multi-step test case. Each step replays from its own VCR file,
 /// and outputs are concatenated with `--- <step_name> ---` headers.
-async fn run_multi_vcr_test(name: &str) -> TestResult {
-    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
+async fn run_multi_vcr_test(theme: &str, name: &str) -> TestResult {
+    let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/cases")
+        .join(theme)
+        .join(name);
     let toml_path = base.join(format!("{name}.toml"));
 
     let case: TestCase =
@@ -190,6 +196,7 @@ async fn run_multi_vcr_test(name: &str) -> TestResult {
 
     for step in &multi.steps {
         let vcr_path = base.join(format!("{name}__{}.vcr", step.name));
+
         let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read step VCR file");
         let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse step VCR file");
 
@@ -268,12 +275,12 @@ fn format_views(messages: &[StoredMessage], views: &[String]) -> String {
 }
 
 macro_rules! vcr_test {
-    ($name:ident) => {
+    ($theme:ident / $name:ident) => {
         #[tokio::test]
         async fn $name() {
-            let result = run_vcr_test(stringify!($name)).await;
+            let result = run_vcr_test(stringify!($theme), stringify!($name)).await;
             insta::with_settings!({
-                snapshot_path => "../tests/cases",
+                snapshot_path => concat!("../tests/cases/", stringify!($theme), "/", stringify!($name)),
                 prepend_module_to_snapshot => false,
             }, {
                 insta::assert_snapshot!(stringify!($name), result.display);
@@ -281,7 +288,7 @@ macro_rules! vcr_test {
             if !result.views.is_empty() {
                 let views = format_views(&result.messages, &result.views);
                 insta::with_settings!({
-                    snapshot_path => "../tests/cases",
+                    snapshot_path => concat!("../tests/cases/", stringify!($theme), "/", stringify!($name)),
                     prepend_module_to_snapshot => false,
                 }, {
                     insta::assert_snapshot!(concat!(stringify!($name), "__views"), views);
@@ -292,12 +299,12 @@ macro_rules! vcr_test {
 }
 
 macro_rules! multi_vcr_test {
-    ($name:ident) => {
+    ($theme:ident / $name:ident) => {
         #[tokio::test]
         async fn $name() {
-            let result = run_multi_vcr_test(stringify!($name)).await;
+            let result = run_multi_vcr_test(stringify!($theme), stringify!($name)).await;
             insta::with_settings!({
-                snapshot_path => "../tests/cases",
+                snapshot_path => concat!("../tests/cases/", stringify!($theme), "/", stringify!($name)),
                 prepend_module_to_snapshot => false,
             }, {
                 insta::assert_snapshot!(stringify!($name), result.display);
@@ -306,26 +313,37 @@ macro_rules! multi_vcr_test {
     };
 }
 
-vcr_test!(simple_qa);
-vcr_test!(tool_use);
-vcr_test!(grep_glob);
-vcr_test!(mcp_tool);
-vcr_test!(error_handling);
-vcr_test!(multi_turn);
-vcr_test!(ralph_break);
-vcr_test!(steering);
-vcr_test!(subagent);
-vcr_test!(write_single_line);
-vcr_test!(edit_tool);
-vcr_test!(show_thinking);
-vcr_test!(subagent_error);
-vcr_test!(parallel_subagent);
-vcr_test!(worker_basic);
-vcr_test!(interrupt_resume);
-vcr_test!(status_no_workers);
-vcr_test!(gc_no_orphans);
-vcr_test!(init_fresh);
-vcr_test!(fork_basic);
-vcr_test!(fork_buffered);
-vcr_test!(fork_single);
-multi_vcr_test!(concurrent_workers);
+// Session: core session lifecycle
+vcr_test!(session / simple_qa);
+vcr_test!(session / multi_turn);
+vcr_test!(session / steering);
+vcr_test!(session / interrupt_resume);
+vcr_test!(session / show_thinking);
+vcr_test!(session / error_handling);
+
+// Rendering: tool output display
+vcr_test!(rendering / tool_use);
+vcr_test!(rendering / grep_glob);
+vcr_test!(rendering / mcp_tool);
+vcr_test!(rendering / edit_tool);
+vcr_test!(rendering / write_single_line);
+
+// Subagent: spawning and error handling
+vcr_test!(subagent / subagent);
+vcr_test!(subagent / parallel_subagent);
+vcr_test!(subagent / subagent_error);
+
+// Fork: parallel sub-sessions
+vcr_test!(fork / fork_basic);
+vcr_test!(fork / fork_buffered);
+vcr_test!(fork / fork_single);
+
+// Ralph: loop mode
+vcr_test!(ralph / ralph_break);
+
+// Orchestration: worker, init, status, gc
+vcr_test!(orchestration / worker_basic);
+vcr_test!(orchestration / init_fresh);
+vcr_test!(orchestration / status_no_workers);
+vcr_test!(orchestration / gc_no_orphans);
+multi_vcr_test!(orchestration / concurrent_workers);

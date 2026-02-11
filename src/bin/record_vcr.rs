@@ -7,28 +7,90 @@ use tokio::task::LocalSet;
 use coven::commands;
 use coven::vcr::{DEFAULT_TEST_MODEL, Io, MultiStep, TestCase, TriggerController, VcrContext};
 
+/// A discovered test case: its directory and name.
+struct CaseEntry {
+    /// Directory containing the case files (e.g. `tests/cases/session/simple_qa/`).
+    case_dir: PathBuf,
+    /// The test case name (e.g. `simple_qa`).
+    name: String,
+}
+
+/// Discover all test cases by walking `tests/cases/{theme}/{name}/{name}.toml`.
+fn discover_cases(cases_dir: &Path) -> Result<Vec<CaseEntry>> {
+    let mut entries = Vec::new();
+    let mut themes: Vec<_> = std::fs::read_dir(cases_dir)?
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.file_type().is_ok_and(|ft| ft.is_dir()))
+        .collect();
+    themes.sort_by_key(std::fs::DirEntry::path);
+
+    for theme in themes {
+        let mut names: Vec<_> = std::fs::read_dir(theme.path())?
+            .filter_map(std::result::Result::ok)
+            .filter(|e| e.file_type().is_ok_and(|ft| ft.is_dir()))
+            .collect();
+        names.sort_by_key(std::fs::DirEntry::path);
+
+        for name_entry in names {
+            let name = name_entry
+                .file_name()
+                .to_str()
+                .map(String::from)
+                .context("non-UTF8 directory name")?;
+            let toml_path = name_entry.path().join(format!("{name}.toml"));
+            if toml_path.exists() {
+                entries.push(CaseEntry {
+                    case_dir: name_entry.path(),
+                    name,
+                });
+            }
+        }
+    }
+    Ok(entries)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let cases_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
 
-    let names: Vec<String> = if args.len() > 1 {
-        args[1..].to_vec()
+    let all_cases = discover_cases(&cases_dir)?;
+
+    let cases: Vec<CaseEntry> = if args.len() > 1 {
+        // Filter by CLI args: accept "name" (searches all themes) or "theme/name".
+        let filters: Vec<&str> = args[1..].iter().map(String::as_str).collect();
+        let mut matched = Vec::new();
+        for filter in &filters {
+            let found: Vec<_> = if filter.contains('/') {
+                // theme/name form
+                let parts: Vec<&str> = filter.splitn(2, '/').collect();
+                all_cases
+                    .iter()
+                    .filter(|c| {
+                        c.case_dir
+                            .parent()
+                            .and_then(|p| p.file_name())
+                            .is_some_and(|t| t == parts[0])
+                            && c.name == parts[1]
+                    })
+                    .collect()
+            } else {
+                // name only — search all themes
+                all_cases.iter().filter(|c| c.name == *filter).collect()
+            };
+            if found.is_empty() {
+                bail!("no test case found matching '{filter}'");
+            }
+            for entry in found {
+                matched.push(CaseEntry {
+                    case_dir: entry.case_dir.clone(),
+                    name: entry.name.clone(),
+                });
+            }
+        }
+        matched
     } else {
-        let mut entries: Vec<_> = std::fs::read_dir(&cases_dir)?
-            .filter_map(std::result::Result::ok)
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
-            .collect();
-        entries.sort_by_key(std::fs::DirEntry::path);
-        entries
-            .iter()
-            .filter_map(|e| {
-                e.path()
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(String::from)
-            })
-            .collect()
+        all_cases
     };
 
     // Record all cases concurrently using LocalSet (VcrContext is !Send due to RefCell).
@@ -37,10 +99,10 @@ async fn main() -> Result<()> {
     let errors = local
         .run_until(async {
             let mut handles = Vec::new();
-            for name in names {
-                let dir = cases_dir.clone();
+            for case in cases {
                 handles.push(tokio::task::spawn_local(async move {
-                    let result = record_case(&dir, &name).await;
+                    let name = case.name.clone();
+                    let result = record_case(&case.case_dir, &case.name).await;
                     (name, result)
                 }));
             }
@@ -139,16 +201,16 @@ fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
     Ok(tmp_dir)
 }
 
-async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
-    let toml_path = cases_dir.join(format!("{name}.toml"));
-    let vcr_path = cases_dir.join(format!("{name}.vcr"));
+async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
+    let toml_path = case_dir.join(format!("{name}.toml"));
+    let vcr_path = case_dir.join(format!("{name}.vcr"));
 
     let toml_content = std::fs::read_to_string(&toml_path)
         .context(format!("Failed to read {}", toml_path.display()))?;
     let case: TestCase = toml::from_str(&toml_content)?;
 
     if case.is_multi() {
-        return record_multi_case(cases_dir, name, case).await;
+        return record_multi_case(case_dir, name, case).await;
     }
 
     let tmp_dir = setup_test_dir(name, &case)?;
@@ -262,7 +324,7 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
 /// Record a multi-step test case. Steps are executed sequentially unless they
 /// share a `concurrent_group`, in which case they run concurrently.
 /// Each step writes its own VCR file: `<test>__<step>.vcr`.
-async fn record_multi_case(cases_dir: &Path, name: &str, case: TestCase) -> Result<()> {
+async fn record_multi_case(case_dir: &Path, name: &str, case: TestCase) -> Result<()> {
     let tmp_dir = setup_test_dir(name, &case)?;
     let show_thinking = case.display.show_thinking;
     let multi = case
@@ -279,7 +341,7 @@ async fn record_multi_case(cases_dir: &Path, name: &str, case: TestCase) -> Resu
             }
             let mut handles = Vec::new();
             for step in group {
-                let dir = cases_dir.to_path_buf();
+                let dir = case_dir.to_path_buf();
                 let n = name.to_string();
                 let td = tmp_dir.clone();
                 handles.push(tokio::task::spawn_local(async move {
@@ -291,7 +353,7 @@ async fn record_multi_case(cases_dir: &Path, name: &str, case: TestCase) -> Resu
             }
         } else {
             record_multi_step(
-                cases_dir.to_path_buf(),
+                case_dir.to_path_buf(),
                 name.to_string(),
                 step,
                 tmp_dir.clone(),
@@ -307,13 +369,13 @@ async fn record_multi_case(cases_dir: &Path, name: &str, case: TestCase) -> Resu
 
 /// Record a single step in a multi-step test case.
 async fn record_multi_step(
-    cases_dir: PathBuf,
+    case_dir: PathBuf,
     test_name: String,
     step: MultiStep,
     tmp_dir: PathBuf,
     show_thinking: bool,
 ) -> Result<()> {
-    let vcr_path = cases_dir.join(format!("{test_name}__{}.vcr", step.name));
+    let vcr_path = case_dir.join(format!("{test_name}__{}.vcr", step.name));
     let default_model = DEFAULT_TEST_MODEL;
 
     match step.command.as_str() {

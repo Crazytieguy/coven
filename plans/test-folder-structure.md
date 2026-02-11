@@ -1,5 +1,5 @@
 Issue: [P1] The test cases folder is currently a flat list of files, and it's hard for me to navigate. I want to organize all tests into a neat folder structure
-Status: draft
+Status: done
 
 ## Approach
 

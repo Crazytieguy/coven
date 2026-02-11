@@ -77,11 +77,11 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 ## Testing
 
-Tests use VCR-recorded Claude sessions. Each test case has `.toml`, `.vcr`, and `.snap` files in `tests/cases/`.
+Tests use VCR-recorded Claude sessions organized by theme in `tests/cases/{theme}/{name}/`.
 
 ```bash
 cargo run --bin record-vcr           # re-record all fixtures
-cargo run --bin record-vcr simple_qa # re-record one
+cargo run --bin record-vcr simple_qa # re-record one (searches all themes)
 cargo insta review                   # review snapshot changes
 ```
 

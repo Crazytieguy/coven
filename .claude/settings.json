@@ -150,12 +150,14 @@
       "Bash(xargs -I{} bash /tmp/claude-execution-allowed/coven/*)",
       "WebFetch",
       "WebSearch",
+      "Bash(git apply *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git commit:*)",
       "Bash(git restore *)",
       "Bash(git checkout *)",
       "Bash(git clean *)",
+      "Bash(git mv *)",
       "Bash(set -C)"
     ],
     "deny": [
