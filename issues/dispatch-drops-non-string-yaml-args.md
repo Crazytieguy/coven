@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # `dispatch::parse_decision` silently drops non-string YAML arg values
