@@ -111,9 +111,6 @@ pub async fn worker<W: Write>(
     let mut total_cost = 0.0;
 
     let wt_str = spawn_result.worktree_path.display().to_string();
-    let own_pid: u32 = vcr
-        .call("process_id", (), async |(): &()| Ok(std::process::id()))
-        .await?;
 
     vcr.call(
         "worker_state::register",
@@ -147,7 +144,6 @@ pub async fn worker<W: Write>(
         &config,
         &spawn_result.worktree_path,
         &spawn_result.branch,
-        own_pid,
         &mut ctx,
         &mut total_cost,
     )
@@ -158,9 +154,9 @@ pub async fn worker<W: Write>(
 
     vcr.call(
         "worker_state::deregister",
-        wt_str.clone(),
-        async |p: &String| -> Result<()> {
-            worker_state::deregister(Path::new(p));
+        (wt_str.clone(), spawn_result.branch.clone()),
+        async |a: &(String, String)| -> Result<()> {
+            worker_state::deregister(Path::new(&a.0), &a.1);
             Ok(())
         },
     )
@@ -290,7 +286,6 @@ async fn worker_loop<W: Write>(
     config: &WorkerConfig,
     worktree_path: &Path,
     branch: &str,
-    own_pid: u32,
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<()> {
@@ -323,7 +318,7 @@ async fn worker_loop<W: Write>(
                 async |p: &String| worker_state::read_all(Path::new(p)),
             )
             .await?;
-        let worker_status = worker_state::format_status(&all_workers, own_pid);
+        let worker_status = worker_state::format_status(&all_workers, branch);
 
         let Some(dispatch) = run_dispatch(
             worktree_path,

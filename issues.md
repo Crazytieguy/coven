@@ -4,4 +4,3 @@
 - [P1] The test cases folder is currently a flat list of files, and it's hard for me to navigate. I want to organize all tests into a neat folder structure (plan: plans/test-folder-structure.md)
 - [P2] Duplication between `process_claude_event` and `flush_event_buffer` in session_loop.rs: both have identical fork-detection, has_pending, handle_inbound, and result-handling logic. Extract a shared event-classification helper to reduce drift risk. (plan: plans/session-loop-event-dedup.md)
 - [P1] :N view in pager is bottom-aligned for messages smaller than the height of the terminal. Should be top aligned by default (plan: plans/pager-top-alignment.md)
-- [P0] The concurrent workers test shows both workers implementing both issues, suggesting either the code is broken or the test is broken (plan: plans/concurrent-workers-duplicate-work.md)

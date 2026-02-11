@@ -1,6 +1,6 @@
 //! Worker state tracking and dispatch serialization.
 //!
-//! Worker state files live in `<git-common-dir>/coven/workers/<pid>.json`.
+//! Worker state files live in `<git-common-dir>/coven/workers/<branch>.json`.
 //! The dispatch lock lives at `<git-common-dir>/coven/dispatch.lock`.
 //!
 //! These files are in the shared git directory (not the worktree) so all
@@ -74,8 +74,8 @@ fn workers_dir(repo_path: &Path) -> Result<PathBuf> {
     Ok(coven_dir(repo_path)?.join("workers"))
 }
 
-fn state_file_path(repo_path: &Path) -> Result<PathBuf> {
-    Ok(workers_dir(repo_path)?.join(format!("{}.json", std::process::id())))
+fn state_file_path(repo_path: &Path, branch: &str) -> Result<PathBuf> {
+    Ok(workers_dir(repo_path)?.join(format!("{branch}.json")))
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -112,8 +112,8 @@ pub fn update<S: std::hash::BuildHasher>(
 }
 
 /// Deregister this worker by removing its state file.
-pub fn deregister(repo_path: &Path) {
-    if let Ok(path) = state_file_path(repo_path) {
+pub fn deregister(repo_path: &Path, branch: &str) {
+    if let Ok(path) = state_file_path(repo_path, branch) {
         let _ = fs::remove_file(path);
     }
 }
@@ -205,8 +205,8 @@ pub fn format_workers<S: Borrow<WorkerState>>(states: &[S], style: StatusStyle) 
 ///
 /// Excludes the current process (the worker calling dispatch doesn't need
 /// to see itself in the status list).
-pub fn format_status(states: &[WorkerState], own_pid: u32) -> String {
-    let others: Vec<_> = states.iter().filter(|s| s.pid != own_pid).collect();
+pub fn format_status(states: &[WorkerState], own_branch: &str) -> String {
+    let others: Vec<_> = states.iter().filter(|s| s.branch != own_branch).collect();
 
     if others.is_empty() {
         return "No other workers active.".to_string();
@@ -257,7 +257,7 @@ pub async fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
 // ── Private helpers ─────────────────────────────────────────────────────
 
 fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {
-    let path = state_file_path(repo_path)?;
+    let path = state_file_path(repo_path, &state.branch)?;
     let json = serde_json::to_string(state).context("failed to serialize worker state")?;
     fs::write(&path, json).with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
@@ -303,7 +303,7 @@ mod tests {
 
         register(repo.path(), "swift-fox-42").unwrap();
 
-        let path = state_file_path(repo.path()).unwrap();
+        let path = state_file_path(repo.path(), "swift-fox-42").unwrap();
         assert!(path.exists());
 
         let content = fs::read_to_string(&path).unwrap();
@@ -323,7 +323,7 @@ mod tests {
         let args = HashMap::from([("issue".to_string(), "issues/foo.md".to_string())]);
         update(repo.path(), "swift-fox-42", Some("plan"), &args).unwrap();
 
-        let path = state_file_path(repo.path()).unwrap();
+        let path = state_file_path(repo.path(), "swift-fox-42").unwrap();
         let content = fs::read_to_string(&path).unwrap();
         let state: WorkerState = serde_json::from_str(&content).unwrap();
         assert_eq!(state.branch, "swift-fox-42");
@@ -340,10 +340,10 @@ mod tests {
         init_repo(repo.path());
 
         register(repo.path(), "test-branch").unwrap();
-        let path = state_file_path(repo.path()).unwrap();
+        let path = state_file_path(repo.path(), "test-branch").unwrap();
         assert!(path.exists());
 
-        deregister(repo.path());
+        deregister(repo.path(), "test-branch");
         assert!(!path.exists());
     }
 
@@ -373,7 +373,7 @@ mod tests {
             agent: Some("plan".into()),
             args: HashMap::new(),
         };
-        let stale_path = dir.join("4000000000.json");
+        let stale_path = dir.join("stale-branch.json");
         fs::write(
             &stale_path,
             serde_json::to_string(&stale).unwrap_or_default(),
@@ -394,7 +394,7 @@ mod tests {
                 agent: Some("plan".into()),
                 args: HashMap::new(),
             }],
-            std::process::id(),
+            "my-branch",
         );
         assert_eq!(status, "No other workers active.");
     }
@@ -421,7 +421,7 @@ mod tests {
                 args: HashMap::new(),
             },
         ];
-        let formatted = format_status(&states, std::process::id());
+        let formatted = format_status(&states, "my-branch");
         assert!(
             formatted.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
         );
