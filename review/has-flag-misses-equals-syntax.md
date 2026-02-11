@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: new
+state: review
 ---
 
 # `has_flag` doesn't detect `--flag=value` syntax
@@ -24,3 +24,17 @@ fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 ```
+
+## Plan
+
+Single-line fix in `src/session/runner.rs:228`.
+
+Change `has_flag` from exact-match to also match the `--flag=value` form:
+
+```rust
+fn has_flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
+}
+```
+
+This covers both call sites (`--permission-mode` at line 127 and `--max-thinking-tokens` at line 132). No other callers exist.
