@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # `has_flag` doesn't detect `--flag=value` syntax
