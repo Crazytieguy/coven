@@ -186,7 +186,8 @@ pub fn compose_reintegration_message(results: &[(String, Result<String, String>)
 
     let mut xml = String::from("<fork-results>\n");
     for (label, outcome) in results {
-        // Escape label for XML attribute
+        // Escape label for XML attribute. Body text is intentionally not escaped —
+        // these results are consumed by language models, not XML parsers.
         let safe_label = label
             .replace('&', "&amp;")
             .replace('<', "&lt;")
