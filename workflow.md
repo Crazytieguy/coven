@@ -9,7 +9,7 @@ This session is unattended (no human at the keyboard). One small action at a tim
      - `Status: approved` — implement the plan. If necessary, re-record relevant VCR tests and regenerate snapshots, and verify that the snapshot reflects the intended change. When done, remove the issue from issues.md and delete the plan file.
      - `Status: rejected` — revise the plan based on the Review section comments. After revising, clear the Review section and any inline notes so the human knows it needs re-review. Counts as one action.
      - `Status: draft` — not yet reviewed, skip.
-3. **Audit the codebase**: Identify suboptimal snapshots, messy code, small or large scale duplication, untested features, or anything else that can be improved. If the fix is obvious: fix immediately. If non-obvious/there are tradeoffs, add an issue to issues.md
+3. **Audit the codebase**: Identify suboptimal snapshots, messy code, small or large scale duplication, untested features, or anything else that can be improved. If the fix is obvious: fix immediately. If non-obvious/there are tradeoffs, add an issue to issues.md. Breaking means you think the codebase is perfect (or there are more than 10 draft plans waiting review)
 
 ## Writing plans
 

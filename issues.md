@@ -4,11 +4,6 @@
 - [P1] The test cases folder is currently a flat list of files, and it's hard for me to navigate. I want to organize all tests into a neat folder structure (plan: plans/test-folder-structure.md)
 - [P1] Regular terminal keyboard nativagion doesn't work when giving interactive input. It would be nice to be able to use the regular terminal keybindings for things like jumping back a word or deleting a word etc (plan: plans/readline-keybindings.md)
 - [P1] :N view for common claude code tools should display in a nicer format than just the raw json (plan: plans/pretty-tool-view.md)
-- [P1] When sending a user message that wraps on multiple lines, only the last line is cleared before the message is repeated. So it looks something like this: """
-[182] ▶ TaskOutput  b76cc75
-
-[interrupted]
-> I think it's taking way too much time. I've killed the task. See if you can identify an issue that would cause an infinite loop or would c> I think it's taking way too much time. I've killed the task. See if you can identify an issue that would cause an infinite loop or would cause the model to run for a very long time
-Session 39641608-a4f1-40a4-a775-1c3ab94f555c (claude-opus-4-6)
-""" (plan: plans/multiline-input-clearing.md)
 - [P2] Duplication between `process_claude_event` and `flush_event_buffer` in session_loop.rs: both have identical fork-detection, has_pending, handle_inbound, and result-handling logic. Extract a shared event-classification helper to reduce drift risk. (plan: plans/session-loop-event-dedup.md)
+- [P1] :N view in pager is bottom-aligned for messages smaller than the height of the terminal. Should be top aligned by default
+- [P0] Figure out what all the uncommited changes are and create appropriate commits. Don't commit the dirty plan files (signals ready). No planning needed
