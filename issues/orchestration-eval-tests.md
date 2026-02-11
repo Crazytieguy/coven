@@ -1,8 +1,9 @@
 ---
 priority: P1
-state: approved
+state: needs-replan
 blocked_by:
   - wait-for-enter-bypasses-vcr
+  - vcr-recording-progress-output
 ---
 
 # Design VCR tests that evaluate orchestration quality
@@ -303,3 +304,9 @@ Both issues modify line 1 of README.md, guaranteeing a rebase conflict for which
 ## Questions
 
 **Should all four tests use haiku (the current default `DEFAULT_TEST_MODEL`) or should any use a more capable model?** Use haiku for all — this stress-tests the prompts so they're flawless for more capable models.
+
+## Implementation Notes
+
+The TOML configs and test registration are straightforward — the bottleneck is VCR recording. `cargo run --bin record-vcr` runs silently with no progress output, so there's no way to tell whether a multi-step orchestration recording is progressing or stuck. This makes it impractical for an automated worker to record fixtures reliably.
+
+Blocked on `vcr-recording-progress-output` — once the recorder has progress output, this issue can proceed.
