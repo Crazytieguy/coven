@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # `resolve_ref_paths` runs git commands outside VCR
