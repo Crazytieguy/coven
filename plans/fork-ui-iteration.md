@@ -3,28 +3,31 @@ Status: draft
 
 ## Approach
 
-Three changes: improve the system prompt so Claude forks without heavy-handed instructions, refine the display, and re-record a better test case.
+Three changes: revise the system prompt philosophy, redesign the fork display, and re-record better test cases.
 
-### 1. System prompt
+### 1. System prompt (src/fork.rs `fork_system_prompt`)
 
-Current prompt is minimal and works but the test prompt has to say "You MUST emit a `<fork>` tag. Do NOT do these sequentially." A better system prompt should make forking feel like a natural tool rather than an obscure protocol.
+Shift from "parallelism tool" to "self-contained subtask delegation". Key changes:
 
-**Proposed revision:**
+- Lead with the concept: fork lets you delegate self-contained subtasks that inherit your full context
+- Single-task forks are valid (for context-preserving delegation)
+- Multiple tasks run in parallel — mention this as a benefit, not the sole purpose
+- Keep the YAML tag syntax unchanged
+
+Proposed wording:
 
 ```
-When a task has independent subtasks that can run in parallel, emit a <fork> tag with a YAML list of short task labels:
+To delegate self-contained subtasks, emit a <fork> tag with a YAML list of short task labels:
 <fork>
 - Refactor auth module
 - Add tests for user API
 </fork>
-Each label becomes a separate session that inherits your full context and runs concurrently. You'll see the combined results in a <fork-results> message once all finish. Prefer forking over sequential work when subtasks don't depend on each other.
+Each task inherits your full conversation context and runs as an independent session. Multiple tasks run concurrently. Use fork when a subtask is self-contained — whether you're parallelizing independent work or delegating a task that benefits from full context inheritance. You'll receive the combined results in a <fork-results> message when all tasks complete.
 ```
 
-Key changes: opens with *when* to fork (independent subtasks), adds "Prefer forking over sequential work" as a nudge, says "concurrent" not just "parallel".
+### 2. Fork UI (src/display/renderer.rs, src/display/theme.rs)
 
-### 2. Fork UI
-
-Current display:
+**Current display:**
 ```
 [2] ⑂ Fork  Task A · Task B
   [2/1] ⑂ Write  (1 line)  /path/...
@@ -33,57 +36,75 @@ Current display:
   ⑂ Task B done
 ```
 
-Issues: the `⑂` character is obscure and may not render on all terminals; "done" is lowercase and abrupt; `[P/C]` numbering is confusing since P is the fork's tool number, not the child index.
+**Proposed display:**
+```
+[2] ⑂ Fork
+    [2/1] Task A
+    [2/2] Task B
+  [2/1] Write  (1 line)  /path/...
+  [2/2] Read  /other/...
+  [2/1] Write  (3 lines)  /another/...
+  [2/1] ✓ Task A  (:3)
+  [2/2] ✓ Task B  (:4)
+```
 
-**Proposed changes:**
+Key changes:
+- **Task labels on separate lines**, each prefixed with `[P/C]` where C = task index (1-based)
+- **`[P/C]` prefix on every child line** identifies which task owns it — critical since events interleave from the merged channel
+- **No `⑂` on child lines** — only on the fork header
+- **Bold cyan** instead of dim cyan (theme.rs: change `Attribute::Dim` to `Attribute::Bold`)
+- **Completion lines** show `✓ Task Label` with a message reference hint `(:N)` so the user knows how to view the full response
 
-- Replace `⑂` with `⑂` — actually keep the character but consider alternatives. The real problem is readability. Options:
-  - `⑂` (current) — obscure but compact
-  - `🔀` — emoji, may not match project's no-emoji aesthetic
-  - `╠` / `├` — box-drawing, feels like a tree
-  - `⑂` but styled bold instead of dim — makes it more visible
+Implementation details:
 
-- Simplify child numbering: instead of `[2/1]` use `[2a]` or just continue the global tool counter `[3]`, `[4]`. Continuing the global counter is simplest and most consistent with non-fork tool display.
+**`ActiveFork` struct** — currently tracks `tool_number` and `child_counter`. Change to track `tool_number` and `task_labels: Vec<String>` (for referencing in completion lines). Remove `child_counter` since child lines use task index, not a global counter.
 
-- Change child done line from `⑂ Task A done` to `⑂ Task A ✓` or just `✓ Task A` — more scannable.
+**`render_fork_start(&mut self, tasks: &[String])`** — change from joining labels with `·` on one line to:
+1. Render `[N] ⑂ Fork` on first line
+2. Render `    [N/C] label` for each task on subsequent lines (indented to align with "Fork")
 
-- Show task labels on child tool lines for disambiguation: `  [3] ⑂ Task A: Write  (1 line)  /path/...`
+**`render_fork_child_tool_call(&mut self, task_idx: usize, name: &str, input: &Value)`** — add `task_idx` parameter. Use `[P/task_idx+1]` prefix instead of incrementing child_counter. StoredMessage label becomes `[P/C] ToolName`.
 
-### 3. Test case
+**`render_fork_child_done(&mut self, task_idx: usize, label: &str)`** — add `task_idx` parameter. Render `  [P/C] ✓ label  (:M)` where M is the message number. To enable this, store the fork child's full result text as a StoredMessage when the child completes, and reference its index.
 
-Replace the current `fork_basic` test with a slightly more realistic scenario. Instead of "create hello.txt and world.txt" (which Claude can easily do sequentially), use a prompt that naturally benefits from parallelism:
+**fork.rs `run_fork`** — pass `idx` to renderer calls:
+- `render_fork_child_tool_call(idx, name, input)` (currently doesn't pass idx)
+- `render_fork_child_done(idx, &tasks[idx])` (currently doesn't pass idx)
+- After child completes, push a StoredMessage with the child's result text so it's viewable via `:N`
 
-**Proposed prompt:** Something like "Read foo.txt and bar.txt and tell me the total line count" where two Read operations are naturally independent. Or "Create a Python hello-world script and a JavaScript hello-world script" — two clearly independent creation tasks.
+### 3. Test cases
 
-The prompt should NOT mention fork tags or force forking. If the improved system prompt works, Claude should choose to fork on its own.
+**Replace `fork_basic`** with a more realistic scenario where each task does meaningful work. Proposed: two web research tasks (using WebFetch or WebSearch) that each write results to a file. The prompt should NOT mention fork tags — the improved system prompt should make the model fork naturally.
 
-Re-record with `cargo run --bin record-vcr fork_basic` after changes.
+Example prompt: "I need two research summaries written to files: 1) find out what Rust's async runtime Tokio is and write a summary to tokio-summary.txt, 2) find out what the Axum web framework is and write a summary to axum-summary.txt"
+
+The test fixture's settings.json needs to grant permissions for web access and file writing.
+
+**Add `fork_single`** test case demonstrating single-task fork (context-preserving delegation). Prompt should naturally lead the model to delegate one self-contained subtask.
+
+After changes: `cargo run --bin record-vcr fork_basic` and `cargo run --bin record-vcr fork_single`, then `cargo insta accept`.
 
 ## Questions
 
-### Should child tool calls continue the global tool counter?
+### How should the `:N` message reference work for fork child responses?
 
-Currently fork children use `[P/C]` numbering (e.g. `[2/1]`, `[2/2]`). Options:
+When a fork child completes, we need to store its full result text as a `StoredMessage` so the user can view it. Two options:
 
-1. **Continue global counter** (`[3]`, `[4]`, ...) — consistent with normal tool display, simple, but loses the visual grouping under the fork
-2. **Letter suffix** (`[2a]`, `[2b]`) — preserves grouping, compact
-3. **Keep `[P/C]`** — current behavior, explicit but unusual notation
+1. **Store at child completion** — when `render_fork_child_done` is called, also push a StoredMessage containing the child's result text. The completion line shows `(:M)` where M is `messages.len()`. Query `:M` retrieves it.
+2. **Store as a property of the fork** — store results in the `ActiveFork` struct and only push them when the fork completes. This groups them but delays message availability.
 
-Answer:
+I lean toward option 1 since it's simpler and makes messages available immediately.
 
-### What symbol/style for fork lines?
-
-1. **Keep `⑂` but make it bold cyan** instead of dim cyan — more visible, same character
-2. **Switch to `├`/`└`** box-drawing — tree-like structure, very readable
-3. **Keep current dim `⑂`** — it's fine, focus changes elsewhere
+The question is: what content goes in the StoredMessage? The child's result is XML text that gets composed into the reintegration message. Should we store the raw result, or a cleaned-up version?
 
 Answer:
 
-### How to show child completion?
+### What permissions should the fork test fixtures grant?
 
-1. **`✓ Task A`** — clean checkmark prefix
-2. **`⑂ Task A done`** (current) — explicit but verbose
-3. **No completion line** — just let the fork-complete transition speak for itself, less noise
+The test cases will use web access (WebFetch/WebSearch) and file writing. The settings.json for the test fixture needs appropriate permissions. Options:
+
+1. **Minimal**: Allow only `WebFetch(*)`, `WebSearch(*)`, and `Write(*)` — enough for the scenario
+2. **Standard test permissions**: Match whatever the existing test fixtures use
 
 Answer:
 
