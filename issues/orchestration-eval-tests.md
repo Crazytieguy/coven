@@ -1,6 +1,8 @@
 ---
 priority: P1
 state: approved
+blocked_by:
+  - wait-for-enter-bypasses-vcr
 ---
 
 # Design VCR tests that evaluate orchestration quality
