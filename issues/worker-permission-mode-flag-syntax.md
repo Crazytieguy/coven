@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: review
+state: approved
 ---
 
 # Worker permission-mode check doesn't handle `--flag=value` syntax
@@ -22,10 +22,6 @@ fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 ```
-
-## Fix
-
-Make `has_flag` `pub(crate)` and use it in `worker.rs:71` instead of the manual comparison.
 
 ## Plan
 
