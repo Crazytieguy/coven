@@ -1,8 +1,6 @@
 ---
-priority: P1
+priority: P0
 state: approved
-blocked_by:
-  - vcr-recording-progress-output
 ---
 
 # Find and fix VCR recording regressions
