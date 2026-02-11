@@ -3,5 +3,4 @@
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P0] I want to step up the workflow command testing: have a test with `coven init` + multiple `coven workflow` running concurrently, test a real situation (plan: plans/concurrent-worker-testing.md)
 - [P1] Iterate on the fork UI, test case, and system prompt: strict prompting should not be needed, UI should look nicer, the test case should be slightly more interesting (plan: plans/fork-ui-iteration.md)
-- [P2] VCR call boilerplate in worker.rs: ~10 instances of `vcr.call("name", args, async |a| { op(a) }).await?` with similar shapes. Extract helper functions to reduce repetition. (plan: plans/vcr-call-boilerplate.md)
 - [P2] SessionConfig construction repeated across run.rs, ralph.rs, and worker.rs with similar field patterns. Consider a builder or factory method to reduce duplication.
