@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Race condition in wait_for_new_commits between HEAD read and watcher setup
