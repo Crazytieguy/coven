@@ -224,7 +224,7 @@ impl SessionRunner {
 }
 
 /// Check whether a flag is already present in the extra args.
-fn has_flag(args: &[String], flag: &str) -> bool {
+pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter()
         .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }

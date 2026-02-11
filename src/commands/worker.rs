@@ -68,7 +68,7 @@ pub async fn worker<W: Write>(
     // Default to acceptEdits (same as other commands) unless the user
     // specified a permission mode. The user is expected to set up persistent
     // permissions for their project so agents can run unattended.
-    if !config.extra_args.iter().any(|a| a == "--permission-mode") {
+    if !crate::session::runner::has_flag(&config.extra_args, "--permission-mode") {
         config
             .extra_args
             .extend(["--permission-mode".to_string(), "acceptEdits".to_string()]);
