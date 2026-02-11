@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: new
+state: changes-requested
 ---
 
 # Audit agent creates low-value issues instead of finding nothing
