@@ -231,3 +231,4 @@ vcr_test!(gc_no_orphans);
 vcr_test!(init_fresh);
 vcr_test!(fork_basic);
 vcr_test!(fork_buffered);
+vcr_test!(fork_single);

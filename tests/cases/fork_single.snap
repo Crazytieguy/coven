@@ -1,0 +1,24 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 333e0a45-263c-46e1-bb45-7596683de123 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
+[3] Thinking...
+<fork>
+- Create greeting.txt with 'Hello from a forked subtask!'
+</fork>
+
+Done! I've created the `greeting.txt` file with the content 'Hello from a forked subtask!' and delegated it as a fork subtask.
+
+[4] ⑂ Fork  Create greeting.txt with 'Hello from a forked subtask!'
+[5] ⑂ Fork Result
+[6] Thinking...
+Perfect! The fork subtask completed successfully. The `greeting.txt` file has been created at `/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-fork_single/greeting.txt` with the content "Hello from a forked subtask!" ✓
+
+
+Done  $0.01 · 1.8s · 1 turn  (:N to view)
+>

@@ -105,12 +105,12 @@ pub async fn run_fork<W: Write>(
                 InboundEvent::Assistant(msg) if msg.parent_tool_use_id.is_none() => {
                     for block in &msg.message.content {
                         if let AssistantContentBlock::ToolUse { name, input, .. } = block {
-                            renderer.render_fork_child_tool_call(name, input);
+                            renderer.render_fork_child_tool_call(idx, name, input);
                         }
                     }
                 }
                 InboundEvent::Result(result) => {
-                    renderer.render_fork_child_done(&tasks[idx]);
+                    renderer.render_fork_child_done(idx, &result.result);
                     results[idx] = Some(Ok(result.result.clone()));
                     completed += 1;
                     if completed == num_tasks {
@@ -139,8 +139,6 @@ pub async fn run_fork<W: Write>(
         let _ = runner.wait().await;
     }
 
-    renderer.render_fork_complete();
-
     let result_tuples: Vec<(String, std::result::Result<String, String>)> = tasks
         .into_iter()
         .zip(results)
@@ -150,7 +148,10 @@ pub async fn run_fork<W: Write>(
         })
         .collect();
 
-    Ok(compose_reintegration_message(&result_tuples))
+    let reintegration = compose_reintegration_message(&result_tuples);
+    renderer.render_fork_complete(&reintegration);
+
+    Ok(reintegration)
 }
 
 /// Parse a `<fork>` tag from response text and return the task labels.
@@ -212,13 +213,16 @@ pub fn compose_reintegration_message(results: &[(String, Result<String, String>)
 
 /// Build the system prompt fragment that teaches the model about forking.
 pub fn fork_system_prompt() -> &'static str {
-    "To parallelize work, emit a <fork> tag containing a YAML list of short task labels:\n\
+    "To delegate self-contained subtasks, emit a <fork> tag with a YAML list of short task labels:\n\
      <fork>\n\
-     - Refactor auth module\n\
-     - Add tests for user API\n\
+     - Write tests for auth module\n\
+     - Update API documentation\n\
      </fork>\n\
-     Each fork inherits your full context and runs in parallel. You'll receive the results \
-     in a <fork-results> message when all children complete."
+     Each task inherits your full conversation context and runs as an independent session. \
+     Multiple tasks run concurrently. Use fork when a subtask is self-contained — whether \
+     you're parallelizing independent work or delegating a task that benefits from full context \
+     inheritance. You'll receive the combined results in a <fork-results> message when all \
+     tasks complete."
 }
 
 #[cfg(test)]

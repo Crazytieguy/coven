@@ -65,7 +65,7 @@ pub fn prompt_style() -> ContentStyle {
 pub fn fork_tool() -> ContentStyle {
     ContentStyle {
         foreground_color: Some(Color::Cyan),
-        attributes: Attribute::Dim.into(),
+        attributes: Attribute::Bold.into(),
         ..Default::default()
     }
 }

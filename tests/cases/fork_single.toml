@@ -1,0 +1,3 @@
+[run]
+prompt = "Create a file called greeting.txt containing 'Hello from a forked subtask!'. Delegate this as a self-contained fork subtask."
+fork = true

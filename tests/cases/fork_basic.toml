@@ -1,3 +1,3 @@
 [run]
-prompt = "Emit a fork tag to do two tasks in parallel: one task should create hello.txt with the text 'hello', and the other should create world.txt with the text 'world'. Do NOT do these sequentially. You MUST emit a <fork> tag."
+prompt = "Use fork to delegate two subtasks: 1) Create hello.txt with 'hello world', and 2) Create goodbye.txt with 'goodbye world'."
 fork = true
