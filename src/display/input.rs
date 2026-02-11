@@ -2,8 +2,16 @@ use std::io::{self, Write};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::{cursor, queue, terminal};
+use unicode_width::UnicodeWidthStr;
 
 use crate::event::InputMode;
+
+fn term_width() -> usize {
+    terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
+        .max(1)
+}
 
 /// Result of processing a key event.
 pub enum InputAction {
@@ -24,15 +32,19 @@ pub enum InputAction {
 }
 
 /// Simple line editor for user input in raw mode.
-#[derive(Default)]
 pub struct InputHandler {
     buffer: String,
     active: bool,
+    prefix_width: usize,
 }
 
 impl InputHandler {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(prefix_width: usize) -> Self {
+        Self {
+            buffer: String::new(),
+            active: false,
+            prefix_width,
+        }
     }
 
     pub fn is_active(&self) -> bool {
@@ -49,6 +61,29 @@ impl InputHandler {
     pub fn deactivate(&mut self) {
         self.active = false;
         self.buffer.clear();
+    }
+
+    /// Clear all terminal lines occupied by the input (prefix + buffer),
+    /// accounting for line wrapping at the terminal width.
+    fn clear_input_lines(&self, buffer: &str) {
+        let mut out = io::stdout();
+        let tw = term_width();
+        let input_display_width = buffer.width() + self.prefix_width;
+        let lines_occupied = input_display_width.div_ceil(tw).max(1);
+        if lines_occupied > 1 {
+            queue!(
+                out,
+                cursor::MoveUp(u16::try_from(lines_occupied - 1).unwrap_or(u16::MAX))
+            )
+            .ok();
+        }
+        queue!(
+            out,
+            crossterm::style::Print("\r"),
+            terminal::Clear(terminal::ClearType::FromCursorDown),
+        )
+        .ok();
+        out.flush().ok();
     }
 
     /// Process a terminal key event. Returns the action to take.
@@ -88,15 +123,27 @@ impl InputHandler {
             }
             KeyCode::Backspace => {
                 if !self.buffer.is_empty() {
+                    let old_display_width = self.prefix_width + self.buffer.width();
                     self.buffer.pop();
                     let mut out = io::stdout();
-                    // Move back, clear to end of line
-                    queue!(
-                        out,
-                        cursor::MoveLeft(1),
-                        terminal::Clear(terminal::ClearType::UntilNewLine),
-                    )
-                    .ok();
+                    let tw = term_width();
+                    if old_display_width.is_multiple_of(tw) {
+                        // Cursor is at column 0 of a wrapped line — move up
+                        queue!(
+                            out,
+                            cursor::MoveUp(1),
+                            cursor::MoveToColumn(u16::try_from(tw - 1).unwrap_or(u16::MAX)),
+                            terminal::Clear(terminal::ClearType::FromCursorDown),
+                        )
+                        .ok();
+                    } else {
+                        queue!(
+                            out,
+                            cursor::MoveLeft(1),
+                            terminal::Clear(terminal::ClearType::FromCursorDown),
+                        )
+                        .ok();
+                    }
                     out.flush().ok();
                 }
                 InputAction::None
@@ -104,16 +151,7 @@ impl InputHandler {
             KeyCode::Enter => {
                 let text = self.buffer.clone();
                 self.deactivate();
-
-                // Clear the input line so buffered output can print in its place
-                let mut out = io::stdout();
-                queue!(
-                    out,
-                    crossterm::style::Print("\r"),
-                    terminal::Clear(terminal::ClearType::CurrentLine),
-                )
-                .ok();
-                out.flush().ok();
+                self.clear_input_lines(&text);
 
                 if text.is_empty() {
                     return InputAction::None;
@@ -133,16 +171,9 @@ impl InputHandler {
                 InputAction::Submit(text, mode)
             }
             KeyCode::Esc => {
+                let text = self.buffer.clone();
                 self.deactivate();
-                // Clear the input line
-                let mut out = io::stdout();
-                queue!(
-                    out,
-                    crossterm::style::Print("\r"),
-                    terminal::Clear(terminal::ClearType::CurrentLine),
-                )
-                .ok();
-                out.flush().ok();
+                self.clear_input_lines(&text);
                 InputAction::Cancel
             }
             _ => InputAction::None,

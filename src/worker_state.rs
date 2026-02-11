@@ -215,16 +215,21 @@ pub fn format_status(states: &[WorkerState], own_pid: u32) -> String {
     format_workers(&others, StatusStyle::Dispatch)
 }
 
-/// Acquire the dispatch lock. Blocks until available.
+/// Acquire the dispatch lock. Retries with async sleep until available.
 ///
 /// The lock is released when the returned `DispatchLock` is dropped.
 /// If the process crashes, the OS releases the lock automatically.
 ///
-/// This intentionally blocks forever rather than timing out. If the lock
+/// Uses `try_lock_exclusive` in a loop rather than blocking `lock_exclusive`
+/// so the tokio runtime can schedule other tasks between attempts.
+/// This prevents deadlocks when multiple workers share a `LocalSet` thread
+/// (e.g. during VCR recording).
+///
+/// This intentionally retries forever rather than timing out. If the lock
 /// is stuck, the operator should investigate and resolve manually (e.g.
 /// kill the stuck worker). An automatic timeout could cause two workers
-/// to dispatch simultaneously, which is worse than blocking.
-pub fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
+/// to dispatch simultaneously, which is worse than retrying.
+pub async fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
     let dir = coven_dir(repo_path)?;
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
@@ -236,10 +241,17 @@ pub fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
         .open(&lock_path)
         .with_context(|| format!("failed to open {}", lock_path.display()))?;
 
-    file.lock_exclusive()
-        .context("failed to acquire dispatch lock")?;
-
-    Ok(DispatchLock { _file: file })
+    loop {
+        match file.try_lock_exclusive() {
+            Ok(()) => return Ok(DispatchLock { _file: file }),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(e).context("failed to acquire dispatch lock"));
+            }
+        }
+    }
 }
 
 // ── Private helpers ─────────────────────────────────────────────────────
@@ -434,23 +446,22 @@ mod tests {
             },
         ];
         let formatted = format_workers(&states, StatusStyle::Cli);
-        assert!(formatted
-            .contains("  swift-fox-42 (PID 12345) — implement (issue=issues/foo.md)"));
+        assert!(formatted.contains("  swift-fox-42 (PID 12345) — implement (issue=issues/foo.md)"));
         assert!(formatted.contains("  bold-oak-7 (PID 12346) — idle"));
     }
 
-    #[test]
-    fn dispatch_lock_acquire_release() {
+    #[tokio::test]
+    async fn dispatch_lock_acquire_release() {
         let repo = TempDir::new().unwrap();
         init_repo(repo.path());
 
-        let lock = acquire_dispatch_lock(repo.path()).unwrap();
+        let lock = acquire_dispatch_lock(repo.path()).await.unwrap();
         let lock_path = coven_dir(repo.path()).unwrap().join("dispatch.lock");
         assert!(lock_path.exists());
 
         drop(lock);
 
         // After drop, acquiring again should succeed immediately
-        let _lock2 = acquire_dispatch_lock(repo.path()).unwrap();
+        let _lock2 = acquire_dispatch_lock(repo.path()).await.unwrap();
     }
 }

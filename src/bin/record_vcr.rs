@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use tokio::sync::mpsc;
 use tokio::task::LocalSet;
 
 use coven::commands;
-use coven::vcr::{DEFAULT_TEST_MODEL, Io, TestCase, TriggerController, VcrContext};
+use coven::vcr::{DEFAULT_TEST_MODEL, Io, MultiStep, TestCase, TriggerController, VcrContext};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -78,6 +78,27 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Stage all changes and commit with the given message.
+fn git_commit_all(dir: &Path, message: &str) -> Result<()> {
+    for (cmd, args) in [("add", vec!["."]), ("commit", vec!["-m", message])] {
+        let output = std::process::Command::new("git")
+            .arg(cmd)
+            .args(&args)
+            .current_dir(dir)
+            .env("GIT_AUTHOR_NAME", "test")
+            .env("GIT_AUTHOR_EMAIL", "test@test.com")
+            .env("GIT_COMMITTER_NAME", "test")
+            .env("GIT_COMMITTER_EMAIL", "test@test.com")
+            .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "git {cmd} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
 /// Create a temp directory with test files and an initial git commit.
 fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
     let tmp_dir = std::env::temp_dir().join(format!("coven-vcr-{name}"));
@@ -125,6 +146,10 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
     let toml_content = std::fs::read_to_string(&toml_path)
         .context(format!("Failed to read {}", toml_path.display()))?;
     let case: TestCase = toml::from_str(&toml_content)?;
+
+    if case.is_multi() {
+        return record_multi_case(cases_dir, name, case).await;
+    }
 
     let tmp_dir = setup_test_dir(name, &case)?;
 
@@ -230,6 +255,117 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
 
     // Clean up temp dir
     std::fs::remove_dir_all(&tmp_dir).ok();
+
+    Ok(())
+}
+
+/// Record a multi-step test case. Steps are executed sequentially unless they
+/// share a `concurrent_group`, in which case they run concurrently.
+/// Each step writes its own VCR file: `<test>__<step>.vcr`.
+async fn record_multi_case(cases_dir: &Path, name: &str, case: TestCase) -> Result<()> {
+    let tmp_dir = setup_test_dir(name, &case)?;
+    let show_thinking = case.display.show_thinking;
+    let multi = case
+        .multi
+        .context("record_multi_case called without multi config")?;
+
+    let mut steps = multi.steps.into_iter().peekable();
+    while let Some(step) = steps.next() {
+        if step.concurrent_group.is_some() {
+            let group_name = step.concurrent_group.clone();
+            let mut group = vec![step];
+            while let Some(next_step) = steps.next_if(|s| s.concurrent_group == group_name) {
+                group.push(next_step);
+            }
+            let mut handles = Vec::new();
+            for step in group {
+                let dir = cases_dir.to_path_buf();
+                let n = name.to_string();
+                let td = tmp_dir.clone();
+                handles.push(tokio::task::spawn_local(async move {
+                    record_multi_step(dir, n, step, td, show_thinking).await
+                }));
+            }
+            for handle in handles {
+                handle.await??;
+            }
+        } else {
+            record_multi_step(
+                cases_dir.to_path_buf(),
+                name.to_string(),
+                step,
+                tmp_dir.clone(),
+                show_thinking,
+            )
+            .await?;
+        }
+    }
+
+    std::fs::remove_dir_all(&tmp_dir).ok();
+    Ok(())
+}
+
+/// Record a single step in a multi-step test case.
+async fn record_multi_step(
+    cases_dir: PathBuf,
+    test_name: String,
+    step: MultiStep,
+    tmp_dir: PathBuf,
+    show_thinking: bool,
+) -> Result<()> {
+    let vcr_path = cases_dir.join(format!("{test_name}__{}.vcr", step.name));
+    let default_model = DEFAULT_TEST_MODEL;
+
+    match step.command.as_str() {
+        "init" => {
+            let vcr = VcrContext::record();
+            let mut output = Vec::new();
+            let stdin_input = format!("{}\n", step.stdin.as_deref().unwrap_or(""));
+            let mut stdin = std::io::Cursor::new(stdin_input);
+            commands::init::init(&vcr, &mut output, &mut stdin, Some(tmp_dir.clone())).await?;
+            vcr.write_recording(&vcr_path)?;
+
+            // Commit init-created files so they're available in worktree checkouts.
+            git_commit_all(&tmp_dir, "coven init")?;
+        }
+        "worker" => {
+            let (term_tx, term_rx) = mpsc::unbounded_channel();
+            let (_event_tx, event_rx) = mpsc::unbounded_channel();
+
+            let controller = TriggerController::new(&step.messages, term_tx)?;
+            let vcr = VcrContext::record_with_triggers(controller);
+            let mut io = Io::new(event_rx, term_rx);
+            let mut output = Vec::new();
+
+            let mut extra_args = step.claude_args;
+            if !extra_args.iter().any(|a| a == "--model") {
+                extra_args.extend(["--model".to_string(), default_model.to_string()]);
+            }
+
+            let worktree_base =
+                tmp_dir.with_file_name(format!("coven-vcr-{test_name}-{}-worktrees", step.name));
+            std::fs::create_dir_all(&worktree_base)?;
+
+            commands::worker::worker(
+                commands::worker::WorkerConfig {
+                    show_thinking,
+                    branch: None,
+                    worktree_base: worktree_base.clone(),
+                    extra_args,
+                    working_dir: Some(tmp_dir),
+                    fork: false,
+                },
+                &mut io,
+                &vcr,
+                &mut output,
+            )
+            .await?;
+
+            vcr.write_recording(&vcr_path)?;
+            std::fs::remove_dir_all(&worktree_base).ok();
+        }
+        other => bail!("unsupported multi-step command: {other}"),
+    }
 
     Ok(())
 }

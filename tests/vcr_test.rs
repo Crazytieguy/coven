@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use coven::display::renderer::{StoredMessage, format_message};
-use coven::vcr::{Io, TestCase, VcrContext};
+use coven::vcr::{Io, MultiStep, TestCase, VcrContext};
 
 /// Strip ANSI escape codes for readable snapshots.
 fn strip_ansi(s: &str) -> String {
@@ -172,6 +172,86 @@ async fn run_vcr_test(name: &str) -> TestResult {
     }
 }
 
+/// Run a multi-step test case. Each step replays from its own VCR file,
+/// and outputs are concatenated with `--- <step_name> ---` headers.
+async fn run_multi_vcr_test(name: &str) -> TestResult {
+    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
+    let toml_path = base.join(format!("{name}.toml"));
+
+    let case: TestCase =
+        toml::from_str(&std::fs::read_to_string(&toml_path).expect("Failed to read TOML file"))
+            .expect("Failed to parse TOML file");
+
+    let multi = case.multi.as_ref().expect("Expected multi config");
+    let show_thinking = case.display.show_thinking;
+    let default_model = coven::vcr::DEFAULT_TEST_MODEL;
+
+    let mut combined_output = String::new();
+
+    for step in &multi.steps {
+        let vcr_path = base.join(format!("{name}__{}.vcr", step.name));
+        let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read step VCR file");
+        let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse step VCR file");
+
+        let mut output = Vec::new();
+        run_multi_step(step, &vcr, show_thinking, default_model, &mut output).await;
+
+        let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
+        combined_output.push_str(&format!("--- {} ---\n", step.name));
+        combined_output.push_str(&strip_ansi(&raw));
+        combined_output.push('\n');
+    }
+
+    TestResult {
+        display: combined_output,
+        messages: Vec::new(),
+        views: Vec::new(),
+    }
+}
+
+/// Replay a single step in a multi-step test case.
+async fn run_multi_step(
+    step: &MultiStep,
+    vcr: &VcrContext,
+    show_thinking: bool,
+    default_model: &str,
+    output: &mut Vec<u8>,
+) {
+    match step.command.as_str() {
+        "init" => {
+            let stdin_input = format!("{}\n", step.stdin.as_deref().unwrap_or(""));
+            let mut stdin = std::io::Cursor::new(stdin_input);
+            coven::commands::init::init(vcr, output, &mut stdin, None)
+                .await
+                .expect("Init step failed during VCR replay");
+        }
+        "worker" => {
+            let mut io = Io::dummy();
+            let mut extra_args = step.claude_args.clone();
+            if !extra_args.iter().any(|a| a == "--model") {
+                extra_args.extend(["--model".to_string(), default_model.to_string()]);
+            }
+            let worktree_base = PathBuf::from("/tmp/coven-vcr-replay-worktrees");
+            coven::commands::worker::worker(
+                coven::commands::worker::WorkerConfig {
+                    show_thinking,
+                    branch: None,
+                    worktree_base,
+                    extra_args,
+                    working_dir: None,
+                    fork: false,
+                },
+                &mut io,
+                vcr,
+                output,
+            )
+            .await
+            .expect("Worker step failed during VCR replay");
+        }
+        other => panic!("unsupported multi-step command: {other}"),
+    }
+}
+
 /// Format view output for snapshot: one section per viewed message.
 fn format_views(messages: &[StoredMessage], views: &[String]) -> String {
     let mut out = String::new();
@@ -210,6 +290,21 @@ macro_rules! vcr_test {
     };
 }
 
+macro_rules! multi_vcr_test {
+    ($name:ident) => {
+        #[tokio::test]
+        async fn $name() {
+            let result = run_multi_vcr_test(stringify!($name)).await;
+            insta::with_settings!({
+                snapshot_path => "../tests/cases",
+                prepend_module_to_snapshot => false,
+            }, {
+                insta::assert_snapshot!(stringify!($name), result.display);
+            });
+        }
+    };
+}
+
 vcr_test!(simple_qa);
 vcr_test!(tool_use);
 vcr_test!(grep_glob);
@@ -232,3 +327,4 @@ vcr_test!(init_fresh);
 vcr_test!(fork_basic);
 vcr_test!(fork_buffered);
 vcr_test!(fork_single);
+multi_vcr_test!(concurrent_workers);

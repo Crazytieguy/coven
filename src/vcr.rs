@@ -639,6 +639,8 @@ pub struct TestCase {
     pub gc: Option<GcTestConfig>,
     /// Configuration for the status command.
     pub status: Option<StatusTestConfig>,
+    /// Configuration for multi-step tests (e.g. init + concurrent workers).
+    pub multi: Option<MultiConfig>,
     /// Display/renderer configuration for test replay.
     #[serde(default)]
     pub display: DisplayConfig,
@@ -732,6 +734,34 @@ pub struct GcTestConfig {}
 #[derive(Deserialize, Default)]
 pub struct StatusTestConfig {}
 
+/// Configuration for multi-step test cases (e.g. init + concurrent workers).
+#[derive(Deserialize)]
+pub struct MultiConfig {
+    pub steps: Vec<MultiStep>,
+}
+
+/// A single step in a multi-step test case.
+#[derive(Deserialize)]
+pub struct MultiStep {
+    /// Step name, used in VCR filenames (`<test>__<step>.vcr`) and output headers.
+    pub name: String,
+    /// Command to run: "init", "worker".
+    pub command: String,
+    /// Stdin input for init commands (e.g. "y" or "n").
+    #[serde(default)]
+    pub stdin: Option<String>,
+    /// Steps sharing a `concurrent_group` launch together and all must complete
+    /// before the next sequential step starts.
+    #[serde(default)]
+    pub concurrent_group: Option<String>,
+    /// Trigger messages for this step (each step has its own triggers).
+    #[serde(default)]
+    pub messages: Vec<TestMessage>,
+    /// Extra arguments to pass through to claude.
+    #[serde(default)]
+    pub claude_args: Vec<String>,
+}
+
 impl TestCase {
     /// Whether this is a ralph test case.
     pub fn is_ralph(&self) -> bool {
@@ -756,5 +786,10 @@ impl TestCase {
     /// Whether this is a status test case.
     pub fn is_status(&self) -> bool {
         self.status.is_some()
+    }
+
+    /// Whether this is a multi-step test case.
+    pub fn is_multi(&self) -> bool {
+        self.multi.is_some()
     }
 }

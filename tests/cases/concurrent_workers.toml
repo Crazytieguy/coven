@@ -1,0 +1,53 @@
+[[multi.steps]]
+name = "init"
+command = "init"
+stdin = "y"
+
+[[multi.steps]]
+name = "worker_a"
+command = "worker"
+concurrent_group = "workers"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[[multi.steps]]
+name = "worker_b"
+command = "worker"
+concurrent_group = "workers"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)"]}}'
+"README.md" = "Helo, world!\n"
+"src/main.py" = "print(\"hello\")\n"
+"issues/fix-typo.md" = """
+---
+priority: P1
+state: approved
+---
+
+# Fix README typo
+
+## Plan
+
+Change "Helo" to "Hello" in README.md. No tests or linter needed — text-only change.
+"""
+"issues/add-contributing.md" = """
+---
+priority: P1
+state: approved
+---
+
+# Create CONTRIBUTING.md
+
+## Plan
+
+Create a CONTRIBUTING.md file with a brief "how to contribute" section. No tests or linter needed.
+"""

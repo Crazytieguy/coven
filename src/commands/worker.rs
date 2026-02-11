@@ -107,7 +107,7 @@ pub async fn worker<W: Write>(
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
-    let mut input = InputHandler::new();
+    let mut input = InputHandler::new(2);
     let mut total_cost = 0.0;
 
     let wt_str = spawn_result.worktree_path.display().to_string();
@@ -129,7 +129,11 @@ pub async fn worker<W: Write>(
         spawn_result.worktree_path.display()
     ));
 
-    let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
+    let fork_config = ForkConfig::if_enabled(
+        config.fork,
+        &config.extra_args,
+        &Some(spawn_result.worktree_path.clone()),
+    );
 
     let mut ctx = PhaseContext {
         renderer: &mut renderer,
@@ -308,7 +312,7 @@ async fn worker_loop<W: Write>(
             .call(
                 "worker_state::acquire_dispatch_lock",
                 wt_str.clone(),
-                async |p: &String| worker_state::acquire_dispatch_lock(Path::new(p)),
+                async |p: &String| worker_state::acquire_dispatch_lock(Path::new(p)).await,
             )
             .await?;
         let all_workers = ctx
@@ -1010,7 +1014,9 @@ async fn run_phase_session<W: Write>(
                         };
                         runner =
                             session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+                        let prev_session_id = state.session_id.clone();
                         state = SessionState::default();
+                        state.session_id = prev_session_id;
                     }
                     None => return Ok(PhaseOutcome::Exited),
                 }

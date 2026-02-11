@@ -53,7 +53,7 @@ pub async fn ralph<W: Write>(
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
-    let mut input = InputHandler::new();
+    let mut input = InputHandler::new(2);
     let mut total_cost = 0.0;
     let mut iteration = 0;
     let system_prompt = config.system_prompt();

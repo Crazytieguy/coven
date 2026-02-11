@@ -31,7 +31,7 @@ pub async fn run<W: Write>(
 ) -> Result<Vec<StoredMessage>> {
     let mut renderer = Renderer::with_writer(writer);
     renderer.set_show_thinking(config.show_thinking);
-    let mut input = InputHandler::new();
+    let mut input = InputHandler::new(2);
     let mut state = SessionState::default();
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
     renderer.render_help();
