@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Design a simple bash command to summarize issue frontmatters
@@ -36,7 +36,7 @@ state: new
 ==> review/fork-empty-session-id.md <==
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Fork uses empty string when session_id is None

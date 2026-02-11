@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # `extract_tag_inner` silently truncates nested tags

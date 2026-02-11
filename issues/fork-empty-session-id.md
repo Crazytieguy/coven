@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Fork uses empty string when session_id is None

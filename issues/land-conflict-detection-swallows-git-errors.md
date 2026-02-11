@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # `land()` conflict detection swallows git errors
