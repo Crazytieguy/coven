@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::Write;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -516,6 +517,145 @@ async fn ensure_commits<W: Write>(
     }
 }
 
+/// Maximum land attempts (shared across ff-retry and conflict resolution)
+/// before pausing for user input.
+const MAX_LAND_ATTEMPTS: u32 = 5;
+
+/// Result of a single `worktree::land` call, flattened for easy matching.
+enum LandAttempt {
+    Landed { branch: String, main_branch: String },
+    Conflict(Vec<String>),
+    FastForwardRace,
+    OtherError(anyhow::Error),
+}
+
+/// Call `worktree::land` via VCR and map the result into a flat enum.
+async fn try_land(vcr: &VcrContext, wt_str: String) -> Result<LandAttempt> {
+    match vcr
+        .call_typed_err("worktree::land", wt_str, async |p: &String| {
+            worktree::land(Path::new(p))
+        })
+        .await?
+    {
+        Ok(result) => Ok(LandAttempt::Landed {
+            branch: result.branch,
+            main_branch: result.main_branch,
+        }),
+        Err(worktree::WorktreeError::RebaseConflict(files)) => Ok(LandAttempt::Conflict(files)),
+        Err(worktree::WorktreeError::FastForwardFailed) => Ok(LandAttempt::FastForwardRace),
+        Err(e) => Ok(LandAttempt::OtherError(e.into())),
+    }
+}
+
+/// Handle a fast-forward race: bump attempts, pause if too many.
+/// Returns `Break(true)` to exit, `Continue(())` to retry.
+async fn handle_ff_retry<W: Write>(
+    attempts: &mut u32,
+    ctx: &mut PhaseContext<'_, W>,
+) -> Result<ControlFlow<bool>> {
+    *attempts += 1;
+    if *attempts > MAX_LAND_ATTEMPTS {
+        ctx.renderer.write_raw(&format!(
+            "Fast-forward failed after {MAX_LAND_ATTEMPTS} attempts \
+             — pausing worker. Press Enter to retry.\r\n",
+        ));
+        if wait_for_enter_or_exit(ctx.io).await? {
+            return Ok(ControlFlow::Break(true));
+        }
+        *attempts = 0;
+    } else {
+        ctx.renderer
+            .write_raw("Main advanced during land — retrying...\r\n");
+    }
+    Ok(ControlFlow::Continue(()))
+}
+
+/// Handle a non-conflict, non-ff error: abort rebase and pause for user.
+/// No attempts counter — user manually presses Enter each time,
+/// so they can inspect the worktree and fix the issue before retrying.
+/// Returns `Break(true)` to exit, `Continue(())` to retry.
+async fn handle_land_error<W: Write>(
+    err: anyhow::Error,
+    wt_str: &str,
+    ctx: &mut PhaseContext<'_, W>,
+) -> Result<ControlFlow<bool>> {
+    let _ = vcr_abort_rebase(ctx.vcr, wt_str.to_string()).await?;
+    ctx.renderer.write_raw(&format!(
+        "Land failed: {err} — pausing worker. Press Enter to retry.\r\n",
+    ));
+    if wait_for_enter_or_exit(ctx.io).await? {
+        return Ok(ControlFlow::Break(true));
+    }
+    Ok(ControlFlow::Continue(()))
+}
+
+/// Handle a rebase conflict: bump attempts, resolve via agent session.
+/// Returns `Break(true)` to exit, `Continue(())` to retry landing.
+async fn handle_conflict<W: Write>(
+    conflict_files: Vec<String>,
+    attempts: &mut u32,
+    resume_session_id: &mut Option<String>,
+    worktree_path: &Path,
+    extra_args: &[String],
+    ctx: &mut PhaseContext<'_, W>,
+    total_cost: &mut f64,
+) -> Result<ControlFlow<bool>> {
+    let wt_str = worktree_path.display().to_string();
+    *attempts += 1;
+
+    if *attempts > MAX_LAND_ATTEMPTS {
+        vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
+        ctx.renderer.write_raw(&format!(
+            "Conflict resolution failed after {MAX_LAND_ATTEMPTS} attempts \
+             — pausing worker. Press Enter to retry.\r\n",
+        ));
+        if wait_for_enter_or_exit(ctx.io).await? {
+            return Ok(ControlFlow::Break(true));
+        }
+        *attempts = 0;
+        return Ok(ControlFlow::Continue(()));
+    }
+
+    let files_display = conflict_files.join(", ");
+
+    let Some(sid) = resume_session_id.as_deref() else {
+        vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
+        bail!(
+            "Rebase conflict in {files_display} but no session ID available \
+             — this should be impossible"
+        );
+    };
+
+    ctx.renderer.write_raw(&format!(
+        "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
+    ));
+    ctx.renderer
+        .write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
+
+    let prompt = format!(
+        "The rebase onto main hit conflicts in: {files_display}\n\n\
+         Resolve the conflicts in those files, stage them with `git add`, \
+         and run `git rebase --continue`. If more conflicts appear after \
+         continuing, resolve those too until the rebase completes."
+    );
+
+    match resolve_conflict(&prompt, worktree_path, sid, extra_args, ctx).await? {
+        ResolveOutcome::Resolved { session_id, cost } => {
+            *total_cost += cost;
+            ctx.renderer
+                .write_raw("Conflict resolution complete, retrying land...\r\n");
+            *resume_session_id = session_id;
+        }
+        ResolveOutcome::Incomplete { session_id, cost } => {
+            *total_cost += cost;
+            ctx.renderer.write_raw("Retrying land...\r\n");
+            *resume_session_id = session_id;
+        }
+        ResolveOutcome::Exited => return Ok(ControlFlow::Break(true)),
+    }
+    Ok(ControlFlow::Continue(()))
+}
+
 /// Attempt to land and, on rebase conflict, resume the agent session to resolve.
 ///
 /// After successful conflict resolution, retries the full land (rebase + ff-merge)
@@ -531,8 +671,6 @@ async fn land_or_resolve<W: Write>(
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<bool> {
-    const MAX_ATTEMPTS: u32 = 5;
-
     ctx.renderer.write_raw("\r\n=== Landing ===\r\n");
 
     // Track the session to resume for conflict resolution. Starts as the
@@ -543,108 +681,41 @@ async fn land_or_resolve<W: Write>(
     let wt_str = worktree_path.display().to_string();
 
     loop {
-        let conflict_files = match ctx
-            .vcr
-            .call_typed_err("worktree::land", wt_str.clone(), async |p: &String| {
-                worktree::land(Path::new(p))
-            })
-            .await?
-        {
-            Ok(result) => {
-                ctx.renderer.write_raw(&format!(
-                    "Landed {} onto {}\r\n",
-                    result.branch, result.main_branch
-                ));
+        match try_land(ctx.vcr, wt_str.clone()).await? {
+            LandAttempt::Landed { branch, main_branch } => {
+                ctx.renderer
+                    .write_raw(&format!("Landed {branch} onto {main_branch}\r\n"));
                 return Ok(false);
             }
-            Err(worktree::WorktreeError::RebaseConflict(files)) => files,
-            Err(worktree::WorktreeError::FastForwardFailed) => {
-                attempts += 1;
-                if attempts > MAX_ATTEMPTS {
-                    ctx.renderer.write_raw(&format!(
-                        "Fast-forward failed after {MAX_ATTEMPTS} attempts \
-                         — pausing worker. Press Enter to retry.\r\n",
-                    ));
-                    if wait_for_enter_or_exit(ctx.io).await? {
-                        return Ok(true);
-                    }
-                    attempts = 0;
-                    continue;
+            LandAttempt::FastForwardRace => {
+                if let ControlFlow::Break(exit) =
+                    handle_ff_retry(&mut attempts, ctx).await?
+                {
+                    return Ok(exit);
                 }
-                ctx.renderer
-                    .write_raw("Main advanced during land — retrying...\r\n");
-                continue;
             }
-            Err(e) => {
-                // Abort any in-progress rebase (harmless no-op if rebase hasn't started).
-                let _ = vcr_abort_rebase(ctx.vcr, wt_str.clone()).await?;
-                // No attempts counter — user manually presses Enter each time,
-                // so they can inspect the worktree and fix the issue before retrying.
-                ctx.renderer.write_raw(&format!(
-                    "Land failed: {e} — pausing worker. Press Enter to retry.\r\n",
-                ));
-                if wait_for_enter_or_exit(ctx.io).await? {
-                    return Ok(true);
+            LandAttempt::OtherError(err) => {
+                if let ControlFlow::Break(exit) =
+                    handle_land_error(err, &wt_str, ctx).await?
+                {
+                    return Ok(exit);
                 }
-                continue;
             }
-        };
-
-        attempts += 1;
-
-        // After too many failed attempts, pause and let the user decide when to retry
-        // (e.g. after other workers quiesce). Abort rebase but keep branch commits.
-        if attempts > MAX_ATTEMPTS {
-            vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
-            ctx.renderer.write_raw(&format!(
-                "Conflict resolution failed after {MAX_ATTEMPTS} attempts \
-                 — pausing worker. Press Enter to retry.\r\n",
-            ));
-            if wait_for_enter_or_exit(ctx.io).await? {
-                return Ok(true);
+            LandAttempt::Conflict(files) => {
+                if let ControlFlow::Break(exit) = handle_conflict(
+                    files,
+                    &mut attempts,
+                    &mut resume_session_id,
+                    worktree_path,
+                    extra_args,
+                    ctx,
+                    total_cost,
+                )
+                .await?
+                {
+                    return Ok(exit);
+                }
             }
-            attempts = 0;
-            continue;
-        }
-
-        let files_display = conflict_files.join(", ");
-
-        // A conflict with no session ID should be impossible — the session ID
-        // is captured from the Init event at the start of the agent session.
-        let Some(sid) = resume_session_id.as_deref() else {
-            vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
-            bail!(
-                "Rebase conflict in {files_display} but no session ID available \
-                 — this should be impossible"
-            );
-        };
-
-        ctx.renderer.write_raw(&format!(
-            "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
-        ));
-        ctx.renderer
-            .write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
-
-        let prompt = format!(
-            "The rebase onto main hit conflicts in: {files_display}\n\n\
-             Resolve the conflicts in those files, stage them with `git add`, \
-             and run `git rebase --continue`. If more conflicts appear after \
-             continuing, resolve those too until the rebase completes."
-        );
-
-        match resolve_conflict(&prompt, worktree_path, sid, extra_args, ctx).await? {
-            ResolveOutcome::Resolved { session_id, cost } => {
-                *total_cost += cost;
-                ctx.renderer
-                    .write_raw("Conflict resolution complete, retrying land...\r\n");
-                resume_session_id = session_id;
-            }
-            ResolveOutcome::Incomplete { session_id, cost } => {
-                *total_cost += cost;
-                ctx.renderer.write_raw("Retrying land...\r\n");
-                resume_session_id = session_id;
-            }
-            ResolveOutcome::Exited => return Ok(true),
         }
     }
 }
