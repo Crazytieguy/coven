@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: new
+state: review
 ---
 
 # `set_title` doesn't sanitize input for terminal escape sequences
@@ -30,3 +30,17 @@ ctx.renderer.set_title(&format!("cv {title_suffix} — {branch}"));
 **Impact:** Low — the worst case is garbled terminal title or minor terminal display corruption. No command execution risk.
 
 **Fix:** Strip or replace control characters (`\x00-\x1f`, `\x7f`) from the title string before embedding it in the OSC sequence.
+
+## Plan
+
+In `Renderer::set_title` (`src/display/renderer.rs:760`), sanitize the `title` parameter before embedding it in the OSC sequence. Strip all C0 control characters (`\x00`–`\x1f`) and DEL (`\x7f`) from the string using `retain` or `replace`:
+
+```rust
+pub fn set_title(&mut self, title: &str) {
+    let sanitized: String = title.chars().filter(|c| !c.is_ascii_control()).collect();
+    queue!(self.out, Print(format!("\x1b]2;{sanitized}\x07"))).ok();
+    self.out.flush().ok();
+}
+```
+
+This is a single-line addition. No new dependencies, no new modules, no tests needed (the risk is terminal display corruption from LLM-generated content, which is not unit-testable in a meaningful way).
