@@ -1141,5 +1141,10 @@ fn main_head_sha(worktree_path: &Path) -> Result<String> {
         .output()
         .context("failed to run git rev-parse")?;
 
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git rev-parse failed: {}", stderr.trim());
+    }
+
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
