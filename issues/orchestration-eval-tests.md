@@ -1,8 +1,6 @@
 ---
 priority: P1
-state: review
-blocked_by:
-  - vcr-recording-progress-output
+state: approved
 ---
 
 # Design VCR tests that evaluate orchestration quality
