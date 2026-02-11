@@ -1,0 +1,3 @@
+{"label":"current_dir","args":null,"result":{"Ok":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-gc_no_orphans"}}
+{"label":"worktree::list_worktrees","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-gc_no_orphans","result":{"Ok":[{"branch":"main","is_main":true,"path":"/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-gc_no_orphans"}]}}
+{"label":"worker_state::read_all","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-gc_no_orphans","result":{"Ok":[]}}

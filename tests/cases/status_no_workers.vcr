@@ -1,0 +1,2 @@
+{"label":"current_dir","args":null,"result":{"Ok":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-status_no_workers"}}
+{"label":"worker_state::read_all","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-status_no_workers","result":{"Ok":[]}}

@@ -148,6 +148,7 @@ fn generate_branch_name() -> String {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /// A git worktree entry from `git worktree list --porcelain`.
+#[derive(Serialize, Deserialize)]
 pub struct WorktreeEntry {
     pub path: PathBuf,
     /// Branch name (without refs/heads/ prefix). None for detached HEAD.

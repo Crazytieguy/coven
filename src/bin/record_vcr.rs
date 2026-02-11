@@ -195,6 +195,15 @@ async fn record_case(cases_dir: &Path, name: &str) -> Result<()> {
             &mut output,
         )
         .await?;
+    } else if case.is_init() {
+        let init_config = case.init.as_ref().context("init config missing")?;
+        let stdin_input = format!("{}\n", init_config.stdin);
+        let mut stdin = std::io::Cursor::new(stdin_input);
+        commands::init::init(&vcr, &mut output, &mut stdin, Some(tmp_dir.clone())).await?;
+    } else if case.is_gc() {
+        commands::gc::gc(&vcr, Some(tmp_dir.as_path()), &mut output).await?;
+    } else if case.is_status() {
+        commands::status::status(&vcr, Some(tmp_dir.as_path()), &mut output).await?;
     } else {
         let run_config = case.run.as_ref().context("run config missing")?;
         let mut claude_args = run_config.claude_args.clone();

@@ -6,8 +6,12 @@ pub mod session_loop;
 pub mod status;
 pub mod worker;
 
+use std::path::Path;
+
 use anyhow::Result;
 use crossterm::terminal;
+
+use crate::vcr::VcrContext;
 
 /// Guard that disables terminal raw mode on drop.
 ///
@@ -35,4 +39,20 @@ impl Drop for RawModeGuard {
             terminal::disable_raw_mode().ok();
         }
     }
+}
+
+/// Resolve the working directory through VCR. Uses the configured directory
+/// if provided, otherwise falls back to `std::env::current_dir()`.
+pub(crate) async fn resolve_working_dir(
+    vcr: &VcrContext,
+    working_dir: Option<&Path>,
+) -> Result<String> {
+    let configured_dir = working_dir.map(|d| d.display().to_string());
+    vcr.call("current_dir", (), async |(): &()| {
+        Ok(match &configured_dir {
+            Some(d) => d.clone(),
+            None => std::env::current_dir()?.display().to_string(),
+        })
+    })
+    .await
 }

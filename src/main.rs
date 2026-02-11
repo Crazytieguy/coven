@@ -22,13 +22,22 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Some(Command::Init) => {
-            commands::init::init()?;
+            let vcr = VcrContext::live();
+            commands::init::init(
+                &vcr,
+                &mut std::io::stdout(),
+                &mut std::io::stdin().lock(),
+                None,
+            )
+            .await?;
         }
         Some(Command::Status) => {
-            commands::status::status()?;
+            let vcr = VcrContext::live();
+            commands::status::status(&vcr, None, &mut std::io::stdout()).await?;
         }
         Some(Command::Gc) => {
-            commands::gc::gc()?;
+            let vcr = VcrContext::live();
+            commands::gc::gc(&vcr, None, &mut std::io::stdout()).await?;
         }
         Some(Command::Ralph {
             prompt,

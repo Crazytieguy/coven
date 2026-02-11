@@ -623,6 +623,12 @@ pub struct TestCase {
     pub ralph: Option<RalphConfig>,
     /// Configuration for worker mode.
     pub worker: Option<WorkerTestConfig>,
+    /// Configuration for the init command.
+    pub init: Option<InitTestConfig>,
+    /// Configuration for the gc command.
+    pub gc: Option<GcTestConfig>,
+    /// Configuration for the status command.
+    pub status: Option<StatusTestConfig>,
     /// Display/renderer configuration for test replay.
     #[serde(default)]
     pub display: DisplayConfig,
@@ -697,6 +703,22 @@ pub struct TestMessage {
     pub mode: TriggerInputMode,
 }
 
+/// Configuration for the init command test case.
+#[derive(Deserialize, Default)]
+pub struct InitTestConfig {
+    /// Stdin input for the CLAUDE.md prompt (e.g. "y" or "n").
+    #[serde(default)]
+    pub stdin: String,
+}
+
+/// Configuration for the gc command test case.
+#[derive(Deserialize, Default)]
+pub struct GcTestConfig {}
+
+/// Configuration for the status command test case.
+#[derive(Deserialize, Default)]
+pub struct StatusTestConfig {}
+
 impl TestCase {
     /// Whether this is a ralph test case.
     pub fn is_ralph(&self) -> bool {
@@ -706,5 +728,20 @@ impl TestCase {
     /// Whether this is a worker test case.
     pub fn is_worker(&self) -> bool {
         self.worker.is_some()
+    }
+
+    /// Whether this is an init test case.
+    pub fn is_init(&self) -> bool {
+        self.init.is_some()
+    }
+
+    /// Whether this is a gc test case.
+    pub fn is_gc(&self) -> bool {
+        self.gc.is_some()
+    }
+
+    /// Whether this is a status test case.
+    pub fn is_status(&self) -> bool {
+        self.status.is_some()
     }
 }

@@ -1,0 +1,5 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+No active workers.

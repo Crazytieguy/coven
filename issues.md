@@ -4,5 +4,4 @@
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P2] README overhaul: add usage guidelines, document worker/fork/agents/init/status/gc commands, update features list, add a commands section. Currently only covers basic features. (plan: plans/readme-overhaul.md)
 - [P2] Windows support: uses Unix-specific APIs (libc::tcflush, /dev/null, kill command, rsync). Need platform abstractions or #[cfg] guards to support x86_64-pc-windows-msvc target. (plan: plans/windows-support.md)
-- [P2] Missing test coverage for `init`, `gc`, and `status` commands — these have no VCR test cases. All other commands have at least basic coverage. (plan: plans/test-coverage-init-gc-status.md)
 

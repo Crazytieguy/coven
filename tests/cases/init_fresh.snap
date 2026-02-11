@@ -1,0 +1,14 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+Created:
+  .coven/agents/dispatch.md
+  .coven/agents/plan.md
+  .coven/agents/implement.md
+  .coven/agents/audit.md
+  .coven/workflow.md
+  issues/
+  review/
+
+Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with workflow reference.

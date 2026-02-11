@@ -1,7 +1,10 @@
 use std::collections::HashSet;
+use std::io::Write;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 
+use crate::vcr::VcrContext;
 use crate::worker_state;
 use crate::worktree;
 
@@ -9,12 +12,32 @@ use crate::worktree;
 ///
 /// Lists all git worktrees, compares against live workers, and removes
 /// any non-main worktree that no live worker owns.
-pub fn gc() -> Result<()> {
-    let project_root = std::env::current_dir()?;
+pub async fn gc(
+    vcr: &VcrContext,
+    working_dir: Option<&Path>,
+    writer: &mut impl Write,
+) -> Result<()> {
+    let project_root = super::resolve_working_dir(vcr, working_dir).await?;
 
-    let worktrees = worktree::list_worktrees(&project_root).context("failed to list worktrees")?;
+    let worktrees = vcr
+        .call(
+            "worktree::list_worktrees",
+            project_root.clone(),
+            async |p: &String| {
+                worktree::list_worktrees(Path::new(p)).map_err(|e| anyhow::anyhow!("{e}"))
+            },
+        )
+        .await
+        .context("failed to list worktrees")?;
 
-    let live_workers = worker_state::read_all(&project_root)?;
+    let live_workers = vcr
+        .call(
+            "worker_state::read_all",
+            project_root,
+            async |p: &String| worker_state::read_all(Path::new(p)),
+        )
+        .await?;
+
     let live_branches: HashSet<&str> = live_workers.iter().map(|w| w.branch.as_str()).collect();
 
     let orphaned: Vec<_> = worktrees
@@ -28,30 +51,41 @@ pub fn gc() -> Result<()> {
         .collect();
 
     if orphaned.is_empty() {
-        println!("No orphaned worktrees.");
+        writeln!(writer, "No orphaned worktrees.")?;
         return Ok(());
     }
 
-    println!("Removing {} orphaned worktree(s):\n", orphaned.len());
+    writeln!(
+        writer,
+        "Removing {} orphaned worktree(s):\n",
+        orphaned.len()
+    )?;
 
     let mut removed = 0;
     for wt in &orphaned {
         let label = wt.branch.as_deref().unwrap_or("(detached)");
-        print!("  {} ({})", label, wt.path.display());
+        write!(writer, "  {} ({})", label, wt.path.display())?;
 
-        match worktree::remove(&wt.path) {
+        let wt_path = wt.path.display().to_string();
+        let result = vcr
+            .call("worktree::remove", wt_path, async |p: &String| {
+                worktree::remove(Path::new(p)).map_err(|e| anyhow::anyhow!("{e}"))
+            })
+            .await;
+
+        match result {
             Ok(()) => {
-                println!(" — removed");
+                writeln!(writer, " — removed")?;
                 removed += 1;
             }
             Err(e) => {
-                println!(" — failed: {e}");
+                writeln!(writer, " — failed: {e}")?;
             }
         }
     }
 
     if removed > 0 {
-        println!("\nRemoved {removed} worktree(s).");
+        writeln!(writer, "\nRemoved {removed} worktree(s).")?;
     }
 
     Ok(())

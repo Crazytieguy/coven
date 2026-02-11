@@ -124,6 +124,24 @@ async fn run_vcr_test(name: &str) -> TestResult {
         )
         .await
         .expect("Command failed during VCR replay")
+    } else if case.is_init() {
+        let init_config = case.init.as_ref().unwrap();
+        let stdin_input = format!("{}\n", init_config.stdin);
+        let mut stdin = std::io::Cursor::new(stdin_input);
+        coven::commands::init::init(&vcr, &mut output, &mut stdin, None)
+            .await
+            .expect("Command failed during VCR replay");
+        Vec::new()
+    } else if case.is_gc() {
+        coven::commands::gc::gc(&vcr, None, &mut output)
+            .await
+            .expect("Command failed during VCR replay");
+        Vec::new()
+    } else if case.is_status() {
+        coven::commands::status::status(&vcr, None, &mut output)
+            .await
+            .expect("Command failed during VCR replay");
+        Vec::new()
     } else {
         let run_config = case.run.as_ref().unwrap();
         let mut claude_args = run_config.claude_args.clone();
@@ -208,3 +226,6 @@ vcr_test!(subagent_error);
 vcr_test!(parallel_subagent);
 vcr_test!(worker_basic);
 vcr_test!(interrupt_resume);
+vcr_test!(status_no_workers);
+vcr_test!(gc_no_orphans);
+vcr_test!(init_fresh);
