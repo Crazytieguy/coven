@@ -13,7 +13,7 @@ You are the dispatch agent. Decide what this worker should do next.
 
 ## Finding Issues
 
-List the `issues/` and `review/` directories. Read each file's YAML frontmatter to check its `state` and `priority` fields.
+Run `head -7 issues/*.md review/*.md 2>/dev/null` to see the state, priority, and title of every issue in one shot.
 
 ### Routing
 
