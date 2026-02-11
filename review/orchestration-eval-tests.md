@@ -1,8 +1,7 @@
 ---
 priority: P1
-state: needs-replan
+state: review
 blocked_by:
-  - wait-for-enter-bypasses-vcr
   - vcr-recording-progress-output
 ---
 
@@ -16,7 +15,7 @@ Come up with several unique test scenarios that stress-test orchestration decisi
 
 ## Plan
 
-Four new multi-step VCR eval tests under `tests/cases/orchestration/`, all using real agents via `coven init`. Each test targets a specific orchestration decision-making scenario not covered by existing tests.
+Four new multi-step VCR eval tests under `tests/cases/orchestration/`, all using real agents via `coven init`. Each test targets a specific orchestration decision-making scenario not covered by existing tests. All tests use haiku (the default `DEFAULT_TEST_MODEL`) to stress-test prompt quality.
 
 ### Test 1: `plan_ambiguous_issue`
 
@@ -263,15 +262,9 @@ Both issues modify line 1 of README.md, guaranteeing a rebase conflict for which
 
 ### Implementation Steps
 
-1. Create test directories:
-   - `tests/cases/orchestration/plan_ambiguous_issue/`
-   - `tests/cases/orchestration/priority_dispatch/`
-   - `tests/cases/orchestration/needs_replan/`
-   - `tests/cases/orchestration/landing_conflict/`
+1. Create test directories and write the four TOML configs as specified above.
 
-2. Write the four TOML configs as specified above.
-
-3. Register tests in `tests/vcr_test.rs`:
+2. Register tests in `tests/vcr_test.rs`:
    ```rust
    multi_vcr_test!(orchestration / plan_ambiguous_issue);
    multi_vcr_test!(orchestration / priority_dispatch);
@@ -279,7 +272,7 @@ Both issues modify line 1 of README.md, guaranteeing a rebase conflict for which
    multi_vcr_test!(orchestration / landing_conflict);
    ```
 
-4. Record fixtures one at a time, reviewing each before moving on:
+3. Record fixtures one at a time, reviewing each before moving on. Use the recorder's progress output to monitor recording status:
    ```
    cargo run --bin record-vcr plan_ambiguous_issue
    cargo run --bin record-vcr priority_dispatch
@@ -287,26 +280,15 @@ Both issues modify line 1 of README.md, guaranteeing a rebase conflict for which
    cargo run --bin record-vcr landing_conflict
    ```
 
-5. After each recording, review the snapshot for the eval signals listed per test. If the model doesn't produce expected behavior (e.g., implement agent doesn't set needs-replan), adjust the test setup (files, issue description) and re-record.
+4. After each recording, review the snapshot for the eval signals listed per test. If the model doesn't produce expected behavior (e.g., implement agent doesn't set needs-replan), adjust the test setup (files, issue description) and re-record.
 
-6. Run `cargo test` to verify all replays succeed.
+5. Run `cargo test` to verify all replays succeed, then `cargo insta accept`.
 
-7. Accept snapshots: `cargo insta accept`.
-
-8. Final check: `cargo fmt && cargo clippy && cargo test`.
+6. Final check: `cargo fmt && cargo clippy && cargo test`.
 
 ### Notes
 
-- All tests use `coven init` as the first step to get the real agent prompts. This means re-recording after prompt changes (e.g., the `fix-plan-vs-implement-priority` or `explicit-review-cap` issues) will show behavior diffs in snapshots.
+- All tests use `coven init` as the first step to get the real agent prompts. Re-recording after prompt changes will show behavior diffs in snapshots.
 - Permissions in `.claude/settings.json` may need adjustment during recording if agents need additional shell commands. Start with the listed set and expand if recording fails on permission prompts.
 - The `needs_replan` test involves 3 dispatch rounds (dispatch → implement → dispatch → plan → dispatch → sleep), making it the longest test to record. If recording is unreliable, it can be split into two simpler tests.
-
-## Questions
-
-**Should all four tests use haiku (the current default `DEFAULT_TEST_MODEL`) or should any use a more capable model?** Use haiku for all — this stress-tests the prompts so they're flawless for more capable models.
-
-## Implementation Notes
-
-The TOML configs and test registration are straightforward — the bottleneck is VCR recording. `cargo run --bin record-vcr` runs silently with no progress output, so there's no way to tell whether a multi-step orchestration recording is progressing or stuck. This makes it impractical for an automated worker to record fixtures reliably.
-
-Blocked on `vcr-recording-progress-output` — once the recorder has progress output, this issue can proceed.
+- The previous implementation attempt (which set `needs-replan`) failed because the recorder had no progress output — the worker couldn't tell if recording was progressing or stuck. This is addressed by the `vcr-recording-progress-output` blocker, which must be implemented before this issue can proceed.
