@@ -8,7 +8,7 @@ Session e847564c-e630-474e-bead-78d8e08d068d (claude-haiku-4-5-20251001)
 [1] Thinking...
 I'll help you read and summarize each Python file in this directory. Let me start by finding all .py files.
 
-> A⤷ steering: Actually, just count the lines in each file instead
+> ⤷ steering: Actually, just count the lines in each file instead
 [2] ▶ Glob  *.py
 [3] Thinking...
 Got it! I'll count the lines in each file instead. Let me do that for you:

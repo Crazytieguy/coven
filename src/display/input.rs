@@ -4,6 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::{cursor, queue, terminal};
 use unicode_width::UnicodeWidthStr;
 
+use super::theme;
 use crate::event::InputMode;
 
 fn term_width() -> usize {
@@ -34,16 +35,24 @@ pub enum InputAction {
 /// Simple line editor for user input in raw mode.
 pub struct InputHandler {
     buffer: String,
+    /// Cursor position as a char index into the buffer.
+    cursor: usize,
     active: bool,
     prefix_width: usize,
+    /// Tracks where the terminal cursor currently is (display columns from
+    /// the start of the input line, including the prefix). Used by `redraw()`
+    /// to navigate back to the beginning before reprinting.
+    term_cursor_display: usize,
 }
 
 impl InputHandler {
     pub fn new(prefix_width: usize) -> Self {
         Self {
             buffer: String::new(),
+            cursor: 0,
             active: false,
             prefix_width,
+            term_cursor_display: 0,
         }
     }
 
@@ -54,26 +63,122 @@ impl InputHandler {
     /// Activate the input handler (show prompt, start accepting keys).
     pub fn activate(&mut self) {
         self.buffer.clear();
+        self.cursor = 0;
         self.active = true;
+        self.term_cursor_display = self.prefix_width;
     }
 
     /// Deactivate without clearing — used after submit/cancel.
     pub fn deactivate(&mut self) {
         self.active = false;
         self.buffer.clear();
+        self.cursor = 0;
+    }
+
+    /// Byte offset in the buffer corresponding to the current char-index cursor.
+    fn cursor_byte_pos(&self) -> usize {
+        self.byte_pos_at(self.cursor)
+    }
+
+    /// Char index of the nearest word boundary to the left of the cursor.
+    fn word_boundary_left(&self) -> usize {
+        let chars: Vec<char> = self.buffer.chars().collect();
+        let mut i = self.cursor;
+        // Skip whitespace
+        while i > 0 && chars[i - 1].is_whitespace() {
+            i -= 1;
+        }
+        // Skip word characters
+        while i > 0 && !chars[i - 1].is_whitespace() {
+            i -= 1;
+        }
+        i
+    }
+
+    /// Char index of the nearest word boundary to the right of the cursor.
+    fn word_boundary_right(&self) -> usize {
+        let chars: Vec<char> = self.buffer.chars().collect();
+        let len = chars.len();
+        let mut i = self.cursor;
+        // Skip word characters
+        while i < len && !chars[i].is_whitespace() {
+            i += 1;
+        }
+        // Skip whitespace
+        while i < len && chars[i].is_whitespace() {
+            i += 1;
+        }
+        i
+    }
+
+    /// Redraw the entire input line and position the cursor.
+    ///
+    /// Call this after any buffer or cursor modification. Uses
+    /// `term_cursor_display` to navigate to the start of the input,
+    /// then reprints the prefix and buffer, clears leftover content,
+    /// and moves the cursor to the correct column.
+    pub fn redraw(&mut self) {
+        let mut out = io::stdout();
+        let tw = term_width();
+
+        // Move to start of input region
+        let cur_line = self.term_cursor_display / tw;
+        if cur_line > 0 {
+            queue!(
+                out,
+                cursor::MoveUp(u16::try_from(cur_line).unwrap_or(u16::MAX))
+            )
+            .ok();
+        }
+        queue!(out, crossterm::style::Print("\r")).ok();
+
+        // Redraw prefix + buffer
+        queue!(
+            out,
+            crossterm::style::Print(theme::prompt_style().apply("> ")),
+            crossterm::style::Print(&self.buffer),
+            terminal::Clear(terminal::ClearType::FromCursorDown),
+        )
+        .ok();
+
+        // Move terminal cursor from end-of-buffer to the actual cursor position
+        let byte_pos = self.cursor_byte_pos();
+        let new_cursor_display = self.prefix_width + self.buffer[..byte_pos].width();
+        let total_display = self.prefix_width + self.buffer.width();
+        let end_line = total_display / tw;
+        let target_line = new_cursor_display / tw;
+        let target_col = new_cursor_display % tw;
+
+        let lines_up = end_line.saturating_sub(target_line);
+        if lines_up > 0 {
+            queue!(
+                out,
+                cursor::MoveUp(u16::try_from(lines_up).unwrap_or(u16::MAX))
+            )
+            .ok();
+        }
+        queue!(
+            out,
+            cursor::MoveToColumn(u16::try_from(target_col).unwrap_or(u16::MAX))
+        )
+        .ok();
+        out.flush().ok();
+
+        self.term_cursor_display = new_cursor_display;
     }
 
     /// Clear all terminal lines occupied by the input (prefix + buffer),
     /// accounting for line wrapping at the terminal width.
-    fn clear_input_lines(&self, buffer: &str) {
+    fn clear_input_lines(&self) {
         let mut out = io::stdout();
         let tw = term_width();
-        let input_display_width = buffer.width() + self.prefix_width;
-        let lines_occupied = input_display_width.div_ceil(tw).max(1);
-        if lines_occupied > 1 {
+        // Use term_cursor_display to find which line the cursor is on,
+        // then move to the start of the input region.
+        let cur_line = self.term_cursor_display / tw;
+        if cur_line > 0 {
             queue!(
                 out,
-                cursor::MoveUp(u16::try_from(lines_occupied - 1).unwrap_or(u16::MAX))
+                cursor::MoveUp(u16::try_from(cur_line).unwrap_or(u16::MAX))
             )
             .ok();
         }
@@ -86,27 +191,147 @@ impl InputHandler {
         out.flush().ok();
     }
 
+    /// Move the cursor to `pos` and redraw.
+    fn move_cursor(&mut self, pos: usize) {
+        self.cursor = pos;
+        self.redraw();
+    }
+
+    /// Insert a character at the cursor position and redraw.
+    fn insert_char(&mut self, c: char) {
+        let byte_pos = self.cursor_byte_pos();
+        self.buffer.insert(byte_pos, c);
+        self.cursor += 1;
+        self.redraw();
+    }
+
+    /// Delete chars in `[from_char..to_char)`, set cursor to `from_char`, and redraw.
+    fn delete_range(&mut self, from_char: usize, to_char: usize) {
+        let from_byte = self.byte_pos_at(from_char);
+        let to_byte = self.byte_pos_at(to_char);
+        self.buffer.drain(from_byte..to_byte);
+        self.cursor = from_char;
+        self.redraw();
+    }
+
+    /// Byte offset for a given char index.
+    fn byte_pos_at(&self, char_idx: usize) -> usize {
+        self.buffer
+            .char_indices()
+            .nth(char_idx)
+            .map_or(self.buffer.len(), |(i, _)| i)
+    }
+
     /// Process a terminal key event. Returns the action to take.
     pub fn handle_key(&mut self, event: &KeyEvent) -> InputAction {
         if !self.active {
-            // If not active, check for character to start input
-            match event.code {
-                KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    return InputAction::Interrupt;
-                }
-                KeyCode::Char('d') if event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    return InputAction::EndSession;
-                }
-                KeyCode::Char(c) => {
-                    // Start input mode — caller handles the visual setup
-                    self.activate();
-                    self.buffer.push(c);
-                    return InputAction::Activated(c);
-                }
-                _ => return InputAction::None,
-            }
+            return self.handle_inactive_key(event);
         }
 
+        let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
+        let alt = event.modifiers.contains(KeyModifiers::ALT);
+        let len = self.buffer.chars().count();
+
+        match event.code {
+            KeyCode::Char('c') if ctrl => InputAction::Interrupt,
+            KeyCode::Char('d') if ctrl => InputAction::EndSession,
+
+            // Cursor movement
+            KeyCode::Left if ctrl || alt => {
+                self.move_cursor(self.word_boundary_left());
+                InputAction::None
+            }
+            KeyCode::Right if ctrl || alt => {
+                self.move_cursor(self.word_boundary_right());
+                InputAction::None
+            }
+            KeyCode::Char('b') if alt => {
+                self.move_cursor(self.word_boundary_left());
+                InputAction::None
+            }
+            KeyCode::Char('f') if alt => {
+                self.move_cursor(self.word_boundary_right());
+                InputAction::None
+            }
+            KeyCode::Left if self.cursor > 0 => {
+                self.move_cursor(self.cursor - 1);
+                InputAction::None
+            }
+            KeyCode::Right if self.cursor < len => {
+                self.move_cursor(self.cursor + 1);
+                InputAction::None
+            }
+            KeyCode::Char('a') if ctrl => {
+                self.move_cursor(0);
+                InputAction::None
+            }
+            KeyCode::Char('e') if ctrl => {
+                self.move_cursor(len);
+                InputAction::None
+            }
+            KeyCode::Home => {
+                self.move_cursor(0);
+                InputAction::None
+            }
+            KeyCode::End => {
+                self.move_cursor(len);
+                InputAction::None
+            }
+
+            // Deletion
+            KeyCode::Backspace if alt => {
+                let t = self.word_boundary_left();
+                self.delete_range(t, self.cursor);
+                InputAction::None
+            }
+            KeyCode::Char('w') if ctrl => {
+                let t = self.word_boundary_left();
+                self.delete_range(t, self.cursor);
+                InputAction::None
+            }
+            KeyCode::Char('u') if ctrl => {
+                self.delete_range(0, self.cursor);
+                InputAction::None
+            }
+            KeyCode::Char('k') if ctrl => {
+                self.delete_range(self.cursor, len);
+                InputAction::None
+            }
+            KeyCode::Char('d') if alt => {
+                let t = self.word_boundary_right();
+                self.delete_range(self.cursor, t);
+                InputAction::None
+            }
+            KeyCode::Delete if self.cursor < len => {
+                self.delete_range(self.cursor, self.cursor + 1);
+                InputAction::None
+            }
+
+            // Character insertion
+            KeyCode::Char(c) => {
+                self.insert_char(c);
+                InputAction::None
+            }
+
+            // Backspace
+            KeyCode::Backspace if self.cursor > 0 => {
+                self.delete_range(self.cursor - 1, self.cursor);
+                InputAction::None
+            }
+
+            // Submit / cancel
+            KeyCode::Enter => self.handle_enter(event),
+            KeyCode::Esc => {
+                self.deactivate();
+                self.clear_input_lines();
+                InputAction::Cancel
+            }
+
+            _ => InputAction::None,
+        }
+    }
+
+    fn handle_inactive_key(&mut self, event: &KeyEvent) -> InputAction {
         match event.code {
             KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                 InputAction::Interrupt
@@ -115,69 +340,34 @@ impl InputHandler {
                 InputAction::EndSession
             }
             KeyCode::Char(c) => {
-                self.buffer.push(c);
-                let mut out = io::stdout();
-                queue!(out, crossterm::style::Print(c)).ok();
-                out.flush().ok();
-                InputAction::None
-            }
-            KeyCode::Backspace => {
-                if !self.buffer.is_empty() {
-                    let old_display_width = self.prefix_width + self.buffer.width();
-                    self.buffer.pop();
-                    let mut out = io::stdout();
-                    let tw = term_width();
-                    if old_display_width.is_multiple_of(tw) {
-                        // Cursor is at column 0 of a wrapped line — move up
-                        queue!(
-                            out,
-                            cursor::MoveUp(1),
-                            cursor::MoveToColumn(u16::try_from(tw - 1).unwrap_or(u16::MAX)),
-                            terminal::Clear(terminal::ClearType::FromCursorDown),
-                        )
-                        .ok();
-                    } else {
-                        queue!(
-                            out,
-                            cursor::MoveLeft(1),
-                            terminal::Clear(terminal::ClearType::FromCursorDown),
-                        )
-                        .ok();
-                    }
-                    out.flush().ok();
-                }
-                InputAction::None
-            }
-            KeyCode::Enter => {
-                let text = self.buffer.clone();
-                self.deactivate();
-                self.clear_input_lines(&text);
-
-                if text.is_empty() {
-                    return InputAction::None;
-                }
-
-                // Check for view command (:N, :P/C, :Label, :Label[index])
-                if let Some(query) = parse_view_command(&text) {
-                    return InputAction::ViewMessage(query);
-                }
-
-                let mode = if event.modifiers.contains(KeyModifiers::ALT) {
-                    InputMode::FollowUp
-                } else {
-                    InputMode::Steering
-                };
-
-                InputAction::Submit(text, mode)
-            }
-            KeyCode::Esc => {
-                let text = self.buffer.clone();
-                self.deactivate();
-                self.clear_input_lines(&text);
-                InputAction::Cancel
+                self.activate();
+                self.insert_char(c);
+                InputAction::Activated(c)
             }
             _ => InputAction::None,
         }
+    }
+
+    fn handle_enter(&mut self, event: &KeyEvent) -> InputAction {
+        let text = self.buffer.clone();
+        self.deactivate();
+        self.clear_input_lines();
+
+        if text.is_empty() {
+            return InputAction::None;
+        }
+
+        if let Some(query) = parse_view_command(&text) {
+            return InputAction::ViewMessage(query);
+        }
+
+        let mode = if event.modifiers.contains(KeyModifiers::ALT) {
+            InputMode::FollowUp
+        } else {
+            InputMode::Steering
+        };
+
+        InputAction::Submit(text, mode)
     }
 }
 

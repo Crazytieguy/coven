@@ -134,9 +134,9 @@ async fn handle_session_key_event<W: Write>(
 ) -> Result<LoopAction> {
     let action = input.handle_key(key_event);
     match action {
-        InputAction::Activated(c) => {
+        InputAction::Activated(_) => {
             renderer.begin_input_line();
-            renderer.write_raw(&c.to_string());
+            input.redraw();
         }
         InputAction::Submit(text, mode) => {
             let flush = flush_event_buffer(locals, state, renderer);
@@ -472,9 +472,9 @@ async fn wait_for_text_input<W: Write>(
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(None);
                     }
-                    InputAction::Activated(c) => {
+                    InputAction::Activated(_) => {
                         renderer.begin_input_line();
-                        renderer.write_raw(&c.to_string());
+                        input.redraw();
                     }
                     InputAction::None => {}
                 }
