@@ -11,4 +11,4 @@
 [interrupted]
 > I think it's taking way too much time. I've killed the task. See if you can identify an issue that would cause an infinite loop or would c> I think it's taking way too much time. I've killed the task. See if you can identify an issue that would cause an infinite loop or would cause the model to run for a very long time
 Session 39641608-a4f1-40a4-a775-1c3ab94f555c (claude-opus-4-6)
-"""
+""" (plan: plans/multiline-input-clearing.md)
