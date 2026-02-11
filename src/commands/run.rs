@@ -44,17 +44,17 @@ pub async fn run<W: Write>(
 
     let base_session_cfg = SessionConfig {
         extra_args: config.extra_args.clone(),
-        append_system_prompt: fork_system_prompt.clone(),
+        append_system_prompt: fork_system_prompt,
         working_dir: config.working_dir.clone(),
         ..Default::default()
     };
 
     let Some(mut runner) = get_initial_runner(
-        &config,
+        config.prompt.as_deref(),
+        &base_session_cfg,
         &mut renderer,
         &mut input,
         &mut state,
-        fork_system_prompt.as_deref(),
         io,
         vcr,
     )
@@ -121,21 +121,18 @@ pub async fn run<W: Write>(
 /// Get the initial runner: either from prompt or by waiting for interactive input.
 /// Returns None if the user exits without submitting.
 async fn get_initial_runner<W: Write>(
-    config: &RunConfig,
+    prompt: Option<&str>,
+    base_session_cfg: &SessionConfig,
     renderer: &mut Renderer<W>,
     input: &mut InputHandler,
     state: &mut SessionState,
-    fork_system_prompt: Option<&str>,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
-    if let Some(ref prompt) = config.prompt {
+    if let Some(prompt) = prompt {
         let session_cfg = SessionConfig {
-            prompt: Some(prompt.clone()),
-            extra_args: config.extra_args.clone(),
-            append_system_prompt: fork_system_prompt.map(String::from),
-            working_dir: config.working_dir.clone(),
-            ..Default::default()
+            prompt: Some(prompt.to_string()),
+            ..base_session_cfg.clone()
         };
         return Ok(Some(
             session_loop::spawn_session(session_cfg, io, vcr).await?,
@@ -156,10 +153,7 @@ async fn get_initial_runner<W: Write>(
                     InputAction::Submit(text, _) => {
                         let session_cfg = SessionConfig {
                             prompt: Some(text),
-                            extra_args: config.extra_args.clone(),
-                            append_system_prompt: fork_system_prompt.map(String::from),
-                            working_dir: config.working_dir.clone(),
-                            ..Default::default()
+                            ..base_session_cfg.clone()
                         };
                         let runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
                         state.status = SessionStatus::Running;
