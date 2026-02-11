@@ -308,8 +308,16 @@ pub fn land(worktree_path: &Path) -> Result<LandResult, WorktreeError> {
         .map_err(|e| WorktreeError::GitCommand(format!("failed to run git: {e}")))?;
 
     if !rebase_output.status.success() {
-        let conflicts =
-            git(worktree_path, &["diff", "--name-only", "--diff-filter=U"]).unwrap_or_default();
+        let conflicts = match git(worktree_path, &["diff", "--name-only", "--diff-filter=U"]) {
+            Ok(output) => output,
+            Err(diff_err) => {
+                let stderr = String::from_utf8_lossy(&rebase_output.stderr);
+                return Err(WorktreeError::GitCommand(format!(
+                    "rebase failed: {} (and failed to list conflicts: {diff_err})",
+                    stderr.trim()
+                )));
+            }
+        };
         let conflict_files: Vec<String> = conflicts
             .lines()
             .filter(|l| !l.is_empty())
