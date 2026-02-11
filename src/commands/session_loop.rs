@@ -329,8 +329,8 @@ async fn process_claude_event<W: Write>(
 ///
 /// Returns a `FlushResult` indicating whether the caller needs to take action:
 /// sending a dequeued followup, handling a completion, or handling a process exit.
-/// If multiple significant events are buffered, the last one wins (e.g. a
-/// `ProcessExit` after a `Result` overrides the `Completed`/`Followup` result).
+/// `ProcessExit` only takes effect if no higher-priority result (e.g. `Completed`,
+/// `Followup`) was already determined from earlier events in the buffer.
 fn flush_event_buffer<W: Write>(
     locals: &mut SessionLocals,
     state: &mut SessionState,
@@ -357,7 +357,9 @@ fn flush_event_buffer<W: Write>(
             AppEvent::ProcessExit(code) => {
                 renderer.render_exit(code);
                 state.status = SessionStatus::Ended;
-                result = FlushResult::ProcessExited;
+                if matches!(result, FlushResult::Continue) {
+                    result = FlushResult::ProcessExited;
+                }
             }
         }
     }
