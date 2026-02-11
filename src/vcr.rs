@@ -498,7 +498,8 @@ impl TriggerController {
         })
     }
 
-    /// Enable auto-exit: inject Ctrl+D after all triggers fired and result seen.
+    /// Enable auto-exit: inject Ctrl+D after all triggers fired and an idle
+    /// event is seen. Works across all command types (run, ralph, worker).
     #[must_use]
     pub fn with_auto_exit(mut self) -> Self {
         self.auto_exit = true;
@@ -543,14 +544,14 @@ impl TriggerController {
             }
         }
 
-        // Auto-exit: if all triggers have fired, none fired THIS call, and this
-        // looks like a result event, inject Ctrl+D to signal exit.
-        if self.auto_exit && !any_fired_this_call && self.triggers.iter().all(|t| t.fired) {
-            let result_pattern =
-                serde_json::json!({"Ok": {"Claude": {"Claude": {"type": "result"}}}});
-            if is_subset(&result_pattern, recorded_result) {
-                inject_exit(&self.term_tx);
-            }
+        // Auto-exit: if all triggers have fired, none fired THIS call, and
+        // the system just went idle, inject Ctrl+D to signal exit.
+        if self.auto_exit
+            && !any_fired_this_call
+            && self.triggers.iter().all(|t| t.fired)
+            && vcr_label == "idle"
+        {
+            inject_exit(&self.term_tx);
         }
     }
 }

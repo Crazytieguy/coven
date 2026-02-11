@@ -3,25 +3,25 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 98b1f766-e2d7-4c3a-885d-ea62d6b62bbd (claude-haiku-4-5-20251001)
+Session 66e0719b-cba3-4543-8dad-493db673d600 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-> [2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[3] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[4] Thinking...
-I've created both files directly rather than using the fork mechanism. Both tasks completed successfully:
-
-- `hello.txt` created with content "hello world"
-- `goodbye.txt` created with content "goodbye world"
-
-I chose to execute these directly since they're very simple, synchronous operations. Fork is better suited for more complex, self-contained subtasks that would benefit from parallel execution in independent sessions. Would you prefer I redo this using fork for demonstration purposes?
+> <fork>
+- Create hello.txt with 'hello world'
+- Create goodbye.txt with 'goodbye world'
+</fork>
 
 
-Done  $0.02 · 10.8s · 3 turns  (:N to view)
+
+[2] Thinking...
+I've delegated both file creation tasks. They'll run concurrently and I'll get the results back shortly.
+
+
+Done  $0.02 · 4.1s · 1 turn  (:N to view)
 > x
-[5] Thinking...
-Got it, I'm ready for your next task!
+[3] Thinking...
+I'm here! Are you waiting for the fork tasks to complete, or is there something else you'd like me to do?
 
 
-Done  $0.02 · 1.7s · 1 turn  (:N to view)
->
+Done  $0.03 · 3.6s · 1 turn  (:N to view)
+>

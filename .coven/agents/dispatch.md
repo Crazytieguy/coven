@@ -13,7 +13,7 @@ You are the dispatch agent. Decide what this worker should do next.
 
 ## Finding Issues
 
-Run `head -7 issues/*.md review/*.md 2>/dev/null` to see the state, priority, and title of every issue in one shot.
+Run `head -7 issues/*.md review/*.md 2>/dev/null || true` to see the state, priority, and title of every issue in one shot.
 
 ### Routing
 
@@ -30,8 +30,7 @@ Run `head -7 issues/*.md review/*.md 2>/dev/null` to see the state, priority, an
 - Prefer planning new issues over implementing approved ones at the same priority.
 - If `review/` has 10 or more items, prefer implementing or sleeping over creating more plans (but still plan P0 issues). Don't overwhelm the human reviewer.
 - Don't assign work another worker is already doing.
-- If nothing is plannable or implementable (no `new`, `changes-requested`, `needs-replan`, or `approved` issues) and `review/` has fewer than 10 items, dispatch the `audit` agent to find new work.
-- If nothing is actionable and audit isn't appropriate (review queue is full), sleep.
+- If nothing is plannable or implementable, sleep.
 - Consider codebase locality — avoid conflicts with other workers.
 
 ## Current Worker Status

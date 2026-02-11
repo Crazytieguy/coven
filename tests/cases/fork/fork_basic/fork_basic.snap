@@ -3,28 +3,28 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e32fe197-f8a2-4270-80e3-2aaf320b5510 (claude-haiku-4-5-20251001)
+Session 0dd470c7-b36e-42e4-baee-1be238637816 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Bash  pwd
-[3] Thinking...
+I'll use fork to delegate these two file creation tasks concurrently.
+
 <fork>
-- Create hello.txt with 'hello world'
-- Create goodbye.txt with 'goodbye world'
+- Create hello.txt with content 'hello world'
+- Create goodbye.txt with content 'goodbye world'
 </fork>
 
-[4] ⑂ Fork  Create hello.txt with 'hello world'
-[5] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [5/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-[6] ⑂ Fork Result
-[7] Thinking...
-[8] ▶ Bash  ls -la *.txt
-[9] Thinking...
-Perfect! Both subtasks completed successfully using fork. The files were created concurrently:
-- **hello.txt** with 'hello world' (11 bytes)
-- **goodbye.txt** with 'goodbye world' (13 bytes)
+[2] ⑂ Fork  Create hello.txt with content 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with content 'goodbye world'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+[5] Thinking...
+Perfect! Both files have been created successfully:
+- **hello.txt** with content 'hello world'
+- **goodbye.txt** with content 'goodbye world'
+
+The fork delegated both file creation tasks concurrently and they completed without issues.
 
 
-Done  $0.03 · 3.3s · 2 turns  (:N to view)
->
+Done  $0.03 · 1.5s · 1 turn  (:N to view)
+>

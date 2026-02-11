@@ -426,26 +426,39 @@ async fn run_agent<W: Write>(
         };
 
     // === Phase 3: Land ===
-    // Clean untracked files before landing. Agents should commit
-    // their work; leftover files (test artifacts, temp files) must
-    // not block landing and cause committed work to be discarded.
-    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
-
+    // First ensure the agent produced commits. If not, resume once to ask.
     let commit_result =
         ensure_commits(worktree_path, agent_session_id, extra_args, ctx, total_cost).await?;
 
     match commit_result {
         CommitCheck::HasCommits { session_id } => {
-            let should_exit = land_or_resolve(
-                worktree_path,
-                session_id.as_deref(),
-                extra_args,
-                ctx,
-                total_cost,
-            )
-            .await?;
-            if should_exit {
-                return Ok(true);
+            // Clean untracked files (test artifacts, temp files) before checking
+            // for remaining dirty state. This runs after ensure_commits so that
+            // uncommitted new files aren't deleted before the agent can commit them.
+            warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
+
+            // Ensure the worktree is clean before landing. If dirty (e.g. unstaged
+            // deletions from `rm` without `git rm`), resume to ask for cleanup.
+            match ensure_clean(worktree_path, session_id, extra_args, ctx, total_cost).await? {
+                CleanCheck::Clean { session_id } => {
+                    let should_exit = land_or_resolve(
+                        worktree_path,
+                        session_id.as_deref(),
+                        extra_args,
+                        ctx,
+                        total_cost,
+                    )
+                    .await?;
+                    if should_exit {
+                        return Ok(true);
+                    }
+                }
+                CleanCheck::Dirty => {
+                    ctx.renderer
+                        .write_raw("Worktree still dirty after cleanup — resetting.\r\n");
+                    abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
+                }
+                CleanCheck::Exited => return Ok(true),
             }
         }
         CommitCheck::NoCommits => {
@@ -508,7 +521,6 @@ async fn ensure_commits<W: Write>(
             *total_cost += cost;
             ctx.renderer
                 .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-            warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
 
             if vcr_has_unique_commits(ctx.vcr, wt_str).await?? {
                 Ok(CommitCheck::HasCommits { session_id })
@@ -518,6 +530,83 @@ async fn ensure_commits<W: Write>(
         }
         PhaseOutcome::Exited => Ok(CommitCheck::Exited),
     }
+}
+
+enum CleanCheck {
+    /// Worktree is clean, ready to land.
+    Clean { session_id: Option<String> },
+    /// Worktree still dirty after max cleanup attempts.
+    Dirty,
+    /// User exited during cleanup.
+    Exited,
+}
+
+/// Maximum cleanup attempts before giving up.
+const MAX_CLEANUP_ATTEMPTS: u32 = 2;
+
+/// Check if the worktree is clean. If dirty, resume the agent session to ask
+/// it to commit or discard remaining changes. Limited retries.
+async fn ensure_clean<W: Write>(
+    worktree_path: &Path,
+    session_id: Option<String>,
+    extra_args: &[String],
+    ctx: &mut PhaseContext<'_, W>,
+    total_cost: &mut f64,
+) -> Result<CleanCheck> {
+    let wt_str = worktree_path.display().to_string();
+
+    let state = vcr_dirty_state(ctx.vcr, wt_str.clone()).await??;
+    if matches!(state, worktree::DirtyState::Clean) {
+        return Ok(CleanCheck::Clean { session_id });
+    }
+
+    let Some(sid) = session_id.as_deref() else {
+        ctx.renderer
+            .write_raw("Worktree is dirty but no session to resume.\r\n");
+        return Ok(CleanCheck::Dirty);
+    };
+
+    let prompt = match state {
+        worktree::DirtyState::UncommittedChanges => {
+            "You left uncommitted changes in the worktree (unstaged or staged modifications). \
+             Please commit them or revert with `git checkout -- .`."
+        }
+        worktree::DirtyState::UntrackedFiles => {
+            "You left untracked files in the worktree. \
+             Please commit them or remove them."
+        }
+        worktree::DirtyState::Clean => unreachable!(),
+    };
+
+    let mut current_sid = sid.to_string();
+    for attempt in 1..=MAX_CLEANUP_ATTEMPTS {
+        ctx.renderer.write_raw(&format!(
+            "Worktree is dirty — resuming session to clean up \
+             (attempt {attempt}/{MAX_CLEANUP_ATTEMPTS}).\r\n\r\n"
+        ));
+
+        match run_phase_session(prompt, worktree_path, extra_args, Some(&current_sid), ctx).await? {
+            PhaseOutcome::Completed {
+                cost, session_id, ..
+            } => {
+                *total_cost += cost;
+                ctx.renderer
+                    .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+                warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
+
+                let state = vcr_dirty_state(ctx.vcr, wt_str.clone()).await??;
+                if matches!(state, worktree::DirtyState::Clean) {
+                    return Ok(CleanCheck::Clean { session_id });
+                }
+                if let Some(sid) = session_id {
+                    current_sid = sid;
+                }
+            }
+            PhaseOutcome::Exited => return Ok(CleanCheck::Exited),
+        }
+    }
+
+    Ok(CleanCheck::Dirty)
 }
 
 /// Maximum land attempts (shared across ff-retry and conflict resolution)
@@ -560,7 +649,7 @@ async fn handle_ff_retry<W: Write>(
     if *attempts > MAX_LAND_ATTEMPTS {
         ctx.renderer.write_raw(&format!(
             "Fast-forward failed after {MAX_LAND_ATTEMPTS} attempts \
-             — pausing worker. Press Enter to retry.\r\n",
+             — pausing worker. Press Enter to retry.\r\n\x07",
         ));
         if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
             return Ok(ControlFlow::Break(true));
@@ -584,7 +673,7 @@ async fn handle_land_error<W: Write>(
 ) -> Result<ControlFlow<bool>> {
     let _ = vcr_abort_rebase(ctx.vcr, wt_str.to_string()).await?;
     ctx.renderer.write_raw(&format!(
-        "Land failed: {err} — pausing worker. Press Enter to retry.\r\n",
+        "Land failed: {err} — pausing worker. Press Enter to retry.\r\n\x07",
     ));
     if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
         return Ok(ControlFlow::Break(true));
@@ -610,7 +699,7 @@ async fn handle_conflict<W: Write>(
         vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
         ctx.renderer.write_raw(&format!(
             "Conflict resolution failed after {MAX_LAND_ATTEMPTS} attempts \
-             — pausing worker. Press Enter to retry.\r\n",
+             — pausing worker. Press Enter to retry.\r\n\x07",
         ));
         if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
             return Ok(ControlFlow::Break(true));
@@ -889,6 +978,17 @@ async fn vcr_has_unique_commits(
     .await
 }
 
+/// VCR-wrapped `worktree::dirty_state`.
+async fn vcr_dirty_state(
+    vcr: &VcrContext,
+    wt_str: String,
+) -> Result<Result<worktree::DirtyState, worktree::WorktreeError>> {
+    vcr.call_typed_err("worktree::dirty_state", wt_str, async |p: &String| {
+        worktree::dirty_state(Path::new(p))
+    })
+    .await
+}
+
 /// VCR-wrapped `worktree::is_rebase_in_progress`.
 async fn vcr_is_rebase_in_progress(
     vcr: &VcrContext,
@@ -1110,6 +1210,9 @@ async fn wait_for_new_commits<W: Write>(
 ) -> Result<WaitOutcome> {
     let wt_str = worktree_path.display().to_string();
     let initial_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
+
+    renderer.write_raw("\x07");
+    vcr.call("idle", (), async |(): &()| Ok(())).await?;
 
     // _watcher must stay alive for the duration of the loop.
     let (_watcher, mut rx) = setup_ref_watcher(worktree_path)?;

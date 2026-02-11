@@ -3,23 +3,21 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 26dd77e2-d339-405e-a558-c6ee358e81fc (claude-haiku-4-5-20251001)
+Session 9cf1f6fd-e60c-4ceb-bb99-1346e1d7ac11 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll delegate this as a self-contained fork subtask:
+I'll delegate the creation of greeting.txt as a fork subtask.
 
 <fork>
-- Create greeting.txt file with content 'Hello from a forked subtask!'
+- Create greeting.txt with content 'Hello from a forked subtask!'
 </fork>
 
-The task has been delegated. Once it completes, you'll see the results in a fork-results message.
-
-[2] ⑂ Fork  Create greeting.txt file with content 'Hello from a forked subtask!'
+[2] ⑂ Fork  Create greeting.txt with content 'Hello from a forked subtask!'
   [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
 [3] ⑂ Fork Result
 [4] Thinking...
-Perfect! The fork subtask completed successfully. The file `greeting.txt` has been created in the working directory with the content `'Hello from a forked subtask!'`.
+Perfect! The fork subtask has completed successfully. The file `greeting.txt` has been created in the working directory with the content `'Hello from a forked subtask!'`.
 
 
-Done  $0.01 · 1.2s · 1 turn  (:N to view)
->
+Done  $0.03 · 1.3s · 1 turn  (:N to view)
+>

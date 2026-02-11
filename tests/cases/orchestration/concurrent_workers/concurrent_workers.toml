@@ -8,23 +8,13 @@ name = "worker_a"
 command = "worker"
 concurrent_group = "workers"
 
-[[multi.steps.messages]]
-content = ""
-label = "main_head_sha"
-mode = "exit"
-
 [[multi.steps]]
 name = "worker_b"
 command = "worker"
 concurrent_group = "workers"
 
-[[multi.steps.messages]]
-content = ""
-label = "main_head_sha"
-mode = "exit"
-
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(head:*)"]}}'
 "README.md" = "Helo, world!\n"
 "src/main.py" = "print(\"hello\")\n"
 "issues/fix-typo.md" = """

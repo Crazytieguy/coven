@@ -1,4 +1,4 @@
 {"label":"current_dir","args":null,"result":{"Ok":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers"}}
-{"label":"init_create_files","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers","result":{"Ok":{"created":[".coven/agents/dispatch.md",".coven/agents/plan.md",".coven/agents/implement.md",".coven/agents/audit.md",".coven/workflow.md","review/"],"skipped":["issues/"]}}}
+{"label":"init_create_files","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers","result":{"Ok":{"created":[".coven/agents/dispatch.md",".coven/agents/plan.md",".coven/agents/implement.md",".coven/workflow.md","review/"],"skipped":["issues/"]}}}
 {"label":"init_check_claude_md","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers","result":{"Ok":{"existing_content":null,"needs_reference":true}}}
 {"label":"init_update_claude_md","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers","result":{"Ok":null}}

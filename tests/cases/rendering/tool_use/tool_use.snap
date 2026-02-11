@@ -3,17 +3,18 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 9908c444-c4bd-4697-b2a5-20348a3d8798 (claude-haiku-4-5-20251001)
+Session 8d4295ed-3bb9-4381-8680-245c3cebeb13 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Bash  ls -la
 [3] Thinking...
-The current directory contains:
-- `.claude/` - Claude configuration directory
-- `.git/` - Git repository directory
+The current directory is mostly empty. It contains:
 
-The working directory is mostly empty. This appears to be a newly initialized git repository with Claude Code configuration.
+- `.git` - Git repository directory
+- `.claude` - Claude Code configuration directory
+
+No other files or directories are present in the current working directory (`/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-tool_use`).
 
 
-Done  $0.01 · 4.3s · 2 turns  (:N to view)
->
+Done  $0.01 · 8.9s · 2 turns  (:N to view)
+>

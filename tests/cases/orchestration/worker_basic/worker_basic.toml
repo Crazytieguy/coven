@@ -33,9 +33,3 @@ description: "Creates a greeting file"
 
 Create a file called hello.txt with the content "Hello from coven worker!" and commit it with the message "Add hello.txt".'''
 
-# Exit when the worker enters wait_for_new_commits (after dispatch outputs sleep).
-# The label "main_head_sha" is only recorded inside wait_for_new_commits.
-[[messages]]
-content = ""
-label = "main_head_sha"
-mode = "exit"

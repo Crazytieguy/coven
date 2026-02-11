@@ -263,12 +263,10 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
 
-    let mut controller = TriggerController::new(&case.messages, term_tx)?;
-    // Auto-exit for run mode: inject Ctrl+D after all triggers fire and result is seen.
-    // Ralph and worker modes handle exit differently (break tag / explicit exit trigger).
-    if !case.is_ralph() && !case.is_worker() {
-        controller = controller.with_auto_exit();
-    }
+    // Auto-exit: inject Ctrl+D when all triggers have fired and an idle event
+    // is seen. Works across all command types — run (follow-up wait), worker
+    // (sleep), and ralph (only idles on interrupt, which means exit).
+    let controller = TriggerController::new(&case.messages, term_tx)?.with_auto_exit();
     let vcr = VcrContext::record_with_triggers(controller);
     let mut io = Io::new(event_rx, term_rx);
 
@@ -437,7 +435,7 @@ async fn record_multi_step(
             let (term_tx, term_rx) = mpsc::unbounded_channel();
             let (_event_tx, event_rx) = mpsc::unbounded_channel();
 
-            let controller = TriggerController::new(&step.messages, term_tx)?;
+            let controller = TriggerController::new(&step.messages, term_tx)?.with_auto_exit();
             let vcr = VcrContext::record_with_triggers(controller);
             let mut io = Io::new(event_rx, term_rx);
             let mut output = PrefixWriter::new(format!("{test_name}/{}", step.name));

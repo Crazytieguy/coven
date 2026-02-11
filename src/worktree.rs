@@ -282,21 +282,11 @@ pub fn land(worktree_path: &Path) -> Result<LandResult, WorktreeError> {
         return Err(WorktreeError::DetachedHead);
     }
 
-    // Check for uncommitted changes (staged or unstaged)
-    if !git_status(worktree_path, &["diff", "--quiet"])? {
-        return Err(WorktreeError::DirtyWorkingTree);
-    }
-    if !git_status(worktree_path, &["diff", "--cached", "--quiet"])? {
-        return Err(WorktreeError::DirtyWorkingTree);
-    }
-
-    // Check for untracked files
-    let untracked = git(
-        worktree_path,
-        &["ls-files", "--others", "--exclude-standard"],
-    )?;
-    if !untracked.trim().is_empty() {
-        return Err(WorktreeError::UntrackedFiles);
+    // Check for uncommitted changes or untracked files
+    match dirty_state(worktree_path)? {
+        DirtyState::Clean => {}
+        DirtyState::UncommittedChanges => return Err(WorktreeError::DirtyWorkingTree),
+        DirtyState::UntrackedFiles => return Err(WorktreeError::UntrackedFiles),
     }
 
     // Rebase onto main
@@ -426,6 +416,40 @@ pub fn has_unique_commits(worktree_path: &Path) -> Result<bool, WorktreeError> {
         .parse()
         .map_err(|e| WorktreeError::GitCommand(format!("failed to parse rev-list count: {e}")))?;
     Ok(count > 0)
+}
+
+/// What kind of dirt the worktree has.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum DirtyState {
+    Clean,
+    /// Staged or unstaged modifications/deletions.
+    UncommittedChanges,
+    /// Untracked, non-ignored files.
+    UntrackedFiles,
+}
+
+/// Check the worktree for uncommitted changes or untracked files.
+///
+/// Returns the first kind of dirt found (uncommitted changes take priority
+/// over untracked files since `git clean -fd` handles the latter).
+pub fn dirty_state(worktree_path: &Path) -> Result<DirtyState, WorktreeError> {
+    // Unstaged changes
+    if !git_status(worktree_path, &["diff", "--quiet"])? {
+        return Ok(DirtyState::UncommittedChanges);
+    }
+    // Staged but uncommitted changes
+    if !git_status(worktree_path, &["diff", "--cached", "--quiet"])? {
+        return Ok(DirtyState::UncommittedChanges);
+    }
+    // Untracked files
+    let untracked = git(
+        worktree_path,
+        &["ls-files", "--others", "--exclude-standard"],
+    )?;
+    if !untracked.trim().is_empty() {
+        return Ok(DirtyState::UntrackedFiles);
+    }
+    Ok(DirtyState::Clean)
 }
 
 /// Check if a rebase is currently in progress in the worktree.

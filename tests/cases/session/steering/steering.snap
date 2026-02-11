@@ -3,26 +3,33 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e847564c-e630-474e-bead-78d8e08d068d (claude-haiku-4-5-20251001)
+Session 4bc5d112-38cd-4267-a048-e3d377423e25 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll help you read and summarize each Python file in this directory. Let me start by finding all .py files.
-
-> ⤷ steering: Actually, just count the lines in each file instead
-[2] ▶ Glob  *.py
+> [2] ▶ Glob  *.py
+⤷ steering: Actually, just count the lines in each file instead
 [3] Thinking...
-Got it! I'll count the lines in each file instead. Let me do that for you:
-
 [4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
-[5] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[5] Thinking...
+I see you'd like me to just count the lines in each file instead. Let me do that:
+
+**greet.py**: 4 lines
+
 [6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [7] Thinking...
-Here are the line counts for each Python file:
+**hello.py**: 3 lines
 
-1. **counter.py**: 4 lines
-2. **greet.py**: 3 lines
-3. **hello.py**: 2 lines
+[8] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[9] Thinking...
+**counter.py**: 5 lines
+
+---
+
+**Summary:**
+- greet.py: 4 lines
+- hello.py: 3 lines
+- counter.py: 5 lines
 
 
-Done  $0.02 · 14.7s · 5 turns  (:N to view)
->
+Done  $0.02 · 13.9s · 5 turns  (:N to view)
+>

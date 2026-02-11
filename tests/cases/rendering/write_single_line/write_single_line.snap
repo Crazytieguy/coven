@@ -3,13 +3,13 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 518c8387-ee54-4686-9475-5deccc08c4f7 (claude-haiku-4-5-20251001)
+Session 1bdeea92-a0ad-4ac4-87d5-a3fa330e33a4 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
 [3] Thinking...
-Done! I've created a file called `hello.txt` in the current directory containing the text "Hello, world!"
+Done! I've created hello.txt with the text 'Hello, world!' in your current directory.
 
 
-Done  $0.01 · 5.3s · 2 turns  (:N to view)
->
+Done  $0.01 · 5.9s · 2 turns  (:N to view)
+>
