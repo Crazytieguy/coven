@@ -1,0 +1,173 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+--- init ---
+Created:
+  .coven/agents/dispatch.md
+  .coven/agents/plan.md
+  .coven/agents/implement.md
+  .coven/workflow.md
+  review/
+Skipped (already exist):
+  issues/
+
+Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with workflow reference.
+
+--- worker ---
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+
+Worker started: keen-ember-47 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-plan_ambiguous_issue-worker-worktrees/coven-vcr-plan_ambiguous_issue/keen-ember-47)
+
+=== Dispatch ===
+
+Session 45b10ecc-8c81-4bb6-8ebd-46485347e934 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+[2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+    ✗ Error: This Bash command contains multiple operations. The following pa...
+[3] Thinking...
+[4] ▶ Bash  ls -la issues/ 2>/dev/null; ls -la review/ 2>/dev/null
+[5] Thinking...
+[6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[7] Thinking...
+I found one issue in the queue:
+
+- **improve-error-handling.md** — State: `new`, Priority: `P1`
+  - Description: Users see unhelpful error messages when things go wrong
+
+Since this issue is in `new` state, it needs planning before implementation. Following the routing rules, I'll send this to the plan agent.
+
+<dispatch>
+agent: plan
+issue: issues/improve-error-handling.md
+</dispatch>
+
+
+Done  $0.02 · 11.0s · 4 turns  (:N to view)
+  Total cost: $0.02
+
+Dispatch: plan issue=issues/improve-error-handling.md
+
+=== Agent: plan ===
+
+Session 5c80a80f-e2a5-4448-9275-19c9aa6696fc (claude-haiku-4-5-20251001)
+
+[8] Thinking...
+I'll read the issue file and explore the codebase to write a concrete plan.
+
+[9] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[10] Thinking...
+[11] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[12] Thinking...
+[13] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[14] Thinking...
+[15] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[16] Thinking...
+[17] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[18] Thinking...
+[19] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[20] Thinking...
+[21] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[22] Thinking...
+Now let me check if there are any other clues in the codebase about what errors users might encounter:
+
+[23] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+     ✗ Error: Command contains ambiguous syntax with command separators that ...
+[24] Thinking...
+[25] ▶ Bash  grep -r "error\|Error\|ERROR" /private/var/folders/21/3gpj27c974...
+[26] Thinking...
+Based on my exploration, I can see this is a simple Python CLI application that reads from stdin and converts text to uppercase. Currently, there's no error handling implemented. The issue is quite vague, so I need to add questions for clarification.
+
+Let me update the issue file with a plan section and questions:
+
+[27] ▶ Edit  (+36)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[28] Thinking...
+Now let me move the file from `issues/` to `review/`:
+
+[29] ▶ Bash  mv /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[30] Thinking...
+Now let me commit this plan:
+
+[31] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[32] Thinking...
+## Summary
+
+I've written an implementation plan for the "Improve error handling" issue. Here's what I found and proposed:
+
+**Current State**: The application has no error handling. If anything goes wrong (stdin issues, encoding problems, etc.), users see raw Python stack traces.
+
+**Proposed Plan**: 
+- Add try-except blocks to gracefully catch and handle exceptions
+- Provide user-friendly error messages instead of stack traces
+- Add test coverage for error scenarios
+- Use appropriate exit codes
+
+**Ambiguities Identified**: The issue description was vague about specific error scenarios, so I've added a **Questions** section asking for clarification on:
+1. Which error scenarios should be handled
+2. What error message format is preferred
+3. Exit code strategy
+4. Any specific user feedback about errors
+
+The plan is now in `review/` awaiting human approval.
+
+
+Done  $0.07 · 33.1s · 13 turns  (:N to view)
+  Total cost: $0.09
+Worktree is dirty — resuming session to clean up (attempt 1/2).
+
+Session 5c80a80f-e2a5-4448-9275-19c9aa6696fc (claude-haiku-4-5-20251001)
+
+[33] Thinking...
+[34] ▶ Bash  git status
+[35] Thinking...
+[36] ▶ Bash  git add issues/improve-error-handling.md && git commit -m "Move ...
+[37] Thinking...
+Done! I've committed the deletion of the issue from the `issues/` directory. The plan is now complete and the issue has been moved to `review/` for human approval.
+
+
+Done  $0.03 · 5.4s · 3 turns  (:N to view)
+  Total cost: $0.12
+
+=== Landing ===
+Landed keen-ember-47 onto main
+
+=== Dispatch ===
+
+Session 6e70390c-f68a-451c-9d1b-23e3939c65cb (claude-haiku-4-5-20251001)
+
+[38] Thinking...
+I'll check the current issue queue to decide what to work on next.
+
+[39] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+     ✗ Error: This Bash command contains multiple operations. The following p...
+[40] Thinking...
+Let me check the issues using a different approach:
+
+[41] ▶ Glob  issues/*.md
+[42] ▶ Glob  review/*.md
+[43] Thinking...
+Now let me check the details of the issue in review:
+
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] Thinking...
+## Summary
+
+I found one issue in the queue:
+- **review/improve-error-handling.md** - P1, state: `review`
+
+This issue has a complete plan written, but it's awaiting human review. The plan includes clarifying questions about error scenarios, output format, exit codes, and user context. According to the workflow, `review` state issues should not be assigned to agents—they need human feedback before proceeding.
+
+Since there are no `new`, `approved`, `changes-requested`, or `needs-replan` issues available for work, there's no actionable task for this worker.
+
+<dispatch>
+sleep: true
+</dispatch>
+
+
+Done  $0.03 · 17.5s · 5 turns  (:N to view)
+  Total cost: $0.15
+
+Dispatch: sleep — waiting for new commits...
+
+Removing worktree...

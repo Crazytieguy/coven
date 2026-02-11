@@ -1,0 +1,37 @@
+[[multi.steps]]
+name = "init"
+command = "init"
+stdin = "y"
+
+[[multi.steps]]
+name = "worker"
+command = "worker"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+"src/app.py" = """def greet(name):
+    return f"Hello, {name}!"
+
+if __name__ == "__main__":
+    print(greet("World"))
+"""
+"issues/add-validation.md" = """---
+priority: P1
+state: approved
+---
+
+# Add input validation to processor
+
+## Plan
+
+1. Open `src/processor.py` and modify the `process_data()` function (line 23) to add a type check before the existing database query on line 30
+2. Update the `ValidationError` import in `src/processor.py` from the `db_utils` module (line 5)
+3. Add a guard clause before the `cursor.execute()` call on line 31 of `src/processor.py`
+4. Update the existing test `test_process_data_rejects_invalid` in `tests/test_processor.py` (line 45) to cover the new validation
+5. Run the existing test suite with `make test`
+"""

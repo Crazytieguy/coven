@@ -1,0 +1,50 @@
+[[multi.steps]]
+name = "init"
+command = "init"
+stdin = "y"
+
+[[multi.steps]]
+name = "worker_a"
+command = "worker"
+concurrent_group = "workers"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[[multi.steps]]
+name = "worker_b"
+command = "worker"
+concurrent_group = "workers"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+"README.md" = "# My Project\n\nA sample project for testing.\n"
+"issues/update-title-v2.md" = """---
+priority: P1
+state: approved
+---
+
+# Update README title to v2
+
+## Plan
+
+Change the first line of README.md from "# My Project" to "# My Project v2". Commit with message "Update project title to v2".
+"""
+"issues/rename-project.md" = """---
+priority: P1
+state: approved
+---
+
+# Rename project in README
+
+## Plan
+
+Change the first line of README.md from "# My Project" to "# Sample App". Commit with message "Rename project in README".
+"""

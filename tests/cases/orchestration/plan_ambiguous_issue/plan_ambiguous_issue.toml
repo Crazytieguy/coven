@@ -1,0 +1,43 @@
+[[multi.steps]]
+name = "init"
+command = "init"
+stdin = "y"
+
+[[multi.steps]]
+name = "worker"
+command = "worker"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+"src/app.py" = """import sys
+
+def main():
+    data = sys.stdin.read()
+    result = process(data)
+    print(result)
+
+def process(data):
+    return data.upper()
+
+if __name__ == "__main__":
+    main()
+"""
+"tests/test_app.py" = """from src.app import process
+
+def test_process():
+    assert process("hello") == "HELLO"
+"""
+"issues/improve-error-handling.md" = """---
+priority: P1
+state: new
+---
+
+# Improve error handling
+
+The error handling in the project needs improvement. Users sometimes see unhelpful error messages when things go wrong.
+"""
