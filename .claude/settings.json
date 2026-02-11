@@ -164,6 +164,9 @@
       "Bash(git rm *)",
       "Bash(set -C)"
     ],
+    "ask": [
+      "Bash(git commit --amend*)"
+    ],
     "deny": [
       "Bash(for *)",
       "Bash(while *)",
