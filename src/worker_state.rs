@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use anyhow::{Context, Result};
 use fs2::FileExt;
@@ -265,12 +265,8 @@ fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {
 
 /// Check if a process with the given PID is alive.
 fn is_pid_alive(pid: u32) -> bool {
-    Command::new("kill")
-        .args(["-0", &pid.to_string()])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
+    // SAFETY: kill with signal 0 performs error checking without sending a signal.
+    unsafe { libc::kill(pid.cast_signed(), 0) == 0 }
 }
 
 #[cfg(test)]
