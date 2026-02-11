@@ -122,6 +122,54 @@ enum FlushResult {
     ProcessExited,
 }
 
+/// What action to take after classifying a Claude inbound event.
+enum ClaudeEventAction {
+    /// Normal event (not a Result), already rendered. No further action.
+    Rendered,
+    /// Result with fork tasks detected.
+    Fork(Vec<String>),
+    /// Result with a pending followup to send.
+    Followup(String),
+    /// Result with no followups — session completed.
+    Completed(String),
+}
+
+/// Classify a Claude inbound event: capture result text, detect forks, render,
+/// and determine what action the caller should take.
+fn classify_claude_event<W: Write>(
+    inbound: &InboundEvent,
+    locals: &mut SessionLocals,
+    state: &mut SessionState,
+    renderer: &mut Renderer<W>,
+    fork_config: Option<&ForkConfig>,
+) -> ClaudeEventAction {
+    if let InboundEvent::Result(ref result) = *inbound {
+        locals.result_text.clone_from(&result.result);
+    }
+
+    let fork_tasks = if let InboundEvent::Result(_) = *inbound {
+        fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
+    } else {
+        None
+    };
+
+    let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
+    handle_inbound(inbound, state, renderer, has_pending);
+
+    if let Some(tasks) = fork_tasks {
+        ClaudeEventAction::Fork(tasks)
+    } else if matches!(*inbound, InboundEvent::Result(_)) {
+        if locals.pending_followups.is_empty() {
+            ClaudeEventAction::Completed(locals.result_text.clone())
+        } else {
+            let text = locals.pending_followups.remove(0);
+            ClaudeEventAction::Followup(text)
+        }
+    } else {
+        ClaudeEventAction::Rendered
+    }
+}
+
 /// Handle a key event during an active session.
 async fn handle_session_key_event<W: Write>(
     key_event: &KeyEvent,
@@ -233,54 +281,33 @@ async fn process_claude_event<W: Write>(
 ) -> Result<Option<SessionOutcome>> {
     match event {
         AppEvent::Claude(inbound) => {
-            // Capture result text early (needed for fork detection)
-            if let InboundEvent::Result(ref result) = *inbound {
-                locals.result_text.clone_from(&result.result);
-            }
-
-            // Detect fork tag in result text.
-            let fork_tasks = if let InboundEvent::Result(_) = *inbound {
-                fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
-            } else {
-                None
-            };
-
-            // Suppress the Done line if fork detected or followups pending
-            let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
-            handle_inbound(&inbound, state, renderer, has_pending);
-
-            // Run fork flow: spawn children, collect results, send reintegration
-            if let Some(tasks) = fork_tasks {
-                let session_id = state.session_id.clone().unwrap_or_default();
-                // Safety: fork_tasks is only set when fork_config is Some
-                let Some(fork_cfg) = fork_config else {
-                    unreachable!("fork_tasks set without fork_config");
-                };
-                let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-                vcr.call("send_message", msg, async |t: &String| {
-                    runner.send_message(t).await
-                })
-                .await?;
-                state.suppress_next_separator = true;
-                state.status = SessionStatus::Running;
-                return Ok(None);
-            }
-
-            // If result and there's a pending follow-up, send it (FIFO)
-            if matches!(*inbound, InboundEvent::Result(_)) {
-                if locals.pending_followups.is_empty() {
-                    return Ok(Some(SessionOutcome::Completed {
-                        result_text: locals.result_text.clone(),
-                    }));
+            match classify_claude_event(&inbound, locals, state, renderer, fork_config) {
+                ClaudeEventAction::Fork(tasks) => {
+                    let session_id = state.session_id.clone().unwrap_or_default();
+                    let Some(fork_cfg) = fork_config else {
+                        unreachable!("fork_tasks set without fork_config");
+                    };
+                    let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
+                    vcr.call("send_message", msg, async |t: &String| {
+                        runner.send_message(t).await
+                    })
+                    .await?;
+                    state.suppress_next_separator = true;
+                    state.status = SessionStatus::Running;
                 }
-                let text = locals.pending_followups.remove(0);
-                renderer.render_followup_sent(&text);
-                state.suppress_next_separator = true;
-                vcr.call("send_message", text, async |t: &String| {
-                    runner.send_message(t).await
-                })
-                .await?;
-                state.status = SessionStatus::Running;
+                ClaudeEventAction::Followup(text) => {
+                    renderer.render_followup_sent(&text);
+                    state.suppress_next_separator = true;
+                    vcr.call("send_message", text, async |t: &String| {
+                        runner.send_message(t).await
+                    })
+                    .await?;
+                    state.status = SessionStatus::Running;
+                }
+                ClaudeEventAction::Completed(result_text) => {
+                    return Ok(Some(SessionOutcome::Completed { result_text }));
+                }
+                ClaudeEventAction::Rendered => {}
             }
         }
         AppEvent::ParseWarning(warning) => {
@@ -307,36 +334,18 @@ fn flush_event_buffer<W: Write>(
     renderer: &mut Renderer<W>,
 ) -> FlushResult {
     let mut result = FlushResult::Continue;
-    for event in locals.event_buffer.drain(..) {
+    let buffered: Vec<_> = locals.event_buffer.drain(..).collect();
+    // Clone once to avoid overlapping borrows (fork_config is small)
+    let fork_config = locals.fork_config.clone();
+    for event in buffered {
         match event {
             AppEvent::Claude(inbound) => {
-                // Capture result text from buffered events too
-                if let InboundEvent::Result(ref r) = *inbound {
-                    locals.result_text.clone_from(&r.result);
-                }
-
-                // Detect fork tag in result text (mirrors process_claude_event)
-                let fork_tasks = if let InboundEvent::Result(_) = *inbound {
-                    locals
-                        .fork_config
-                        .as_ref()
-                        .and_then(|_| fork::parse_fork_tag(&locals.result_text))
-                } else {
-                    None
-                };
-
-                let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
-                handle_inbound(&inbound, state, renderer, has_pending);
-
-                if let Some(tasks) = fork_tasks {
-                    result = FlushResult::Fork(tasks);
-                } else if matches!(*inbound, InboundEvent::Result(_)) {
-                    if has_pending {
-                        let text = locals.pending_followups.remove(0);
-                        result = FlushResult::Followup(text);
-                    } else {
-                        result = FlushResult::Completed(locals.result_text.clone());
-                    }
+                match classify_claude_event(&inbound, locals, state, renderer, fork_config.as_ref())
+                {
+                    ClaudeEventAction::Fork(tasks) => result = FlushResult::Fork(tasks),
+                    ClaudeEventAction::Followup(text) => result = FlushResult::Followup(text),
+                    ClaudeEventAction::Completed(text) => result = FlushResult::Completed(text),
+                    ClaudeEventAction::Rendered => {}
                 }
             }
             AppEvent::ParseWarning(warning) => {
