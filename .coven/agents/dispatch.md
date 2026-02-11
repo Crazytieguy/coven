@@ -27,7 +27,7 @@ List the `issues/` and `review/` directories. Read each file's YAML frontmatter 
 
 ### Dispatch Preferences
 
-- Prefer implementing approved issues over planning new ones at the same priority.
+- Prefer planning new issues over implementing approved ones at the same priority.
 - If `review/` has 10 or more items, prefer implementing or sleeping over creating more plans (but still plan P0 issues). Don't overwhelm the human reviewer.
 - Don't assign work another worker is already doing.
 - If nothing is actionable (everything in review, or no issues), sleep.
