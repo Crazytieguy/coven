@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: new
+state: review
 ---
 
 # Worker permission-mode check doesn't handle `--flag=value` syntax
@@ -26,3 +26,20 @@ fn has_flag(args: &[String], flag: &str) -> bool {
 ## Fix
 
 Make `has_flag` `pub(crate)` and use it in `worker.rs:71` instead of the manual comparison.
+
+## Plan
+
+Two changes:
+
+1. **`src/session/runner.rs:227`** — Change `fn has_flag` to `pub(crate) fn has_flag`. The function is already `pub` within its module via `pub mod runner` in `session/mod.rs`, so `pub(crate)` makes it available crate-wide.
+
+2. **`src/commands/worker.rs:71`** — Replace the inline check:
+   ```rust
+   if !config.extra_args.iter().any(|a| a == "--permission-mode") {
+   ```
+   with:
+   ```rust
+   if !crate::session::runner::has_flag(&config.extra_args, "--permission-mode") {
+   ```
+
+No new tests needed — `has_flag` already has unit tests (per issue `has-flag-tests.md`), and the worker's behavior is covered by existing VCR tests. The change is a one-line call-site swap.
