@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
+use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
-use tokio::time::sleep;
 
 use crate::agents::{self, AgentDef};
 use crate::dispatch::{self, DispatchDecision};
@@ -1021,7 +1020,80 @@ enum WaitOutcome {
     Exited,
 }
 
-/// Wait for new commits on main by polling, while allowing the user to exit.
+/// Set up a filesystem watcher on the git refs for the main branch.
+///
+/// Watches `<git-common-dir>/refs/heads/<main-branch>` (loose ref) and
+/// `<git-common-dir>/packed-refs` (updated during gc). Returns the watcher
+/// (must be kept alive) and a receiver that fires on any ref change.
+///
+/// Best-effort: if the git paths can't be resolved (e.g. during VCR replay
+/// with a dummy worktree), returns a watcher that watches nothing. The
+/// receiver will never fire, which is fine — the VCR-replayed `next_event`
+/// branch always wins the select in that case.
+fn setup_ref_watcher(
+    worktree_path: &Path,
+) -> Result<(notify::RecommendedWatcher, tokio::sync::mpsc::Receiver<()>)> {
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+
+    let mut watcher = notify::recommended_watcher(move |_: notify::Result<notify::Event>| {
+        // Best-effort send; if the channel is full, a notification is already pending.
+        let _ = tx.try_send(());
+    })
+    .context("failed to create filesystem watcher")?;
+
+    // Best-effort: resolve git paths and set up watches. If any step fails
+    // (e.g. worktree doesn't exist during VCR replay), skip watching.
+    if let Some(paths) = resolve_ref_paths(worktree_path) {
+        if paths.refs_heads_dir.exists() {
+            let _ = watcher.watch(&paths.refs_heads_dir, RecursiveMode::Recursive);
+        } else if paths.loose_ref.exists() {
+            let _ = watcher.watch(&paths.loose_ref, RecursiveMode::NonRecursive);
+        }
+        if paths.packed_refs.exists() {
+            let _ = watcher.watch(&paths.packed_refs, RecursiveMode::NonRecursive);
+        }
+    }
+
+    Ok((watcher, rx))
+}
+
+struct RefPaths {
+    refs_heads_dir: PathBuf,
+    loose_ref: PathBuf,
+    packed_refs: PathBuf,
+}
+
+/// Resolve the git ref paths to watch. Returns `None` if the git commands fail.
+fn resolve_ref_paths(worktree_path: &Path) -> Option<RefPaths> {
+    let main_branch = worktree::main_branch_name(worktree_path).ok()?;
+
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(worktree_path)
+        .args(["rev-parse", "--git-common-dir"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let git_common_dir = if Path::new(&raw).is_absolute() {
+        PathBuf::from(raw)
+    } else {
+        worktree_path.join(raw)
+    };
+
+    Some(RefPaths {
+        refs_heads_dir: git_common_dir.join("refs/heads"),
+        loose_ref: git_common_dir.join("refs/heads").join(&main_branch),
+        packed_refs: git_common_dir.join("packed-refs"),
+    })
+}
+
+/// Wait for new commits on main using filesystem notifications, while allowing
+/// the user to exit.
 async fn wait_for_new_commits<W: Write>(
     worktree_path: &Path,
     renderer: &mut Renderer<W>,
@@ -1032,14 +1104,18 @@ async fn wait_for_new_commits<W: Write>(
     let wt_str = worktree_path.display().to_string();
     let initial_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
 
+    // _watcher must stay alive for the duration of the loop.
+    let (_watcher, mut rx) = setup_ref_watcher(worktree_path)?;
+
     loop {
         tokio::select! {
-            () = sleep(Duration::from_secs(10)) => {
+            _ = rx.recv() => {
                 let current = vcr_main_head_sha(vcr, wt_str.clone()).await?;
                 if current != initial_head {
                     renderer.write_raw("New commits detected on main.\r\n");
                     return Ok(WaitOutcome::NewCommits);
                 }
+                // Spurious notification — loop and wait again
             }
             event = vcr.call("next_event", (), async |(): &()| io.next_event().await) => {
                 let event = event?;
