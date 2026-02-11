@@ -6,6 +6,17 @@ use serde_yaml::Value;
 
 use crate::agents::AgentDef;
 
+/// Convert a YAML scalar value to a string representation.
+/// Non-scalar values (sequences, mappings, tagged, null) return `None`.
+fn yaml_scalar_to_string(v: &Value) -> Option<String> {
+    match v {
+        Value::String(s) => Some(s.clone()),
+        Value::Bool(b) => Some(b.to_string()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::Null | Value::Sequence(_) | Value::Mapping(_) | Value::Tagged(_) => None,
+    }
+}
+
 /// A decision output by the dispatch agent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DispatchDecision {
@@ -54,8 +65,8 @@ pub fn parse_decision(text: &str) -> Result<DispatchDecision> {
             if key == "agent" {
                 return None;
             }
-            let val = v.as_str()?;
-            Some((key.to_string(), val.to_string()))
+            let val = yaml_scalar_to_string(v)?;
+            Some((key.to_string(), val))
         })
         .collect();
 
@@ -222,6 +233,23 @@ issue: issues/fix-scroll-bug.md
             DispatchDecision::RunAgent {
                 agent: "plan".into(),
                 args: HashMap::from([("issue".into(), "issues/foo.md".into())]),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_non_string_args_converted() {
+        let text = "<dispatch>\nagent: implement\nissue: issues/fix-bug.md\npriority: 1\nverbose: true\n</dispatch>";
+        let decision = parse_decision(text).unwrap();
+        assert_eq!(
+            decision,
+            DispatchDecision::RunAgent {
+                agent: "implement".into(),
+                args: HashMap::from([
+                    ("issue".into(), "issues/fix-bug.md".into()),
+                    ("priority".into(), "1".into()),
+                    ("verbose".into(), "true".into()),
+                ]),
             }
         );
     }
