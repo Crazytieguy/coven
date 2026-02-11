@@ -24,6 +24,8 @@ pub enum InputAction {
     Interrupt,
     /// User pressed Ctrl-D.
     EndSession,
+    /// User wants to drop into native Claude TUI.
+    Interactive,
 }
 
 /// Simple line editor for user input in raw mode.
@@ -326,13 +328,11 @@ impl InputHandler {
     }
 
     fn handle_inactive_key(&mut self, event: &KeyEvent) -> InputAction {
+        let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
         match event.code {
-            KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
-                InputAction::Interrupt
-            }
-            KeyCode::Char('d') if event.modifiers.contains(KeyModifiers::CONTROL) => {
-                InputAction::EndSession
-            }
+            KeyCode::Char('c') if ctrl => InputAction::Interrupt,
+            KeyCode::Char('d') if ctrl => InputAction::EndSession,
+            KeyCode::Char('o') if ctrl => InputAction::Interactive,
             KeyCode::Char(c) => {
                 self.activate();
                 self.insert_char(c);

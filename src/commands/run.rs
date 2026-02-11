@@ -97,8 +97,16 @@ pub async fn run<W: Write>(
                     break;
                 };
                 renderer.render_interrupted();
-                let Some(text) =
-                    session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr).await?
+                let Some(text) = session_loop::wait_for_interrupt_input(
+                    &mut input,
+                    &mut renderer,
+                    io,
+                    vcr,
+                    &session_id,
+                    config.working_dir.as_deref(),
+                    &config.extra_args,
+                )
+                .await?
                 else {
                     break;
                 };
@@ -131,7 +139,10 @@ async fn get_initial_runner<W: Write>(
     let text = if let Some(prompt) = prompt {
         prompt.to_string()
     } else {
-        let Some(text) = session_loop::wait_for_user_input(input, renderer, io, vcr).await? else {
+        // No session exists yet, so only Text is applicable.
+        let Some(session_loop::WaitResult::Text(text)) =
+            session_loop::wait_for_user_input(input, renderer, io, vcr).await?
+        else {
             return Ok(None);
         };
         text

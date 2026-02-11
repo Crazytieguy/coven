@@ -1,7 +1,8 @@
 use std::io::Write;
+use std::path::Path;
 use std::process::Command as StdCommand;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use crossterm::event::{Event, KeyEvent};
 use crossterm::terminal;
 
@@ -270,7 +271,7 @@ async fn handle_session_key_event<W: Write>(
                 input.activate();
             }
         }
-        InputAction::None => {}
+        InputAction::Interactive | InputAction::None => {}
     }
     Ok(LoopAction::Continue)
 }
@@ -412,6 +413,14 @@ pub enum FollowUpAction {
     Exit,
 }
 
+/// Result of waiting for user input in the interrupted state.
+pub enum WaitResult {
+    /// User submitted text to resume the session with.
+    Text(String),
+    /// User wants to drop into the native Claude TUI.
+    Interactive,
+}
+
 /// Show a prompt and wait for user to type a follow-up or exit.
 pub async fn wait_for_followup<W: Write>(
     input: &mut InputHandler,
@@ -421,18 +430,23 @@ pub async fn wait_for_followup<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<FollowUpAction> {
-    match wait_for_text_input(input, renderer, io, vcr).await? {
-        Some(text) => {
-            state.suppress_next_separator = true;
-            vcr_send_message(runner, vcr, text).await?;
-            state.status = SessionStatus::Running;
-            Ok(FollowUpAction::Sent)
+    loop {
+        match wait_for_text_input(input, renderer, io, vcr).await? {
+            Some(WaitResult::Text(text)) => {
+                state.suppress_next_separator = true;
+                vcr_send_message(runner, vcr, text).await?;
+                state.status = SessionStatus::Running;
+                return Ok(FollowUpAction::Sent);
+            }
+            Some(WaitResult::Interactive) => {
+                // Interactive not applicable in follow-up state; ignore and re-prompt.
+            }
+            None => return Ok(FollowUpAction::Exit),
         }
-        None => Ok(FollowUpAction::Exit),
     }
 }
 
-/// Show a prompt and wait for user input. Returns the text, or None to exit.
+/// Show a prompt and wait for user input. Returns the text, Interactive, or None to exit.
 ///
 /// Unlike `wait_for_followup`, this doesn't send the message to a runner —
 /// the caller decides what to do with the text (e.g. spawn a resumed session).
@@ -441,20 +455,43 @@ pub async fn wait_for_user_input<W: Write>(
     renderer: &mut Renderer<W>,
     io: &mut Io,
     vcr: &VcrContext,
-) -> Result<Option<String>> {
+) -> Result<Option<WaitResult>> {
     wait_for_text_input(input, renderer, io, vcr).await
 }
 
-/// Wait for user to type and submit text, or exit.
+/// Wait for user input from the interrupted state, handling Ctrl+O to open
+/// an interactive session. Returns the resume text, or None to exit.
+pub async fn wait_for_interrupt_input<W: Write>(
+    input: &mut InputHandler,
+    renderer: &mut Renderer<W>,
+    io: &mut Io,
+    vcr: &VcrContext,
+    session_id: &str,
+    working_dir: Option<&Path>,
+    extra_args: &[String],
+) -> Result<Option<String>> {
+    loop {
+        match wait_for_text_input(input, renderer, io, vcr).await? {
+            Some(WaitResult::Text(text)) => return Ok(Some(text)),
+            Some(WaitResult::Interactive) => {
+                open_interactive_session(session_id, working_dir, extra_args, vcr)?;
+                renderer.render_interrupted();
+            }
+            None => return Ok(None),
+        }
+    }
+}
+
+/// Wait for user to type and submit text, request interactive mode, or exit.
 ///
 /// Shows the prompt, activates input, and loops on events.
-/// Returns the submitted text, or None if the user interrupted/ended.
+/// Returns the submitted text / interactive request, or None if the user interrupted/ended.
 async fn wait_for_text_input<W: Write>(
     input: &mut InputHandler,
     renderer: &mut Renderer<W>,
     io: &mut Io,
     vcr: &VcrContext,
-) -> Result<Option<String>> {
+) -> Result<Option<WaitResult>> {
     renderer.show_prompt();
     input.activate();
 
@@ -468,7 +505,10 @@ async fn wait_for_text_input<W: Write>(
                 match action {
                     InputAction::Submit(text, _) => {
                         renderer.render_user_message(&text);
-                        return Ok(Some(text));
+                        return Ok(Some(WaitResult::Text(text)));
+                    }
+                    InputAction::Interactive => {
+                        return Ok(Some(WaitResult::Interactive));
                     }
                     InputAction::ViewMessage(ref query) => {
                         view_message(renderer, query)?;
@@ -504,6 +544,55 @@ pub async fn spawn_session(
         SessionRunner::spawn(c.clone(), tx).await
     })
     .await
+}
+
+/// Drop into the native Claude Code TUI to continue a session interactively.
+///
+/// Temporarily exits raw mode, spawns `claude --resume <session_id>` as a
+/// blocking child process, waits for it to exit, and re-enables raw mode.
+pub fn open_interactive_session(
+    session_id: &str,
+    working_dir: Option<&Path>,
+    extra_args: &[String],
+    vcr: &VcrContext,
+) -> Result<()> {
+    if !vcr.is_live() {
+        bail!("interactive sessions are not supported in VCR replay mode");
+    }
+
+    terminal::disable_raw_mode().context("failed to disable raw mode for interactive session")?;
+    print!("\r\n[opening interactive session — exit to return]\r\n");
+
+    let filtered_args: Vec<&String> = extra_args
+        .iter()
+        .filter(|a| *a != "-p" && *a != "--output-format" && !a.starts_with("--output-format="))
+        .collect();
+
+    let mut cmd = StdCommand::new("claude");
+    cmd.args(["--resume", session_id]);
+    cmd.args(filtered_args);
+    if let Some(dir) = working_dir {
+        cmd.current_dir(dir);
+    }
+
+    let status = cmd
+        .status()
+        .context("failed to spawn claude for interactive session")?;
+    if !status.success()
+        && let Some(code) = status.code()
+    {
+        eprintln!("claude exited with code {code}");
+    }
+
+    // Discard any keystrokes buffered while the interactive session was active.
+    // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
+    // discards buffered input bytes — no memory or resource safety concerns.
+    unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
+    terminal::enable_raw_mode()
+        .context("failed to re-enable raw mode after interactive session")?;
+    print!("\r\n[returned to coven]\r\n");
+
+    Ok(())
 }
 
 /// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").

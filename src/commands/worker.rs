@@ -996,19 +996,24 @@ async fn run_phase_session<W: Write>(
                 };
                 ctx.renderer.render_interrupted();
 
-                match session_loop::wait_for_user_input(ctx.input, ctx.renderer, ctx.io, ctx.vcr)
-                    .await?
-                {
-                    Some(text) => {
-                        let resume_config = session_config.resume_with(text, session_id);
-                        runner =
-                            session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
-                        let prev_session_id = state.session_id.clone();
-                        state = SessionState::default();
-                        state.session_id = prev_session_id;
-                    }
-                    None => return Ok(PhaseOutcome::Exited),
-                }
+                let Some(text) = session_loop::wait_for_interrupt_input(
+                    ctx.input,
+                    ctx.renderer,
+                    ctx.io,
+                    ctx.vcr,
+                    &session_id,
+                    Some(working_dir),
+                    extra_args,
+                )
+                .await?
+                else {
+                    return Ok(PhaseOutcome::Exited);
+                };
+                let resume_config = session_config.resume_with(text, session_id);
+                runner = session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+                let prev_session_id = state.session_id.clone();
+                state = SessionState::default();
+                state.session_id = prev_session_id;
             }
             SessionOutcome::ProcessExited => {
                 return Ok(PhaseOutcome::Exited);

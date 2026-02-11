@@ -128,18 +128,24 @@ pub async fn ralph<W: Write>(
                     iteration_cost += state.total_cost_usd;
                     renderer.render_interrupted();
 
-                    match session_loop::wait_for_user_input(&mut input, &mut renderer, io, vcr)
-                        .await?
-                    {
-                        Some(text) => {
-                            let resume_config = session_config.resume_with(text, session_id);
-                            runner = session_loop::spawn_session(resume_config, io, vcr).await?;
-                            let prev_session_id = state.session_id.clone();
-                            state = SessionState::default();
-                            state.session_id = prev_session_id;
-                        }
-                        None => break 'outer,
-                    }
+                    let Some(text) = session_loop::wait_for_interrupt_input(
+                        &mut input,
+                        &mut renderer,
+                        io,
+                        vcr,
+                        &session_id,
+                        config.working_dir.as_deref(),
+                        &config.extra_args,
+                    )
+                    .await?
+                    else {
+                        break 'outer;
+                    };
+                    let resume_config = session_config.resume_with(text, session_id);
+                    runner = session_loop::spawn_session(resume_config, io, vcr).await?;
+                    let prev_session_id = state.session_id.clone();
+                    state = SessionState::default();
+                    state.session_id = prev_session_id;
                 }
                 SessionOutcome::ProcessExited => break 'outer,
             }

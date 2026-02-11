@@ -734,7 +734,7 @@ impl<W: Write> Renderer<W> {
         queue!(
             self.out,
             Print("\r\n"),
-            Print(theme::dim().apply("[interrupted]")),
+            Print(theme::dim().apply("[interrupted — Ctrl+O to open interactive]")),
             Print("\r\n"),
         )
         .ok();
