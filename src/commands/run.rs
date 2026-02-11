@@ -2,14 +2,13 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use crossterm::event::Event;
 
-use crate::display::input::{InputAction, InputHandler};
+use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
 use crate::fork::{self, ForkConfig};
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
-use crate::vcr::{Io, IoEvent, VcrContext};
+use crate::vcr::{Io, VcrContext};
 
 use super::RawModeGuard;
 use super::session_loop::{self, FollowUpAction, SessionOutcome};
@@ -129,45 +128,21 @@ async fn get_initial_runner<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<SessionRunner>> {
-    if let Some(prompt) = prompt {
-        let session_cfg = SessionConfig {
-            prompt: Some(prompt.to_string()),
-            ..base_session_cfg.clone()
+    let text = if let Some(prompt) = prompt {
+        prompt.to_string()
+    } else {
+        let Some(text) = session_loop::wait_for_user_input(input, renderer, io, vcr).await?
+        else {
+            return Ok(None);
         };
-        return Ok(Some(
-            session_loop::spawn_session(session_cfg, io, vcr).await?,
-        ));
-    }
+        text
+    };
 
-    renderer.show_prompt();
-    input.activate();
-
-    loop {
-        let io_event: IoEvent = vcr
-            .call("next_event", (), async |(): &()| io.next_event().await)
-            .await?;
-        match io_event {
-            IoEvent::Terminal(Event::Key(key_event)) => {
-                let action = input.handle_key(&key_event);
-                match action {
-                    InputAction::Submit(text, _) => {
-                        let session_cfg = SessionConfig {
-                            prompt: Some(text),
-                            ..base_session_cfg.clone()
-                        };
-                        let runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
-                        state.status = SessionStatus::Running;
-                        return Ok(Some(runner));
-                    }
-                    InputAction::Interrupt | InputAction::EndSession => return Ok(None),
-                    InputAction::Cancel => {
-                        renderer.show_prompt();
-                        input.activate();
-                    }
-                    _ => {}
-                }
-            }
-            IoEvent::Terminal(_) | IoEvent::Claude(_) => {}
-        }
-    }
+    let session_cfg = SessionConfig {
+        prompt: Some(text),
+        ..base_session_cfg.clone()
+    };
+    let runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
+    state.status = SessionStatus::Running;
+    Ok(Some(runner))
 }
