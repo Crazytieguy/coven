@@ -3,10 +3,10 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 06e0bfe2-f597-472a-acd2-6a8ad7ef0964 (claude-haiku-4-5-20251001)
+Session e32fe197-f8a2-4270-80e3-2aaf320b5510 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Bash  ls -la
+[2] ▶ Bash  pwd
 [3] Thinking...
 <fork>
 - Create hello.txt with 'hello world'
@@ -15,27 +15,16 @@ Session 06e0bfe2-f597-472a-acd2-6a8ad7ef0964 (claude-haiku-4-5-20251001)
 
 [4] ⑂ Fork  Create hello.txt with 'hello world'
 [5] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
   [5/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
 [6] ⑂ Fork Result
 [7] Thinking...
-Perfect! Both subtasks completed successfully. Let me verify the files were created:
-
-[8] ▶ Bash  ls -la *.txt && echo "---" && cat hello.txt && echo "---" && cat ...
-    ✗ Error: Command contains quoted characters in flag names
+[8] ▶ Bash  ls -la *.txt
 [9] Thinking...
-[10] ▶ Bash  ls -la *.txt
-[11] Thinking...
-[12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[14] Thinking...
-Excellent! Both files were created successfully:
-
-- **hello.txt** contains: `hello world`
-- **goodbye.txt** contains: `goodbye world`
-
-The fork feature worked perfectly for delegating these two independent subtasks concurrently.
+Perfect! Both subtasks completed successfully using fork. The files were created concurrently:
+- **hello.txt** with 'hello world' (11 bytes)
+- **goodbye.txt** with 'goodbye world' (13 bytes)
 
 
-Done  $0.02 · 11.1s · 5 turns  (:N to view)
+Done  $0.03 · 3.3s · 2 turns  (:N to view)
 >

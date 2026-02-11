@@ -194,15 +194,12 @@ pub fn compose_reintegration_message(results: &[(String, Result<String, String>)
             .replace('"', "&quot;");
         match outcome {
             Ok(text) => {
-                let _ = write!(
-                    xml,
-                    "<task label=\"{safe_label}\">\n<![CDATA[{text}]]>\n</task>\n"
-                );
+                let _ = write!(xml, "<task label=\"{safe_label}\">\n{text}\n</task>\n");
             }
             Err(err) => {
                 let _ = write!(
                     xml,
-                    "<task label=\"{safe_label}\" error=\"true\">\n<![CDATA[{err}]]>\n</task>\n"
+                    "<task label=\"{safe_label}\" error=\"true\">\n{err}\n</task>\n"
                 );
             }
         }
@@ -283,9 +280,9 @@ mod tests {
         assert!(msg.starts_with("<fork-results>"));
         assert!(msg.ends_with("</fork-results>"));
         assert!(msg.contains("<task label=\"Task A\">"));
-        assert!(msg.contains("<![CDATA[Result A]]>"));
+        assert!(msg.contains("\nResult A\n"));
         assert!(msg.contains("<task label=\"Task B\">"));
-        assert!(msg.contains("<![CDATA[Result B]]>"));
+        assert!(msg.contains("\nResult B\n"));
     }
 
     #[test]
@@ -297,7 +294,7 @@ mod tests {
         let msg = compose_reintegration_message(&results);
         assert!(msg.contains("<task label=\"Good\">"));
         assert!(msg.contains("<task label=\"Bad\" error=\"true\">"));
-        assert!(msg.contains("<![CDATA[process crashed]]>"));
+        assert!(msg.contains("\nprocess crashed\n"));
     }
 
     #[test]
@@ -307,7 +304,7 @@ mod tests {
             Ok("Changed Vec<String> to Vec<&str>".to_string()),
         )];
         let msg = compose_reintegration_message(&results);
-        assert!(msg.contains("<![CDATA[Changed Vec<String> to Vec<&str>]]>"));
+        assert!(msg.contains("\nChanged Vec<String> to Vec<&str>\n"));
     }
 
     #[test]
