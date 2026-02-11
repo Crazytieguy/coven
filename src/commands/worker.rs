@@ -118,7 +118,7 @@ pub async fn worker<W: Write>(
     )
     .await?;
 
-    renderer.set_title(&format!("coven: {}", spawn_result.branch));
+    renderer.set_title(&format!("cv {}", spawn_result.branch));
     renderer.write_raw(&format!(
         "\r\nWorker started: {} ({})\r\n",
         spawn_result.branch,
@@ -190,7 +190,7 @@ async fn run_dispatch<W: Write>(
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<DispatchResult>> {
     ctx.renderer
-        .set_title(&format!("coven: {branch} \u{2014} dispatch"));
+        .set_title(&format!("cv dispatch \u{2014} {branch}"));
     ctx.renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
 
     let agents_dir = worktree_path.join(agents::AGENTS_DIR);
@@ -347,7 +347,7 @@ async fn worker_loop<W: Write>(
         match dispatch.decision {
             DispatchDecision::Sleep => {
                 ctx.renderer
-                    .set_title(&format!("coven: {branch} \u{2014} sleeping"));
+                    .set_title(&format!("cv sleeping \u{2014} {branch}"));
                 ctx.renderer
                     .write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
                 ctx.io.clear_event_channel();
@@ -381,7 +381,7 @@ async fn worker_loop<W: Write>(
                     format!("{agent} {args_display}")
                 };
                 ctx.renderer
-                    .set_title(&format!("coven: {branch} \u{2014} {title_suffix}"));
+                    .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
 
                 let should_exit = run_agent(
                     &agent_prompt,
