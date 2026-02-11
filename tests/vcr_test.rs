@@ -136,7 +136,7 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
             .expect("Command failed during VCR replay");
         Vec::new()
     } else if case.is_gc() {
-        coven::commands::gc::gc(&vcr, None, &mut output)
+        coven::commands::gc::gc(&vcr, false, None, &mut output)
             .await
             .expect("Command failed during VCR replay");
         Vec::new()

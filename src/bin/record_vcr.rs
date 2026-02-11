@@ -288,7 +288,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
         let mut stdin = std::io::Cursor::new(stdin_input);
         commands::init::init(&vcr, &mut output, &mut stdin, Some(tmp_dir.clone())).await?;
     } else if case.is_gc() {
-        commands::gc::gc(&vcr, Some(tmp_dir.as_path()), &mut output).await?;
+        commands::gc::gc(&vcr, false, Some(tmp_dir.as_path()), &mut output).await?;
     } else if case.is_status() {
         commands::status::status(&vcr, Some(tmp_dir.as_path()), &mut output).await?;
     } else {

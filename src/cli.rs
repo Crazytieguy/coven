@@ -67,7 +67,11 @@ pub enum Command {
     Status,
 
     /// Remove orphaned worktrees left behind by dead workers.
-    Gc,
+    Gc {
+        /// Force removal even if worktree has uncommitted or untracked changes.
+        #[arg(long)]
+        force: bool,
+    },
 
     /// Start an orchestration worker (dispatch → agent → land loop).
     Worker {

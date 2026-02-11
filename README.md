@@ -63,6 +63,10 @@ Set up orchestration for a project — creates `.coven/agents/`, `issues/`, and 
 
 Show active workers / clean up orphaned worktrees.
 
+| Flag | Description |
+|------|-------------|
+| `--force` | Force removal of dirty worktrees (`gc` only) |
+
 ## Shared Flags
 
 All session commands (`coven`, `ralph`, `worker`) accept:

@@ -12,8 +12,12 @@ use crate::worktree;
 ///
 /// Lists all git worktrees, compares against live workers, and removes
 /// any non-main worktree that no live worker owns.
+///
+/// When `force` is true, passes `--force` to `git worktree remove` so
+/// dirty worktrees can be cleaned up.
 pub async fn gc(
     vcr: &VcrContext,
+    force: bool,
     working_dir: Option<&Path>,
     writer: &mut impl Write,
 ) -> Result<()> {
@@ -68,8 +72,8 @@ pub async fn gc(
 
         let wt_path = wt.path.display().to_string();
         let result = vcr
-            .call("worktree::remove", wt_path, async |p: &String| {
-                worktree::remove(Path::new(p)).map_err(|e| anyhow::anyhow!("{e}"))
+            .call("worktree::remove", wt_path.clone(), async |p: &String| {
+                worktree::remove(Path::new(p), force).map_err(|e| anyhow::anyhow!("{e}"))
             })
             .await;
 
@@ -80,6 +84,12 @@ pub async fn gc(
             }
             Err(e) => {
                 writeln!(writer, " — failed: {e}")?;
+                if !force {
+                    writeln!(
+                        writer,
+                        "    hint: re-run with --force, or: git worktree remove --force {wt_path}"
+                    )?;
+                }
             }
         }
     }

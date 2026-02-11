@@ -35,9 +35,9 @@ async fn main() -> Result<()> {
             let vcr = VcrContext::live();
             commands::status::status(&vcr, None, &mut std::io::stdout()).await?;
         }
-        Some(Command::Gc) => {
+        Some(Command::Gc { force }) => {
             let vcr = VcrContext::live();
-            commands::gc::gc(&vcr, None, &mut std::io::stdout()).await?;
+            commands::gc::gc(&vcr, force, None, &mut std::io::stdout()).await?;
         }
         Some(Command::Ralph {
             prompt,

@@ -348,21 +348,29 @@ pub fn land(worktree_path: &Path) -> Result<LandResult, WorktreeError> {
 
 /// Remove a worktree and delete its branch.
 ///
-/// - Runs `git worktree remove <path>`
+/// - Runs `git worktree remove [--force] <path>`
 /// - Deletes the branch
 ///
+/// When `force` is true, passes `--force` to `git worktree remove` and uses
+/// `branch -D` instead of `branch -d`, allowing removal of dirty worktrees.
+///
 /// Intended for worker shutdown, not after every land.
-pub fn remove(worktree_path: &Path) -> Result<(), WorktreeError> {
+pub fn remove(worktree_path: &Path, force: bool) -> Result<(), WorktreeError> {
     let branch = git(worktree_path, &["rev-parse", "--abbrev-ref", "HEAD"])?;
     let branch = branch.trim().to_string();
 
     let (main_path, _) = find_main_worktree(worktree_path)?;
 
     let wt_str = path_str(worktree_path)?;
-    git(&main_path, &["worktree", "remove", wt_str])?;
+    if force {
+        git(&main_path, &["worktree", "remove", "--force", wt_str])?;
+    } else {
+        git(&main_path, &["worktree", "remove", wt_str])?;
+    }
 
     // Delete the branch (ignore errors — branch may already be gone)
-    let _ = git(&main_path, &["branch", "-d", &branch]);
+    let delete_flag = if force { "-D" } else { "-d" };
+    let _ = git(&main_path, &["branch", delete_flag, &branch]);
 
     Ok(())
 }
@@ -940,7 +948,7 @@ mod tests {
 
         assert!(spawned.worktree_path.exists());
 
-        remove(&spawned.worktree_path).unwrap();
+        remove(&spawned.worktree_path, false).unwrap();
 
         // Directory should be gone
         assert!(!spawned.worktree_path.exists());

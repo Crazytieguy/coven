@@ -163,12 +163,15 @@ pub async fn worker<W: Write>(
 
     renderer.write_raw("\r\nRemoving worktree...\r\n");
     if let Err(e) = vcr
-        .call_typed_err("worktree::remove", wt_str, async |p: &String| {
-            worktree::remove(Path::new(p))
+        .call_typed_err("worktree::remove", wt_str.clone(), async |p: &String| {
+            worktree::remove(Path::new(p), false)
         })
         .await?
     {
-        renderer.write_raw(&format!("Warning: failed to remove worktree: {e}\r\n"));
+        renderer.write_raw(&format!(
+            "Warning: failed to remove worktree: {e}\r\n\
+             hint: git worktree remove --force {wt_str}\r\n"
+        ));
     }
 
     result
