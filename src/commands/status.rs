@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::worker_state;
+use crate::worker_state::{self, StatusStyle};
 
 /// Display the status of all active workers.
 pub fn status() -> Result<()> {
@@ -13,27 +13,10 @@ pub fn status() -> Result<()> {
     }
 
     println!("{} active worker(s):\n", states.len());
-    for state in &states {
-        match &state.agent {
-            Some(agent) => {
-                let mut args_parts: Vec<_> =
-                    state.args.iter().map(|(k, v)| format!("{k}={v}")).collect();
-                args_parts.sort();
-                if args_parts.is_empty() {
-                    println!("  {} (PID {}) — {agent}", state.branch, state.pid);
-                } else {
-                    let args_str = args_parts.join(", ");
-                    println!(
-                        "  {} (PID {}) — {agent} ({args_str})",
-                        state.branch, state.pid
-                    );
-                }
-            }
-            None => {
-                println!("  {} (PID {}) — idle", state.branch, state.pid);
-            }
-        }
-    }
+    print!(
+        "{}",
+        worker_state::format_workers(&states, StatusStyle::Cli)
+    );
 
     Ok(())
 }

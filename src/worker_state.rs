@@ -7,6 +7,7 @@
 //! worktrees can access them. The git common dir is resolved via
 //! `git rev-parse --git-common-dir`, which works from any worktree.
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
@@ -148,6 +149,58 @@ pub fn read_all(repo_path: &Path) -> Result<Vec<WorkerState>> {
     Ok(states)
 }
 
+/// Style variants for worker status formatting.
+#[derive(Clone, Copy)]
+pub enum StatusStyle {
+    /// CLI status command: indented, em-dash separator, bare agent name.
+    Cli,
+    /// Dispatch prompt injection: list items, colon separator, "running" prefix.
+    Dispatch,
+}
+
+/// Format worker states into a multi-line string.
+pub fn format_workers<S: Borrow<WorkerState>>(states: &[S], style: StatusStyle) -> String {
+    let (line_prefix, separator, agent_prefix) = match style {
+        StatusStyle::Cli => ("  ", " — ", ""),
+        StatusStyle::Dispatch => ("- ", ": ", "running "),
+    };
+
+    let mut out = String::new();
+    for item in states {
+        let state = item.borrow();
+        match &state.agent {
+            Some(agent) => {
+                let mut args_parts: Vec<_> =
+                    state.args.iter().map(|(k, v)| format!("{k}={v}")).collect();
+                args_parts.sort();
+                if args_parts.is_empty() {
+                    let _ = writeln!(
+                        out,
+                        "{line_prefix}{} (PID {}){separator}{agent_prefix}{agent}",
+                        state.branch, state.pid
+                    );
+                } else {
+                    let args_str = args_parts.join(", ");
+                    let _ = writeln!(
+                        out,
+                        "{line_prefix}{} (PID {}){separator}{agent_prefix}{agent} ({args_str})",
+                        state.branch, state.pid
+                    );
+                }
+            }
+            None => {
+                let _ = writeln!(
+                    out,
+                    "{line_prefix}{} (PID {}){separator}idle",
+                    state.branch, state.pid
+                );
+            }
+        }
+    }
+
+    out
+}
+
 /// Format worker status for injection into the dispatch prompt.
 ///
 /// Excludes the current process (the worker calling dispatch doesn't need
@@ -159,35 +212,7 @@ pub fn format_status(states: &[WorkerState], own_pid: u32) -> String {
         return "No other workers active.".to_string();
     }
 
-    let mut out = String::new();
-    for state in &others {
-        match &state.agent {
-            Some(agent) => {
-                let mut args_parts: Vec<_> =
-                    state.args.iter().map(|(k, v)| format!("{k}={v}")).collect();
-                args_parts.sort();
-                if args_parts.is_empty() {
-                    let _ = writeln!(
-                        out,
-                        "- {} (PID {}): running {agent}",
-                        state.branch, state.pid
-                    );
-                } else {
-                    let args_str = args_parts.join(", ");
-                    let _ = writeln!(
-                        out,
-                        "- {} (PID {}): running {agent} ({args_str})",
-                        state.branch, state.pid
-                    );
-                }
-            }
-            None => {
-                let _ = writeln!(out, "- {} (PID {}): idle", state.branch, state.pid);
-            }
-        }
-    }
-
-    out
+    format_workers(&others, StatusStyle::Dispatch)
 }
 
 /// Acquire the dispatch lock. Blocks until available.
@@ -390,6 +415,28 @@ mod tests {
         );
         assert!(formatted.contains("bold-oak-7 (PID 12346): idle"));
         assert!(!formatted.contains("my-branch"));
+    }
+
+    #[test]
+    fn format_workers_cli_style() {
+        let states = vec![
+            WorkerState {
+                pid: 12345,
+                branch: "swift-fox-42".into(),
+                agent: Some("implement".into()),
+                args: HashMap::from([("issue".into(), "issues/foo.md".into())]),
+            },
+            WorkerState {
+                pid: 12346,
+                branch: "bold-oak-7".into(),
+                agent: None,
+                args: HashMap::new(),
+            },
+        ];
+        let formatted = format_workers(&states, StatusStyle::Cli);
+        assert!(formatted
+            .contains("  swift-fox-42 (PID 12345) — implement (issue=issues/foo.md)"));
+        assert!(formatted.contains("  bold-oak-7 (PID 12346) — idle"));
     }
 
     #[test]
