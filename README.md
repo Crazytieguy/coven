@@ -15,6 +15,8 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Crazytieguy/coven/relea
 cargo install coven
 ```
 
+**Platform support:** macOS and Linux only. Coven uses Unix-specific APIs (terminal control, process signals).
+
 ## Why?
 
 The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` to provide a clean, lightweight display with support for follow-up messages, mid-stream steering, and looping workflows.
