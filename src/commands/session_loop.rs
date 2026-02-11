@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::Command as StdCommand;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crossterm::event::{Event, KeyEvent};
 use crossterm::terminal;
 
@@ -289,7 +289,10 @@ async fn process_claude_event<W: Write>(
         AppEvent::Claude(inbound) => {
             match classify_claude_event(&inbound, locals, state, renderer, fork_config) {
                 ClaudeEventAction::Fork(tasks) => {
-                    let session_id = state.session_id.clone().unwrap_or_default();
+                    let session_id = state
+                        .session_id
+                        .clone()
+                        .context("cannot fork: no session ID yet")?;
                     let Some(fork_cfg) = fork_config else {
                         unreachable!("fork_tasks set without fork_config");
                     };
@@ -381,7 +384,10 @@ async fn handle_flush_result<W: Write>(
             Ok(None)
         }
         FlushResult::Fork(tasks) => {
-            let session_id = state.session_id.clone().unwrap_or_default();
+            let session_id = state
+                .session_id
+                .clone()
+                .context("cannot fork: no session ID yet")?;
             // Safety: fork_tasks is only set when fork_config is Some
             let Some(fork_cfg) = fork_config else {
                 unreachable!("Fork detected without fork_config");
