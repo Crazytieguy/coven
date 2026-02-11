@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Don't re-print session ID when resuming a session
