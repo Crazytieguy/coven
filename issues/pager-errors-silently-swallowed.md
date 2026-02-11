@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # `view_message` silently swallows all pager errors
@@ -59,15 +59,15 @@ Use `eprintln!` here since we're in cooked mode (raw mode was disabled before sp
 
 The pager's exit code doesn't matter — `less` returns non-zero on `q` in some cases, and a failed pager doesn't affect our state. The important thing is that we wait for it to exit. No change needed.
 
-### 4. Panic on `enable_raw_mode` failure
+### 4. Propagate `enable_raw_mode` failure as an error
 
-Replace `terminal::enable_raw_mode().ok();` with:
+Change `view_message` to return `Result<()>` and replace `terminal::enable_raw_mode().ok();` with:
 
 ```rust
-terminal::enable_raw_mode().expect("failed to re-enable raw mode after pager");
+terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
 ```
 
-If raw mode can't be re-enabled, the session is broken — input handling relies on it. Panicking is appropriate here since `RawModeGuard::acquire` also propagates `enable_raw_mode` failures (via `?`), establishing that the session can't function without it. The panic will be caught by the cleanup in `main.rs` which disables raw mode on exit.
+The caller should handle this as a regular error. No panics — propagate with `?` instead.
 
 ### 5. Leave `disable_raw_mode().ok()` as-is (line 520)
 
