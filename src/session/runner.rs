@@ -228,3 +228,45 @@ pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter()
         .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exact_match() {
+        assert!(has_flag(
+            &["--permission-mode".into(), "plan".into()],
+            "--permission-mode"
+        ));
+    }
+
+    #[test]
+    fn equals_syntax() {
+        assert!(has_flag(
+            &["--permission-mode=plan".into()],
+            "--permission-mode"
+        ));
+    }
+
+    #[test]
+    fn not_present() {
+        assert!(!has_flag(
+            &["--model".into(), "opus".into()],
+            "--permission-mode"
+        ));
+    }
+
+    #[test]
+    fn empty_args() {
+        assert!(!has_flag(&[], "--permission-mode"));
+    }
+
+    #[test]
+    fn prefix_not_false_positive() {
+        assert!(!has_flag(
+            &["--permission-mode-extra".into()],
+            "--permission-mode"
+        ));
+    }
+}
