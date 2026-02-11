@@ -108,7 +108,10 @@ pub async fn ralph<W: Write>(
                         && let Some(reason) =
                             SessionRunner::scan_break_tag(&result_text, &config.break_tag)
                     {
-                        renderer.write_raw(&format!("\r\nLoop complete: {reason}\r\n"));
+                        let s = if iteration == 1 { "" } else { "s" };
+                        renderer.write_raw(&format!(
+                            "\r\nLoop complete ({iteration} iteration{s}): {reason}\r\n"
+                        ));
                         break 'outer;
                     }
 
