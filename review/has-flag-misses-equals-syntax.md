@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: changes-requested
+state: review
 ---
 
 # `has_flag` doesn't detect `--flag=value` syntax
@@ -38,7 +38,3 @@ fn has_flag(args: &[String], flag: &str) -> bool {
 ```
 
 This covers both call sites (`--permission-mode` at line 127 and `--max-thinking-tokens` at line 132). No other callers exist.
-
-## Feedback
-
-Why isn't clap parsing this? These are passthrough args after `--`, not parsed by clap. The fix as proposed is correct — clap never sees `extra_args`.
