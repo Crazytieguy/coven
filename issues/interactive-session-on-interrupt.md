@@ -10,7 +10,3 @@ After interrupting a coven session (Ctrl+C), the user should be able to press a 
 No need to clear the display — whatever the interactive session left on screen is fine.
 
 Should work from the interrupted state in run, ralph, and worker.
-
-## Changes requested
-
-The previous plan misunderstood the intent — it proposed building a coven-wrapped side session with its own session loop. The actual approach is much simpler: shell out to the native Claude TUI and wait for it to exit.
