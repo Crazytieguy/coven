@@ -3,7 +3,7 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 73770a1c-ec11-41a6-85c5-aa16b0d8d05c (claude-haiku-4-5-20251001)
+Session 49fe7377-47be-4b73-857d-4be4bc31a472 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
@@ -12,10 +12,12 @@ Session 73770a1c-ec11-41a6-85c5-aa16b0d8d05c (claude-haiku-4-5-20251001)
 [5] Thinking...
 [6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [7] Thinking...
-Done! I've updated greeting.py:
-- Changed the greeting from `'hello'` to `'goodbye'`
-- Added a farewell line that prints `'See you soon!'`
+Done! I've updated greeting.py to:
+1. Change the greeting from 'hello' to 'goodbye'
+2. Add a farewell line "See you later!"
+
+The function now prints both the goodbye message and the farewell line when called.
 
 
-Done  $0.02 · 9.5s · 4 turns  (:N to view)
+Done  $0.02 · 7.3s · 4 turns  (:N to view)
 >

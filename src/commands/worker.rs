@@ -1010,6 +1010,14 @@ async fn vcr_main_head_sha(vcr: &VcrContext, wt_str: String) -> Result<String> {
     .await
 }
 
+/// VCR-wrapped `resolve_ref_paths`.
+async fn vcr_resolve_ref_paths(vcr: &VcrContext, wt_str: String) -> Result<Option<RefPaths>> {
+    vcr.call("resolve_ref_paths", wt_str, async |p: &String| {
+        Ok(resolve_ref_paths(Path::new(p)))
+    })
+    .await
+}
+
 /// VCR-wrapped `worker_state::update`.
 async fn vcr_update_worker_state(
     vcr: &VcrContext,
@@ -1138,7 +1146,7 @@ enum WaitOutcome {
 /// receiver will never fire, which is fine — the VCR-replayed `next_event`
 /// branch always wins the select in that case.
 fn setup_ref_watcher(
-    worktree_path: &Path,
+    ref_paths: Option<RefPaths>,
 ) -> Result<(notify::RecommendedWatcher, tokio::sync::mpsc::Receiver<()>)> {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
@@ -1148,9 +1156,7 @@ fn setup_ref_watcher(
     })
     .context("failed to create filesystem watcher")?;
 
-    // Best-effort: resolve git paths and set up watches. If any step fails
-    // (e.g. worktree doesn't exist during VCR replay), skip watching.
-    if let Some(paths) = resolve_ref_paths(worktree_path) {
+    if let Some(paths) = ref_paths {
         if paths.refs_heads_dir.exists() {
             let _ = watcher.watch(&paths.refs_heads_dir, RecursiveMode::Recursive);
         } else if paths.loose_ref.exists() {
@@ -1164,6 +1170,7 @@ fn setup_ref_watcher(
     Ok((watcher, rx))
 }
 
+#[derive(Serialize, Deserialize)]
 struct RefPaths {
     refs_heads_dir: PathBuf,
     loose_ref: PathBuf,
@@ -1215,7 +1222,8 @@ async fn wait_for_new_commits<W: Write>(
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
 
     // _watcher must stay alive for the duration of the loop.
-    let (_watcher, mut rx) = setup_ref_watcher(worktree_path)?;
+    let ref_paths = vcr_resolve_ref_paths(vcr, wt_str.clone()).await?;
+    let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
 
     loop {
         tokio::select! {

@@ -3,38 +3,24 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e593aad8-7438-471c-9c18-002ebe57c429 (claude-haiku-4-5-20251001)
+Session 841826a2-b57d-4db3-a0ae-6a783540414d (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-> I'll use fork to delegate these two file creation tasks in parallel:
+> [2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
+[3] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
+[4] Thinking...
+Done! I've created both files:
+- **hello.txt** with content "hello world"
+- **goodbye.txt** with content "goodbye world"
 
-<fork>
-- Create hello.txt with 'hello world'
-- Create goodbye.txt with 'goodbye world'
-</fork>
+I executed both writes in parallel since they're independent tasks. Both files were created successfully in the working directory.
 
-[2] ⑂ Fork  Create hello.txt with 'hello world'
-[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-[4] ⑂ Fork Result
-⏳ queued: x
+
+Done  $0.01 · 8.9s · 3 turns  (:N to view)
+> x
 [5] Thinking...
-Perfect! Both files have been created successfully:
-- ✓ hello.txt with 'hello world'
-- ✓ goodbye.txt with 'goodbye world'
-
-The fork delegated both tasks to run concurrently, and they completed in parallel.
-
-⤷ follow-up: x
-[6] Thinking...
-I'm not sure what you need—could you clarify? Are you looking to:
-- Delete those files?
-- Verify the files were created?
-- Do something else?
-
-Let me know how I can help!
+I'm not sure what you're looking for. Could you clarify what you'd like me to do next?
 
 
-Done  $0.01 · 2.6s · 1 turn  (:N to view)
+Done  $0.02 · 2.1s · 1 turn  (:N to view)
 >

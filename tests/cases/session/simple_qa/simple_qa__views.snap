@@ -4,8 +4,8 @@ expression: views
 ---
 :Thinking  [1] Thinking
 
-The user is asking a simple arithmetic question: "What is 2+2?"
+The user is asking a simple math question: what is 2+2?
 
-This is a straightforward math problem. 2 + 2 = 4.
+This is a straightforward arithmetic question that doesn't require any tools. The answer is 4.
 
-This doesn't require any tools - it's just a simple calculation I can answer directly.
+There's no need to use any tools here - this is just a basic calculation.

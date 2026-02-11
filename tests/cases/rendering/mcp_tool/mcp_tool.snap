@@ -3,27 +3,25 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session c03a0a1e-80f6-4838-af78-3d0f605365b6 (claude-haiku-4-5-20251001)
+Session 48028285-84bb-4e4f-aca4-af9d1710395d (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ llms-fetch-mcp:llms-fetch:fetch  https://docs.rs/tokio
 [3] Thinking...
-I've fetched the tokio documentation from https://docs.rs/tokio. The content has been saved locally and includes:
+I've successfully fetched the tokio documentation from https://docs.rs/tokio. The content has been cached locally and includes:
 
 **Main sections:**
-- **A Tour of Tokio** - Introduction with examples
-- **Authoring libraries** - Best practices for library authors
-- **Working With Tasks** - Task management and spawning
-- **CPU-bound tasks and blocking code** - Handling blocking operations
-- **Asynchronous IO** - Non-blocking I/O patterns
-- **Examples** - Code examples
-- **Feature flags** - Configuration options
-- **Unstable features** - Experimental APIs
-- **Supported platforms** - Platform compatibility
-- **WASM support** - WebAssembly compatibility
+- A Tour of Tokio with examples
+- Authoring libraries
+- Working With Tasks
+- CPU-bound tasks and blocking code
+- Asynchronous IO
+- Examples
+- Feature flags (including unstable features)
+- Supported platforms (with WASM support information)
 
-The documentation is now cached locally at `.llms-fetch-mcp/docs.rs/tokio/index`. What would you like to do with the tokio documentation?
+The documentation is now saved and ready for reference. Would you like me to search for specific information within the tokio docs, or help you with something related to tokio?
 
 
-Done  $0.01 · 10.0s · 2 turns  (:N to view)
+Done  $0.01 · 9.3s · 2 turns  (:N to view)
 >

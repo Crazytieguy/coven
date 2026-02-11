@@ -15,11 +15,11 @@ Running tests...
 
 :Thinking[1]  [3] Thinking
 
-The test script ran but exited with code 1, which indicates an error. The output shows "Running tests..." but that's it. Let me check what's in the test.sh file to understand what it does, and also check the repository structure to see what we're working with.
+The test script failed with exit code 1 but there's limited output. Let me read the test.sh file to see what it's doing and understand what might be wrong.
 
 --- :next ---
 
-:Edit  [7] Edit
+:Edit  [16] Edit
 
 /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-error_handling/test.sh
 - #!/bin/bash
@@ -35,7 +35,7 @@ The file /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-erro
 
 --- :next ---
 
-:Bash[-1]  [9] Bash
+:Bash[-1]  [18] Bash
 
 $ bash test.sh
 

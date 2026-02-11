@@ -3,14 +3,14 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 61e2a6a4-9fe6-4fc0-80f1-6564573e7d70 (claude-haiku-4-5-20251001)
+Session da468486-b057-447a-b79f-3744ea501959 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Task  Read README.md and summarize in one sentence
   [2/1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [3] Thinking...
-The subagent read the README.md and summarized it: **This is a minimal test project designed for testing subagent display in coven.**
+The README.md is a minimal test project designed for testing subagent display functionality in coven.
 
 
-Done  $0.02 · 15.6s · 2 turns  (:N to view)
+Done  $0.02 · 13.6s · 2 turns  (:N to view)
 >

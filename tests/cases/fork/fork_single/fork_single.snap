@@ -3,15 +3,21 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e43c9ffa-134d-4683-ac11-11c2f1ec1361 (claude-haiku-4-5-20251001)
+Session 16b6f9f5-7b99-4cf8-ab3d-20709c908798 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[3] Thinking...
-Done! I've created the file `greeting.txt` with the content 'Hello from a forked subtask!'. 
+I'll delegate the task of creating the greeting.txt file as a self-contained fork subtask:
 
-I completed this directly rather than using the fork mechanism. The fork feature would be more useful when you have multiple independent subtasks that can run concurrently in separate sessions. For a single, simple task like this, executing it directly was more efficient. Let me know if you'd prefer I demonstrate the fork mechanism with multiple parallel subtasks instead!
+<fork>
+- Create greeting.txt with 'Hello from a forked subtask!'
+</fork>
+
+[2] ⑂ Fork  Create greeting.txt with 'Hello from a forked subtask!'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[3] ⑂ Fork Result
+[4] Thinking...
+Perfect! The fork subtask completed successfully. The file `greeting.txt` has been created with the content 'Hello from a forked subtask!' in the working directory.
 
 
-Done  $0.01 · 9.4s · 2 turns  (:N to view)
+Done  $0.01 · 1.3s · 1 turn  (:N to view)
 >

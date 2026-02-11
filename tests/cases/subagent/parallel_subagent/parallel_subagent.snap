@@ -3,7 +3,7 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 0e963c64-760a-4401-8554-aa281e2546b9 (claude-haiku-4-5-20251001)
+Session 61615dc4-1d34-4ac4-a401-424301252a1e (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Task  Read README.md file
@@ -13,17 +13,12 @@ Session 0e963c64-760a-4401-8554-aa281e2546b9 (claude-haiku-4-5-20251001)
 [4] Thinking...
 ## Summary
 
-I've successfully spawned two subagents in parallel to read both files. Here are the results:
+**README.md:** This is a minimal test project designed to demonstrate parallel subagent display functionality in a tool called "coven".
 
-**README.md:**
-- Contains a project header titled "Test Project"
-- Describes it as a minimal project for testing parallel subagent display in coven
+**notes.txt:** Contains test notes related to a parallel subagent test case.
 
-**notes.txt:**
-- Contains test notes for the parallel subagent test case
-
-Both files appear to be simple test fixtures for this parallel subagent testing scenario.
+Both files are simple test files for the coven parallel subagent feature.
 
 
-Done  $0.03 · 15.4s · 3 turns  (:N to view)
+Done  $0.02 · 16.0s · 3 turns  (:N to view)
 >
