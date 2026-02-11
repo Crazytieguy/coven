@@ -351,6 +351,7 @@ async fn worker_loop<W: Write>(
                     .set_title(&format!("coven: {branch} \u{2014} sleeping"));
                 ctx.renderer
                     .write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
+                ctx.io.clear_event_channel();
                 let wait =
                     wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
                 if matches!(wait.await?, WaitOutcome::Exited) {
