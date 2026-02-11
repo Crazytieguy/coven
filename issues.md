@@ -5,4 +5,4 @@
 - [P1] Regular terminal keyboard nativagion doesn't work when giving interactive input. It would be nice to be able to use the regular terminal keybindings for things like jumping back a word or deleting a word etc (plan: plans/readline-keybindings.md)
 - [P1] :N view for common claude code tools should display in a nicer format than just the raw json (plan: plans/pretty-tool-view.md)
 - [P2] Duplication between `process_claude_event` and `flush_event_buffer` in session_loop.rs: both have identical fork-detection, has_pending, handle_inbound, and result-handling logic. Extract a shared event-classification helper to reduce drift risk. (plan: plans/session-loop-event-dedup.md)
-- [P1] :N view in pager is bottom-aligned for messages smaller than the height of the terminal. Should be top aligned by default
+- [P1] :N view in pager is bottom-aligned for messages smaller than the height of the terminal. Should be top aligned by default (plan: plans/pager-top-alignment.md)
