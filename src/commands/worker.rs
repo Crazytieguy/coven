@@ -561,7 +561,7 @@ async fn handle_ff_retry<W: Write>(
             "Fast-forward failed after {MAX_LAND_ATTEMPTS} attempts \
              — pausing worker. Press Enter to retry.\r\n",
         ));
-        if wait_for_enter_or_exit(ctx.io).await? {
+        if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
             return Ok(ControlFlow::Break(true));
         }
         *attempts = 0;
@@ -585,7 +585,7 @@ async fn handle_land_error<W: Write>(
     ctx.renderer.write_raw(&format!(
         "Land failed: {err} — pausing worker. Press Enter to retry.\r\n",
     ));
-    if wait_for_enter_or_exit(ctx.io).await? {
+    if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
         return Ok(ControlFlow::Break(true));
     }
     Ok(ControlFlow::Continue(()))
@@ -611,7 +611,7 @@ async fn handle_conflict<W: Write>(
             "Conflict resolution failed after {MAX_LAND_ATTEMPTS} attempts \
              — pausing worker. Press Enter to retry.\r\n",
         ));
-        if wait_for_enter_or_exit(ctx.io).await? {
+        if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
             return Ok(ControlFlow::Break(true));
         }
         *attempts = 0;
@@ -813,9 +813,11 @@ async fn resolve_conflict<W: Write>(
 }
 
 /// Wait for Enter (returns false) or Ctrl-C/Ctrl-D/stream end (returns true = should exit).
-async fn wait_for_enter_or_exit(io: &mut Io) -> Result<bool> {
+async fn wait_for_enter_or_exit(io: &mut Io, vcr: &VcrContext) -> Result<bool> {
     loop {
-        let io_event = io.next_event().await?;
+        let io_event: IoEvent = vcr
+            .call("next_event", (), async |(): &()| io.next_event().await)
+            .await?;
         if let IoEvent::Terminal(Event::Key(key_event)) = io_event {
             match key_event.code {
                 KeyCode::Enter => return Ok(false),
