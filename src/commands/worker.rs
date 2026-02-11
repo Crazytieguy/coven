@@ -1012,11 +1012,10 @@ async fn run_phase_session<W: Write>(
                 else {
                     return Ok(PhaseOutcome::Exited);
                 };
-                let resume_config = session_config.resume_with(text, session_id);
+                let resume_config = session_config.resume_with(text, session_id.clone());
                 runner = session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
-                let prev_session_id = state.session_id.clone();
                 state = SessionState::default();
-                state.session_id = prev_session_id;
+                state.session_id = Some(session_id);
             }
             SessionOutcome::ProcessExited => {
                 return Ok(PhaseOutcome::Exited);

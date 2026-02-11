@@ -110,11 +110,10 @@ pub async fn run<W: Write>(
                 else {
                     break;
                 };
-                let session_cfg = base_session_cfg.resume_with(text, session_id);
+                let session_cfg = base_session_cfg.resume_with(text, session_id.clone());
                 runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
-                let prev_session_id = state.session_id.clone();
                 state = SessionState::default();
-                state.session_id = prev_session_id;
+                state.session_id = Some(session_id);
             }
             SessionOutcome::ProcessExited => break,
         }
