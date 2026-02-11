@@ -502,10 +502,18 @@ pub async fn spawn_session(
 pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) {
     use crate::display::renderer::format_message;
 
-    let Some(content) = format_message(renderer.messages(), query) else {
+    let Some(mut content) = format_message(renderer.messages(), query) else {
         renderer.write_raw(&format!("No message {query}\r\n"));
         return;
     };
+
+    // Pad short content with trailing newlines so the pager shows it top-aligned.
+    if let Ok((_, rows)) = terminal::size() {
+        let line_count = content.chars().filter(|&c| c == '\n').count() + 1;
+        if line_count < rows as usize {
+            content.extend(std::iter::repeat_n('\n', rows as usize - line_count));
+        }
+    }
 
     // Leave raw mode so the pager can handle keyboard input.
     // The pager manages its own alternate screen.
