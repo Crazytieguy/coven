@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -6,6 +7,49 @@ use tokio::task::LocalSet;
 
 use coven::commands;
 use coven::vcr::{DEFAULT_TEST_MODEL, Io, MultiStep, TestCase, TriggerController, VcrContext};
+
+/// Writes to stderr with a `[prefix] ` prepended to each line.
+struct PrefixWriter {
+    prefix: String,
+    stderr: std::io::Stderr,
+    at_line_start: bool,
+}
+
+impl PrefixWriter {
+    fn new(prefix: impl Into<String>) -> Self {
+        Self {
+            prefix: prefix.into(),
+            stderr: std::io::stderr(),
+            at_line_start: true,
+        }
+    }
+}
+
+impl Write for PrefixWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let len = buf.len();
+        let mut start = 0;
+        for (i, &byte) in buf.iter().enumerate() {
+            if self.at_line_start {
+                write!(self.stderr, "[{}] ", self.prefix)?;
+                self.at_line_start = false;
+            }
+            if byte == b'\n' {
+                self.stderr.write_all(&buf[start..=i])?;
+                start = i + 1;
+                self.at_line_start = true;
+            }
+        }
+        if start < len {
+            self.stderr.write_all(&buf[start..])?;
+        }
+        Ok(len)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.stderr.flush()
+    }
+}
 
 /// A discovered test case: its directory and name.
 struct CaseEntry {
@@ -232,8 +276,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     // Default to haiku for recording unless the test case specifies a model.
     let default_model = DEFAULT_TEST_MODEL;
 
-    // Capture output to a buffer (stdout would interleave in parallel).
-    let mut output = Vec::new();
+    let mut output = PrefixWriter::new(name);
 
     if case.is_worker() {
         let worker_config = case.worker.as_ref().context("worker config missing")?;
@@ -381,7 +424,7 @@ async fn record_multi_step(
     match step.command.as_str() {
         "init" => {
             let vcr = VcrContext::record();
-            let mut output = Vec::new();
+            let mut output = PrefixWriter::new(format!("{test_name}/{}", step.name));
             let stdin_input = format!("{}\n", step.stdin.as_deref().unwrap_or(""));
             let mut stdin = std::io::Cursor::new(stdin_input);
             commands::init::init(&vcr, &mut output, &mut stdin, Some(tmp_dir.clone())).await?;
@@ -397,7 +440,7 @@ async fn record_multi_step(
             let controller = TriggerController::new(&step.messages, term_tx)?;
             let vcr = VcrContext::record_with_triggers(controller);
             let mut io = Io::new(event_rx, term_rx);
-            let mut output = Vec::new();
+            let mut output = PrefixWriter::new(format!("{test_name}/{}", step.name));
 
             let mut extra_args = step.claude_args;
             if !extra_args.iter().any(|a| a == "--model") {
