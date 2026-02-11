@@ -3,11 +3,11 @@ Status: draft
 
 ## Approach
 
-Add a new multi-command VCR test type that orchestrates `coven init` + two concurrent `coven worker` instances in a single test case, against a shared git repo with realistic issues.
+Add a multi-step VCR test (`concurrent_workers`) that runs `coven init` → shell setup → two concurrent `coven worker` instances against a shared git repo. Uses the real init templates so the test breaks if they change.
 
-### Infrastructure changes
+### 1. Multi-step test infrastructure
 
-**New test case type: `[multi]`** — a TOML section that defines a sequence of named steps:
+**New `[multi]` section in TestCase** — defines an ordered list of named steps:
 
 ```toml
 [multi]
@@ -19,91 +19,156 @@ steps = [
 ]
 ```
 
-Steps without `concurrent_group` run sequentially. Steps sharing a `concurrent_group` run concurrently. Each step that involves a VCR-recording command gets its own VCR file (`<name>__<step>.vcr`).
+Step types:
+- `init` — runs `coven init` with the given `stdin`. Records to `<test>__<step>.vcr`.
+- `shell` — runs a bash script from `[scripts]` against the test repo. No VCR.
+- `worker` — runs `coven worker`. Records to `<test>__<step>.vcr`.
 
-**Recording flow:**
-1. Create temp git repo with `[files]` and initial commit (same as today)
-2. Run steps in order. Sequential steps complete before the next group starts. Concurrent steps are spawned together via `tokio::task::spawn_local`.
-3. Each command step records to its own VCR file. Shell steps execute without VCR.
-4. Each command step captures output to its own buffer for snapshot comparison.
+Execution model:
+- Steps without `concurrent_group` run sequentially in order.
+- Steps sharing a `concurrent_group` launch together and all must complete before the next sequential step starts.
+- Each VCR-recording step gets its own VCR file and output buffer.
 
-**Replay flow:**
-1. Load all VCR files for the test case
-2. Run steps in the same sequence/concurrency structure
-3. Each command replays from its own VCR context
-4. Snapshot: concatenate all step outputs with headers (`--- worker_a ---`, `--- worker_b ---`)
+**New structs in vcr.rs:**
 
-### Concurrency realism
+```rust
+pub struct MultiConfig {
+    pub steps: Vec<MultiStep>,
+}
 
-During **recording**, the concurrent workers interact through real shared state: dispatch lock, worker state files, git worktrees, and the shared repo. This is where the concurrency logic is validated.
-
-During **replay**, each worker replays its own VCR tape independently. The concurrency paths (lock blocking, state file reads) return pre-recorded values. Replay validates that the code paths don't crash and output matches expectations — it's a regression test, not a concurrency test. The real concurrency validation happens at recording time.
-
-### Test scenario
-
-A realistic multi-worker scenario with two issues:
-
-**Setup files:**
-- `.coven/agents/dispatch.md` — dispatch logic that reads `issues/` and assigns work
-- `.coven/agents/fix-readme.md` — agent that fixes a README typo
-- `.coven/agents/add-tests.md` — agent that adds a test file
-- `issues/fix-readme.md` — first issue
-- `issues/add-tests.md` — second issue
-- `.claude/settings.json` — permissions for git operations
-
-**Expected flow:**
-1. Init step creates the standard `.coven/` structure (or we skip init and provide files directly via `[files]`)
-2. Two workers start concurrently
-3. Worker A dispatches first (acquires lock), picks `fix-readme`
-4. Worker B dispatches second, picks `add-tests`
-5. Both complete their agents, land their changes
-6. Both dispatch again, see no remaining issues, sleep
-7. Both exit via trigger on `main_head_sha` label (same as `worker_basic`)
-
-### Shell steps for mid-test setup
-
-Some scenarios need filesystem changes between commands (e.g., creating issue files after init). The `shell` step type runs a script from `[scripts]` in the TOML against the test repo:
-
-```toml
-[scripts]
-"create-issues.sh" = '''
-mkdir -p issues
-echo "Fix the typo in README" > issues/fix-readme.md
-echo "Add unit tests for parser" > issues/add-tests.md
-git add . && git commit -m "Add issues"
-'''
+pub struct MultiStep {
+    pub name: String,
+    pub command: String,         // "init", "shell", "worker"
+    pub stdin: Option<String>,   // for init
+    pub script: Option<String>,  // for shell (key into [scripts])
+    pub concurrent_group: Option<String>,
+}
 ```
 
-This avoids needing a complex init VCR recording just to set up the test state. We can provide the `.coven/` structure via `[files]` and use a shell step for any post-init-commit setup.
+`TestCase` gains `multi: Option<MultiConfig>` and `scripts: HashMap<String, String>`.
+
+**Changes to record_vcr.rs:**
+
+Add `record_multi_case` alongside the existing `record_case`. Flow:
+
+1. Create temp git repo with `[files]` and initial commit (reuse `setup_test_dir`).
+2. Walk steps in order, grouping consecutive steps with the same `concurrent_group`.
+3. Sequential steps: run inline, writing VCR files as `<test>__<step>.vcr`.
+4. Concurrent group: `tokio::task::spawn_local` each step, join all.
+5. Shell steps: `std::process::Command::new("bash").arg("-c").arg(script).current_dir(test_dir)`, with git env vars set. No VCR.
+6. Each VCR step captures output to its own buffer.
+
+**Changes to vcr_test.rs:**
+
+Add `multi_vcr_test!` macro (or extend `vcr_test!`). Replay flow:
+
+1. Load all VCR files for the test (`<test>__<step>.vcr` per VCR step).
+2. Run steps in the same sequence/concurrency structure, each replaying from its own `VcrContext`.
+3. Concatenate outputs with headers (`--- init ---\n`, `--- worker_a ---\n`, etc.).
+4. Snapshot the concatenated output.
+
+During replay, each worker replays its own VCR tape independently. Concurrency paths (dispatch lock, state file reads) return pre-recorded values. This is a regression test — the real concurrency validation happens at recording time.
+
+### 2. Template change detection
+
+Make init templates `pub(crate)` (currently `const` in `init.rs`) so tests can access them. Add a unit test in `vcr_test.rs` (or a dedicated test file) that snapshots all init template content:
+
+```rust
+#[test]
+fn init_templates() {
+    insta::assert_snapshot!("dispatch_template", coven::commands::init::DISPATCH_PROMPT);
+    insta::assert_snapshot!("plan_template", coven::commands::init::PLAN_PROMPT);
+    insta::assert_snapshot!("implement_template", coven::commands::init::IMPLEMENT_PROMPT);
+    insta::assert_snapshot!("audit_template", coven::commands::init::AUDIT_PROMPT);
+}
+```
+
+When a template changes: this test fails immediately, signaling the concurrent worker test needs re-recording. The snapshot diff shows exactly what changed.
+
+### 3. Test scenario: `concurrent_workers`
+
+**TOML:**
+
+```toml
+[multi]
+steps = [
+  { name = "init", command = "init", stdin = "y" },
+  { name = "setup", command = "shell", script = "create-issues.sh" },
+  { name = "worker_a", command = "worker", concurrent_group = "workers" },
+  { name = "worker_b", command = "worker", concurrent_group = "workers" },
+]
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)"]}}'
+"README.md" = "Helo, world!\n"
+"src/main.py" = "print(\"hello\")\n"
+
+[scripts]
+"create-issues.sh" = '''
+cat > issues/fix-typo.md << 'ISSUE'
+---
+priority: P1
+state: approved
+---
+
+# Fix README typo
+
+## Plan
+
+Change "Helo" to "Hello" in README.md. No tests or linter needed — text-only change.
+ISSUE
+
+cat > issues/add-contributing.md << 'ISSUE'
+---
+priority: P1
+state: approved
+---
+
+# Create CONTRIBUTING.md
+
+## Plan
+
+Create a CONTRIBUTING.md file with a brief "how to contribute" section. No tests or linter needed.
+ISSUE
+
+git add . && git commit -m "Add issues"
+'''
+
+[[messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+```
+
+**Expected flow:**
+1. `init` creates `.coven/agents/` (dispatch, plan, implement, audit), `issues/`, `review/`, `.coven/workflow.md`, `CLAUDE.md`.
+2. `setup` creates two approved issues and commits them.
+3. Workers A and B start concurrently.
+4. Worker A dispatches first (acquires lock), picks one issue, routes to `implement` agent.
+5. Worker B dispatches second, picks the other issue, routes to `implement` agent.
+6. Both implement their changes, land them.
+7. Both dispatch again, see no remaining issues, output `sleep`.
+8. Both exit via `main_head_sha` trigger.
+
+**Snapshot:** concatenated output from init + both workers, showing the full dispatch→implement→land→sleep cycle.
+
+### 4. Trigger handling for multi-step tests
+
+The `[[messages]]` section applies to worker steps (same as today). For the concurrent worker test, the exit trigger fires on `main_head_sha` for both workers — each worker gets its own trigger controller loaded from the same `[[messages]]`.
+
+Init steps don't use triggers (they use stdin directly). Shell steps don't use triggers.
 
 ## Questions
 
-### Should we skip init and set up files directly?
+### Should the `[scripts]` use heredocs or separate file contents?
 
-Running `coven init` as part of the test adds a third VCR recording and more complexity. Since init is already tested by `init_fresh`, we could provide the `.coven/` directory structure via `[files]` and focus the test on the concurrent worker behavior.
+The setup script uses heredocs (`cat > ... << 'ISSUE'`) which is a natural way to create multi-line files in a shell script. Alternative: define the issue file contents in the TOML `[files]` section and have the shell script just `git add && git commit`. But the files need to be created *after* init (which creates the `issues/` directory), so they can't go in `[files]` (which runs before everything).
 
-Option 1: **Skip init, provide files** — simpler, focused on concurrent workers
-Option 2: **Include init step** — tests full user flow, more realistic
+Option 1: **Heredocs in script** — self-contained, the script creates and commits the files
+Option 2: **Deferred files section** — add a `[deferred_files]` TOML section that's written after a specific step
 
-Answer:
-
-### How many concurrent workers?
-
-The issue says "multiple", which could mean 2 or more. Two workers is the simplest case that exercises dispatch lock contention and demonstrates concurrent behavior.
-
-Option 1: **Two workers** — minimum viable for concurrency testing, simpler to debug
-Option 2: **Three workers** — one worker will need to wait for dispatch, exercises more contention
-
-Answer:
-
-### Should workers experience a land conflict?
-
-The most interesting concurrent scenario is when two workers both have changes and one needs to rebase. We could set up the scenario so both workers modify overlapping files, forcing conflict resolution.
-
-Option 1: **No conflicts** — each worker modifies different files, clean lands. Tests the happy path of concurrent dispatch + landing.
-Option 2: **With conflict** — workers modify overlapping files, second to land must resolve. Tests the conflict resolution path. Significantly more complex to record.
+Going with Option 1 (heredocs in script) since it's simpler and more flexible.
 
 Answer:
 
 ## Review
-
