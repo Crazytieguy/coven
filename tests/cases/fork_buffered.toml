@@ -1,0 +1,16 @@
+[run]
+prompt = "Emit a fork tag to do two tasks in parallel: one task should create hello.txt with the text 'hello', and the other should create world.txt with the text 'world'. Do NOT do these sequentially. You MUST emit a <fork> tag."
+fork = true
+
+# Activate input mid-stream so subsequent events (including the Result with fork tag) get buffered.
+[[messages]]
+content = "x"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start"}}}}}'
+mode = "typing"
+
+# Submit input when the Result arrives (it's already buffered at this point).
+# flush_event_buffer should detect the fork tag.
+[[messages]]
+content = ""
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "result"}}}}'
+mode = "followup"

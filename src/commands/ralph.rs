@@ -43,7 +43,7 @@ impl RalphConfig {
 
 /// Run ralph loop mode.
 pub async fn ralph<W: Write>(
-    config: RalphConfig,
+    mut config: RalphConfig,
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
@@ -57,6 +57,9 @@ pub async fn ralph<W: Write>(
     let mut total_cost = 0.0;
     let mut iteration = 0;
     let system_prompt = config.system_prompt();
+    if config.fork {
+        config.extra_args.extend(ForkConfig::disallowed_tool_args());
+    }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
     'outer: loop {

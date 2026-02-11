@@ -24,7 +24,7 @@ pub struct RunConfig {
 
 /// Run a single interactive session. Returns the stored messages for inspection.
 pub async fn run<W: Write>(
-    config: RunConfig,
+    mut config: RunConfig,
     io: &mut Io,
     vcr: &VcrContext,
     writer: W,
@@ -37,6 +37,9 @@ pub async fn run<W: Write>(
     renderer.render_help();
 
     let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
+    if config.fork {
+        config.extra_args.extend(ForkConfig::disallowed_tool_args());
+    }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
     let Some(mut runner) = get_initial_runner(

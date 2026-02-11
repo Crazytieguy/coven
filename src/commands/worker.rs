@@ -74,6 +74,9 @@ pub async fn worker<W: Write>(
             .extra_args
             .extend(["--permission-mode".to_string(), "acceptEdits".to_string()]);
     }
+    if config.fork {
+        config.extra_args.extend(ForkConfig::disallowed_tool_args());
+    }
 
     let configured_dir = config.working_dir.as_ref().map(|d| d.display().to_string());
     let configured_base = config.worktree_base.display().to_string();
@@ -682,22 +685,21 @@ async fn land_or_resolve<W: Write>(
 
     loop {
         match try_land(ctx.vcr, wt_str.clone()).await? {
-            LandAttempt::Landed { branch, main_branch } => {
+            LandAttempt::Landed {
+                branch,
+                main_branch,
+            } => {
                 ctx.renderer
                     .write_raw(&format!("Landed {branch} onto {main_branch}\r\n"));
                 return Ok(false);
             }
             LandAttempt::FastForwardRace => {
-                if let ControlFlow::Break(exit) =
-                    handle_ff_retry(&mut attempts, ctx).await?
-                {
+                if let ControlFlow::Break(exit) = handle_ff_retry(&mut attempts, ctx).await? {
                     return Ok(exit);
                 }
             }
             LandAttempt::OtherError(err) => {
-                if let ControlFlow::Break(exit) =
-                    handle_land_error(err, &wt_str, ctx).await?
-                {
+                if let ControlFlow::Break(exit) = handle_land_error(err, &wt_str, ctx).await? {
                     return Ok(exit);
                 }
             }

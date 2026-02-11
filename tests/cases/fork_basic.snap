@@ -3,25 +3,23 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session cf738057-d962-4456-8806-16b6f68058f7 (claude-haiku-4-5-20251001)
+Session 18d7a30e-f452-4c26-9800-3d0eefa1da10 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll create both files in parallel using fork:
-
 <fork>
-- Create hello.txt with 'hello'
-- Create world.txt with 'world'
+- Create hello.txt with text 'hello'
+- Create world.txt with text 'world'
 </fork>
 
-[2] ⑂ Fork  Create hello.txt with 'hello' · Create world.txt with 'world'
+[2] ⑂ Fork  Create hello.txt with text 'hello' · Create world.txt with text '...
   [2/1] ⑂ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w00...
   [2/2] ⑂ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w00...
-  ⑂ Create hello.txt with 'hello' done
-  ⑂ Create world.txt with 'world' done
+  ⑂ Create hello.txt with text 'hello' done
+  ⑂ Create world.txt with text 'world' done
 [3] Thinking...
-Done! Both files have been created in parallel:
-- **hello.txt** with the text 'hello'
-- **world.txt** with the text 'world'
+Perfect! Both files have been created in parallel:
+- **hello.txt** contains 'hello'
+- **world.txt** contains 'world'
 
 
 Done  $0.01 · 2.2s · 1 turn  (:N to view)

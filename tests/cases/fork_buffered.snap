@@ -1,0 +1,31 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+Session 2961f437-f39f-4161-898d-a7dfd27b1760 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+> x<fork>
+- Create hello.txt with 'hello'
+- Create world.txt with 'world'
+</fork>
+
+[2] ⑂ Fork  Create hello.txt with 'hello' · Create world.txt with 'world'
+  [2/1] ⑂ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w00...
+  [2/2] ⑂ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w00...
+  ⑂ Create world.txt with 'world' done
+  ⑂ Create hello.txt with 'hello' done
+⏳ queued: x
+[3] Thinking...
+Perfect! Both files have been created in parallel:
+- ✓ hello.txt with the content 'hello'
+- ✓ world.txt with the content 'world'
+
+⤷ follow-up: x
+[4] Thinking...
+I'm not sure what you'd like me to do. Could you clarify? Are you looking for help with something else, or was that accidental?
+
+
+Done  $0.01 · 2.5s · 1 turn  (:N to view)
+>

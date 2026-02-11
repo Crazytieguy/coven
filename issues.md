@@ -1,6 +1,7 @@
-- [P2] Fork: `flush_event_buffer` doesn't detect fork tags — if a Result event with a `<fork>` tag arrives while the user is typing (events are buffered), the fork will be silently skipped. Edge case but should be handled. (plan: plans/flush-buffer-fork-detection.md)
 - [P2] Durable conflict logging: conflict files and resolution outcomes are only rendered to the terminal. Consider logging them to a file for post-mortem analysis. (plan: plans/durable-conflict-logging.md)
 - [P2] Create a features / intended behavior reference document so it's clear what each command mode supports (interaction modes, session lifecycle, rendering expectations). Makes it easier to verify whether code reflects intended behavior. (plan: plans/features-reference-doc.md)
 - [P0] I want to step up the workflow command testing: have a test with `coven init` + multiple `coven workflow` running concurrently, test a real situation (plan: plans/concurrent-worker-testing.md)
 - [P1] Iterate on the fork UI, test case, and system prompt: strict prompting should not be needed, UI should look nicer, the test case should be slightly more interesting (plan: plans/fork-ui-iteration.md)
 - [P2] SessionConfig construction repeated across run.rs, ralph.rs, and worker.rs with similar field patterns. Consider a builder or factory method to reduce duplication.
+- [P1] The test cases folder is currently a flat list of files, and it's hard for me to navigate. I want to organize all tests into a neat folder structure
+- [P1] Regular terminal keyboard nativagion doesn't work when giving interactive input. It would be nice to be able to use the regular terminal keybindings for things like jumping back a word or deleting a word etc

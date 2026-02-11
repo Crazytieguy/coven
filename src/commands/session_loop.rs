@@ -30,6 +30,7 @@ struct SessionLocals {
     event_buffer: Vec<AppEvent>,
     pending_followups: Vec<String>,
     result_text: String,
+    fork_config: Option<ForkConfig>,
 }
 
 /// Run a single session's event loop with full input support.
@@ -52,6 +53,7 @@ pub async fn run_session<W: Write>(
         event_buffer: Vec::new(),
         pending_followups: Vec::new(),
         result_text: String::new(),
+        fork_config: fork_config.cloned(),
     };
 
     loop {
@@ -114,6 +116,8 @@ enum FlushResult {
     Followup(String),
     /// A Result was flushed with no pending followups — session completed.
     Completed(String),
+    /// A fork tag was detected in a buffered Result event.
+    Fork(Vec<String>),
     /// The process exited during the flush.
     ProcessExited,
 }
@@ -139,7 +143,10 @@ async fn handle_session_key_event<W: Write>(
             // Completed is intentionally not special-cased here: if the session
             // completed during the flush, state is WaitingForInput and the match
             // below will send the user's text as a follow-up.
-            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+            let fork_cfg = locals.fork_config.as_ref();
+            if let Some(action) =
+                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
+            {
                 return Ok(action);
             }
             match mode {
@@ -174,7 +181,10 @@ async fn handle_session_key_event<W: Write>(
                     result_text: result_text.clone(),
                 }));
             }
-            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+            let fork_cfg = locals.fork_config.as_ref();
+            if let Some(action) =
+                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
+            {
                 return Ok(action);
             }
             // Don't re-activate input — it was deactivated when the user submitted
@@ -195,7 +205,10 @@ async fn handle_session_key_event<W: Write>(
                     result_text: result_text.clone(),
                 }));
             }
-            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
+            let fork_cfg = locals.fork_config.as_ref();
+            if let Some(action) =
+                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
+            {
                 return Ok(action);
             }
             if state.status == SessionStatus::WaitingForInput {
@@ -297,13 +310,27 @@ fn flush_event_buffer<W: Write>(
     for event in locals.event_buffer.drain(..) {
         match event {
             AppEvent::Claude(inbound) => {
-                let has_pending = !locals.pending_followups.is_empty();
                 // Capture result text from buffered events too
                 if let InboundEvent::Result(ref r) = *inbound {
                     locals.result_text.clone_from(&r.result);
                 }
+
+                // Detect fork tag in result text (mirrors process_claude_event)
+                let fork_tasks = if let InboundEvent::Result(_) = *inbound {
+                    locals
+                        .fork_config
+                        .as_ref()
+                        .and_then(|_| fork::parse_fork_tag(&locals.result_text))
+                } else {
+                    None
+                };
+
+                let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
                 handle_inbound(&inbound, state, renderer, has_pending);
-                if matches!(*inbound, InboundEvent::Result(_)) {
+
+                if let Some(tasks) = fork_tasks {
+                    result = FlushResult::Fork(tasks);
+                } else if matches!(*inbound, InboundEvent::Result(_)) {
                     if has_pending {
                         let text = locals.pending_followups.remove(0);
                         result = FlushResult::Followup(text);
@@ -333,6 +360,7 @@ async fn handle_flush_result<W: Write>(
     renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
     vcr: &VcrContext,
+    fork_config: Option<&ForkConfig>,
 ) -> Result<Option<LoopAction>> {
     match flush {
         FlushResult::ProcessExited => Ok(Some(LoopAction::Return(SessionOutcome::ProcessExited))),
@@ -343,6 +371,21 @@ async fn handle_flush_result<W: Write>(
                 runner.send_message(t).await
             })
             .await?;
+            state.status = SessionStatus::Running;
+            Ok(None)
+        }
+        FlushResult::Fork(tasks) => {
+            let session_id = state.session_id.clone().unwrap_or_default();
+            // Safety: fork_tasks is only set when fork_config is Some
+            let Some(fork_cfg) = fork_config else {
+                unreachable!("Fork detected without fork_config");
+            };
+            let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
+            vcr.call("send_message", msg, async |t: &String| {
+                runner.send_message(t).await
+            })
+            .await?;
+            state.suppress_next_separator = true;
             state.status = SessionStatus::Running;
             Ok(None)
         }

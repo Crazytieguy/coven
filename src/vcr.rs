@@ -454,7 +454,8 @@ struct PendingTrigger {
 }
 
 /// Whether a triggered message is a steering (Enter), follow-up (Alt+Enter),
-/// exit (Ctrl+D), or interrupt (Ctrl+C followed by resume text).
+/// exit (Ctrl+D), interrupt (Ctrl+C followed by resume text), or typing
+/// (characters only, no Enter — activates input so subsequent events are buffered).
 #[derive(Clone, Copy, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum TriggerInputMode {
@@ -463,6 +464,7 @@ pub enum TriggerInputMode {
     Steering,
     Exit,
     Interrupt,
+    Typing,
 }
 
 impl TriggerController {
@@ -553,7 +555,10 @@ impl TriggerController {
     }
 }
 
-/// Inject text as individual key events followed by Enter.
+/// Inject text as individual key events, optionally followed by Enter.
+///
+/// `Typing` mode sends only the characters (activating input so subsequent events
+/// are buffered). Other modes append Enter (plain or Alt) after the characters.
 fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: TriggerInputMode) {
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
@@ -562,11 +567,16 @@ fn inject_text(term_tx: &mpsc::UnboundedSender<Event>, text: &str, mode: Trigger
         let _ = term_tx.send(event);
     }
 
+    // Typing mode: characters only, no Enter key.
+    if matches!(mode, TriggerInputMode::Typing) {
+        return;
+    }
+
     let enter_modifiers = match mode {
         TriggerInputMode::Followup => KeyModifiers::ALT,
         TriggerInputMode::Steering => KeyModifiers::NONE,
-        TriggerInputMode::Exit | TriggerInputMode::Interrupt => {
-            unreachable!("Exit/Interrupt triggers are handled in check(), not inject_text()")
+        TriggerInputMode::Exit | TriggerInputMode::Interrupt | TriggerInputMode::Typing => {
+            unreachable!("Exit/Interrupt/Typing triggers are handled separately")
         }
     };
     let enter = Event::Key(KeyEvent {

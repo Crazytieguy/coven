@@ -11,6 +11,7 @@ use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::vcr::VcrContext;
 
 /// Configuration for fork behavior, threaded through the session loop.
+#[derive(Clone)]
 pub struct ForkConfig {
     pub extra_args: Vec<String>,
     pub working_dir: Option<PathBuf>,
@@ -27,6 +28,12 @@ impl ForkConfig {
             extra_args: extra_args.to_vec(),
             working_dir: working_dir.clone(),
         })
+    }
+
+    /// CLI args to disallow the native Task tool when fork is enabled.
+    /// Fork is an alternative subagent model — Task is not needed.
+    pub fn disallowed_tool_args() -> [String; 2] {
+        ["--disallowed-tools".to_string(), "Task".to_string()]
     }
 }
 
