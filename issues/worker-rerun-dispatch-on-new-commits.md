@@ -1,7 +1,6 @@
 ---
 priority: P2
 state: new
-blocked_by: worker-generic-agent-loop
 ---
 
 # Investigate race condition: commits on main missed during sleep setup
