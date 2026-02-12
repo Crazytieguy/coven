@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Investigate race condition: commits on main missed during sleep setup
