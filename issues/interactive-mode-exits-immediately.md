@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Interactive mode exits immediately instead of waiting for user prompt

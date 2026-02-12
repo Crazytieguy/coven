@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Multi-line typing in interactive prompt renders incorrectly
