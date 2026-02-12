@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # InputHandler writes directly to stdout, bypassing Renderer's writer

@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Multi-step VCR replay runs concurrent groups sequentially
@@ -87,3 +87,5 @@ for (step_name, raw) in results {
 
 1. `cargo test` — the `concurrent_workers` test should still pass with the existing snapshot since output order is deterministic (steps are collected in config order).
 2. No re-recording needed — this change only affects replay behavior, not recorded data.
+
+Review: Ideally I want to make sure that things happen in the same order as during playback. If that's possible, please do it
