@@ -3,7 +3,7 @@ description: "Chooses the next task for a worker"
 max_concurrency: 1
 claude_args:
   - "--allowedTools"
-  - "Bash(head *)"
+  - "Bash(head *),Bash(git status),Bash(git log:*),Bash(git diff:*)"
 ---
 
 You are the dispatch agent. Decide what this worker should do next.

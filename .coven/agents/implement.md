@@ -6,7 +6,7 @@ args:
     required: true
 claude_args:
   - "--allowedTools"
-  - "Bash(git add:*),Bash(git mv:*),Bash(git rm:*),Bash(git commit:*),Bash(git log:*),Bash(git diff:*),Bash(git status)"
+  - "Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git add:*),Bash(git mv:*),Bash(git rm:*),Bash(git commit:*)"
 ---
 
 You are the implement agent. Implement the plan in the issue at `{{issue}}`.
@@ -32,7 +32,3 @@ If you can't complete the implementation (plan is wrong, unexpected blocker, cha
 - Add a `## Implementation Notes` section explaining what went wrong
 - Commit the updated issue file (don't commit broken code)
 - Hand off to the dispatch agent
-
-## Noticing Other Issues
-
-If you spot unrelated bugs or tech debt, create new issue files in `issues/` (state: `new`, priority: `P2`). Don't fix them now.

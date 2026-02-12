@@ -15,30 +15,6 @@ Workers run a generic agent loop:
 
 Every agent outputs a `<next>` tag at the end of its session to declare what should happen next. Coven parses this universally and injects the transition protocol into every agent's system prompt.
 
-## Transition Protocol
-
-All agents end their session with a `<next>` tag containing YAML:
-
-```yaml
-# Hand off to another agent:
-<next>
-agent: implement
-issue: issues/fix-scroll-bug.md
-</next>
-
-# Sleep (wait for new commits on main):
-<next>
-sleep: true
-</next>
-```
-
-## Default Agents
-
-- **dispatch** — Chooses the next task. Routes issues to plan/implement agents, dirty worktrees to the land agent.
-- **plan** — Writes implementation plans for issues.
-- **implement** — Implements code changes for planned issues.
-- **land** — Audits changes and lands them on main via rebase + fast-forward merge.
-
 ## Issue Files
 
 Issues are markdown files with YAML frontmatter in `issues/` or `review/`.

@@ -6,7 +6,7 @@ args:
     required: false
 claude_args:
   - "--allowedTools"
-  - "Bash(git log:*),Bash(git diff:*),Bash(git status),Bash(git add:*),Bash(git commit:*),Bash(git rebase:*),Bash(bash .coven/land.sh)"
+  - "Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase:*),Bash(bash .coven/land.sh)"
 ---
 
 You are the land agent. Review the current branch's changes and land them on main.
