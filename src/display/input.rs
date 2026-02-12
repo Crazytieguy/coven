@@ -128,18 +128,27 @@ impl InputHandler {
         queue!(out, crossterm::style::Print("\r")).ok();
 
         // Redraw prefix + buffer
+        let total_display = self.prefix_width + self.buffer.width();
+
         queue!(
             out,
             crossterm::style::Print(theme::prompt_style().apply("> ")),
             crossterm::style::Print(&self.buffer),
-            terminal::Clear(terminal::ClearType::FromCursorDown),
         )
         .ok();
+
+        // When total display width is an exact multiple of terminal width, the
+        // terminal cursor is in "pending wrap" state rather than on the next line.
+        // Print a space to force the wrap to resolve, then move back.
+        if total_display > 0 && total_display.is_multiple_of(tw) {
+            queue!(out, crossterm::style::Print(" "), cursor::MoveLeft(1)).ok();
+        }
+
+        queue!(out, terminal::Clear(terminal::ClearType::FromCursorDown)).ok();
 
         // Move terminal cursor from end-of-buffer to the actual cursor position
         let byte_pos = self.cursor_byte_pos();
         let new_cursor_display = self.prefix_width + self.buffer[..byte_pos].width();
-        let total_display = self.prefix_width + self.buffer.width();
         let end_line = total_display / tw;
         let target_line = new_cursor_display / tw;
         let target_col = new_cursor_display % tw;
