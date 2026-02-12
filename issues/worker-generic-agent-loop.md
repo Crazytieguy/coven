@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: review
+state: approved
 ---
 
 # Redesign worker as a generic agent loop
@@ -229,6 +229,9 @@ sleep: true
 Key design choices:
 - **All agents listed** (including dispatch), since any agent can transition to any other.
 - **Examples generated** from agent definitions — one per agent showing all args, plus the sleep example.
+
+Review: unclear how you'd generate the example argument values. These could be fields in the frontmatter perhaps. Also make sure to say which arguments are required
+
 - **Combined with fork prompt**: if fork mode is enabled, the fork system prompt is appended after the transition protocol. Both go into the single `--append-system-prompt` flag.
 - **Descriptions and args pulled from frontmatter** — the catalog is fully generated from `AgentDef` data, so adding a new agent automatically updates the system prompt for all sessions.
 
