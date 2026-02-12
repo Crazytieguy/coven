@@ -136,7 +136,10 @@ fn create_live_io() -> (Io, VcrContext) {
         }
     });
 
-    let io = Io::new(event_rx, term_rx);
+    let mut io = Io::new(event_rx, term_rx);
+    // Keep the event channel alive so recv() blocks instead of
+    // returning ProcessExit immediately (the sender was dropped above).
+    io.clear_event_channel();
     let vcr = VcrContext::live();
     (io, vcr)
 }
