@@ -17,9 +17,7 @@ You are the plan agent. Write an implementation plan for the issue at `{{issue}}
 5. Update the frontmatter: set `state: review`
 6. Move the file from `issues/` to `review/`
 7. Commit with a message describing what you planned
-8. Land onto main:
-   - `git rebase main` (if conflicts arise, resolve them, `git add` the files, and `git rebase --continue`)
-   - `git checkout main && git merge --ff-only <branch-name>`
+8. Run `bash .coven/land.sh` to land onto main (if conflicts, resolve and run again)
 
 When you're done, hand off to the dispatch agent.
 

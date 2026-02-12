@@ -24,7 +24,7 @@ label = "main_head_sha"
 mode = "exit"
 
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)","Bash(bash .coven/land.sh)"]}}'
 "README.md" = "# My Project\n\nA sample project for testing.\n"
 "issues/update-title-v2.md" = """---
 priority: P1

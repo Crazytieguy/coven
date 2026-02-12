@@ -13,7 +13,7 @@ label = "main_head_sha"
 mode = "exit"
 
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)","Bash(bash .coven/land.sh)"]}}'
 "src/app.py" = """import sys
 
 def main():

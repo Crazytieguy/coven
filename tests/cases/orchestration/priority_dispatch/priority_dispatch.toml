@@ -13,7 +13,7 @@ label = "main_head_sha"
 mode = "exit"
 
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(mkdir:*)","Bash(bash .coven/land.sh)"]}}'
 "README.md" = "# My Project\n\nA sample project.\n"
 "src/main.py" = "print(\"hello\")\n"
 "issues/fix-readme.md" = """---

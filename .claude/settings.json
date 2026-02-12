@@ -82,6 +82,7 @@
       "Bash(git stash *)",
       "Bash(git stash list)",
       "Bash(git rebase *)",
+      "Bash(bash .coven/land.sh)",
       "Bash(git rev-parse *)",
       "Bash(git ls-files)",
       "Bash(git ls-files *)",

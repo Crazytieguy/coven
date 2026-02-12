@@ -14,7 +14,7 @@ command = "worker"
 concurrent_group = "workers"
 
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(head:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(ls:*)","Bash(cat:*)","Bash(head:*)","Bash(bash .coven/land.sh)"]}}'
 "README.md" = "Helo, world!\n"
 "src/main.py" = "print(\"hello\")\n"
 "issues/fix-typo.md" = """

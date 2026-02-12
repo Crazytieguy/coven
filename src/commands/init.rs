@@ -12,6 +12,7 @@ const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
 const PLAN_PROMPT: &str = include_str!("../../.coven/agents/plan.md");
 const IMPLEMENT_PROMPT: &str = include_str!("../../.coven/agents/implement.md");
 const LAND_PROMPT: &str = include_str!("../../.coven/agents/land.md");
+const LAND_SCRIPT: &str = include_str!("../../.coven/land.sh");
 const WORKFLOW_DOC: &str = include_str!("../../.coven/workflow.md");
 
 struct TemplateFile {
@@ -83,6 +84,15 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         fs::write(&workflow_path, WORKFLOW_DOC)
             .with_context(|| format!("failed to write {}", workflow_path.display()))?;
         created.push(format!("{COVEN_DIR}/workflow.md"));
+    }
+
+    let land_script_path = project_root.join(COVEN_DIR).join("land.sh");
+    if land_script_path.exists() {
+        skipped.push(format!("{COVEN_DIR}/land.sh"));
+    } else {
+        fs::write(&land_script_path, LAND_SCRIPT)
+            .with_context(|| format!("failed to write {}", land_script_path.display()))?;
+        created.push(format!("{COVEN_DIR}/land.sh"));
     }
 
     for dir_name in ["issues", "review"] {
