@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Audit snapshot tests for issues
@@ -20,6 +20,8 @@ Audit complete. Findings are organized by category below. Each finding includes 
 - **Severity**: Low — cosmetic issue in snapshot readability, no user-facing impact
 - **Recommendation**: Enhance `strip_ansi()` to simulate carriage return behavior (on each `\r`, discard text back to the last newline). This would make snapshots show only the final line state, matching what users actually see. File a P2 issue.
 
+Review comment: This is good, just do it. No issue needed
+
 **R2. `<system-reminder>` tags visible in tool result views**
 
 - **Files**: `edit_tool__views.snap` (lines 17-19)
@@ -36,12 +38,16 @@ Audit complete. Findings are organized by category below. Each finding includes 
 - **Severity**: Medium — demonstrates that steering during tool-use blocks may not reliably redirect the model
 - **Recommendation**: Re-record with the steering trigger adjusted to fire at a different point (e.g., during a thinking block or text block rather than at tool_use start). If the model still ignores it, this is a Haiku limitation worth documenting. File a P2 issue to improve steering test.
 
+Review comment: This is likely due to steering arriving after the most recent batch of tool calls. Ideally have a task that takes a few more tool call batches. This could use an issue, don't implement directly
+
 **M2. Interrupted session resume produces immediate error**
 
 - **Files**: `interrupt_resume.snap` (lines 13-14)
 - **Description**: After interrupting mid-session and sending "Continue where you left off", the second session shows `Error  $0.00 · 0.0s · 0 turns` — zero cost, zero time, zero turns. The resumed session immediately fails with no work done.
 - **Severity**: Medium — the interrupt/resume flow shows a failure state to users
 - **Recommendation**: Re-record to see if this was a transient issue. If it persists, investigate whether the resume session ID is being passed correctly or if there's a timing issue with the interrupt. File a P2 issue.
+
+Review comment: P1, this seems like a potential bug
 
 **M3. Landing conflict silently drops intended change**
 
@@ -87,5 +93,13 @@ Audit complete. Findings are organized by category below. Each finding includes 
 ## Questions
 
 1. Should the three P2 issues (R1, M1, M2) be filed as separate issue files, or should this audit just document the findings and leave filing for later?
+
+Answer: Do the easy stuff without filing an issue, file an issue for the rest (unless I've left an inline comment saying otherwise)
+
 2. For M1 (steering ignored), is this a known Haiku limitation, or should the steering trigger timing be investigated further?
+
+Answer: see inline comment
+
 3. For M2 (interrupt resume error), is this the expected behavior for the test, or should the resume actually succeed?
+
+Answer: I suspect it should succedd
