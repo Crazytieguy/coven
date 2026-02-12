@@ -19,237 +19,36 @@ Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with
 --- worker_a ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: light-stream-29 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/light-stream-29)
+Worker started: warm-pine-71 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/warm-pine-71)
 
 === Agent: dispatch ===
 
-Session 7f1da885-f3aa-4340-8275-7974e8c374ef (claude-haiku-4-5-20251001)
+Session 0ecdeb5b-8be9-4ef8-8b5f-989fdf66c521 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll check the current state of issues and the worktree to determine what work should happen next.
-
 [2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
 [3] Thinking...
-[4] ▶ Bash  head -7 issues/*.md 2>/dev/null || true
+[4] ▶ Bash  git status
 [5] Thinking...
-**Reasoning:**
+[6] ▶ Bash  git log main..HEAD --oneline
+[7] Thinking...
+[8] ▶ Bash  git log --oneline -3
+[9] Thinking...
+## Analysis
 
-Worktree status: Clean, no commits ahead of main.
+**Issues:** No issues in `issues/` or `review/` directories — nothing to plan or implement.
 
-Issues found:
-- `issues/add-contributing.md` — P1, state: **approved**
-- `issues/fix-typo.md` — P1, state: **approved**
+**Worktree:** Clean, not ahead of main. No changes to land.
 
-Both issues are ready for implementation (approved state). No new issues need planning, and no other workers are active. I'll assign the first approved issue to the implement agent.
-
-<next>
-agent: implement
-issue: issues/add-contributing.md
-</next>
-
-
-Done  $0.04 · 10.8s · 3 turns  (:N to view)
-  Total cost: $0.04
-
-Transition: implement issue=issues/add-contributing.md
-
-=== Agent: implement ===
-
-Session ef80e560-e86b-4b0d-96a9-5e85ae5dc1b5 (claude-haiku-4-5-20251001)
-
-[6] Thinking...
-I'll implement the plan from the issue file. Let me start by reading it.
-
-[7] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
-[8] Thinking...
-I'll create the CONTRIBUTING.md file with a brief "how to contribute" section. Let me first check the current structure of the project.
-
-[9] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[10] Thinking...
-Now I'll create the CONTRIBUTING.md file with a brief "how to contribute" section.
-
-[11] ▶ Write  (21 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
-[12] Thinking...
-Now I'll delete the issue file and commit the changes.
-
-[13] ▶ Bash  rm /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[14] Thinking...
-Done! I've successfully:
-1. Created a CONTRIBUTING.md file with a brief "how to contribute" section
-2. Deleted the issue file
-3. Committed the changes
-
-<next>
-agent: land
-</next>
-
-
-Done  $0.03 · 17.7s · 5 turns  (:N to view)
-  Total cost: $0.07
-
-Transition: land 
-
-=== Agent: land ===
-
-Session 6dffee06-0471-4d44-8a24-bc14650394b9 (claude-haiku-4-5-20251001)
-
-[15] Thinking...
-I'll review the current branch's changes and land them on main. Let me start by checking what we're landing.
-
-[16] ▶ Bash  git log --oneline main..HEAD
-[17] ▶ Bash  git diff main...HEAD
-[18] Thinking...
-The changes look good - we have one clean commit adding a CONTRIBUTING.md file with contribution guidelines. Let me now land these changes on main.
-
-[19] ▶ Bash  bash .coven/land.sh
-     ✗ Error: Exit code 1
-[20] Thinking...
-[21] ▶ Bash  git status
-[22] Thinking...
-I need to commit the deletion of the issue file before landing.
-
-[23] ▶ Bash  git add issues/add-contributing.md && git commit -m "$(cat <<'EOF'
-[24] Thinking...
-Now let me land the changes on main.
-
-[25] ▶ Bash  bash .coven/land.sh
-[26] Thinking...
-Perfect! The changes have been successfully landed on main. The CONTRIBUTING.md file has been added and the completed issue has been removed. Let me hand off to the dispatch agent to pick up the next task.
-
-<next>
-agent: dispatch
-worker_status: Just landed 2 commits on main (CONTRIBUTING.md added, completed issue removed)
-</next>
-
-
-Done  $0.03 · 28.9s · 7 turns  (:N to view)
-  Total cost: $0.10
-
-Transition: dispatch worker_status=Just landed 2 commits on main (CONTRIBUTING.md added, completed issue removed)
-
-=== Agent: dispatch ===
-
-Session ebcf0376-290d-46b3-bb31-4c5467bbf30d (claude-haiku-4-5-20251001)
-
-[27] Thinking...
-I'll check the current worktree state and available issues to decide what to do next.
-
-[28] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[29] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[30] Thinking...
-[31] ▶ Bash  ls -la issues/ 2>/dev/null | head -20
-[32] Thinking...
-[33] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[34] Thinking...
-## Dispatch Summary
-
-**Worktree Status:** Clean, synced with main (just completed landing 2 commits)
-
-**Available Issues:**
-- `fix-typo.md` (P1, approved) — Fix "Helo" to "Hello" in README.md
-
-**Reasoning:** The worktree is clean and synced. There's one approved issue ready for implementation. No planning needed. I'll route to the implement agent to fix the typo.
-
-<next>
-agent: implement
-issue: issues/fix-typo.md
-</next>
-
-
-Done  $0.02 · 11.7s · 5 turns  (:N to view)
-  Total cost: $0.13
-
-Transition: implement issue=issues/fix-typo.md
-
-=== Agent: implement ===
-
-Session a68768b3-66f1-454c-87fa-baaf66330d61 (claude-haiku-4-5-20251001)
-
-[35] Thinking...
-I'll start by reading the issue file to understand what needs to be implemented.
-
-[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[37] Thinking...
-[38] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[39] Thinking...
-Now I'll fix the typo in the README.md file:
-
-[40] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[41] Thinking...
-Now I'll commit the changes and delete the issue file:
-
-[42] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[43] Thinking...
-[44] ▶ Bash  rm /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[45] Thinking...
-Implementation complete! I've fixed the typo in README.md (changed "Helo" to "Hello") and deleted the issue file. Both changes are committed.
-
-<next>
-agent: land
-</next>
-
-
-Done  $0.03 · 15.1s · 6 turns  (:N to view)
-  Total cost: $0.16
-
-Transition: land 
-
-=== Agent: land ===
-
-Session f9c5353e-900d-4d63-8cfa-f42cbe6dbbac (claude-haiku-4-5-20251001)
-
-[46] Thinking...
-I'll review the branch changes and land them on main.
-
-[47] ▶ Bash  git log --oneline main..HEAD
-[48] ▶ Bash  git diff main...HEAD
-[49] Thinking...
-Perfect! The changes look good:
-- Fixed the README typo: "Helo" → "Hello"
-- Removed the completed issue file
-
-Now I'll run the land script to rebase and merge to main.
-
-[50] ▶ Bash  bash .coven/land.sh
-[51] Thinking...
-Excellent! Changes have been successfully landed on main:
-- Fixed README typo (Helo → Hello)  
-- Removed completed issue file
-
-<next>
-agent: dispatch
-worker_status: Completed landing typo fix on main
-</next>
-
-
-Done  $0.02 · 6.9s · 4 turns  (:N to view)
-  Total cost: $0.18
-
-Transition: dispatch worker_status=Completed landing typo fix on main
-
-=== Agent: dispatch ===
-
-Session 95c3b9fd-e462-40b8-9cb9-3cf108bb5e89 (claude-haiku-4-5-20251001)
-
-[52] Thinking...
-I'll check what issues are available and the current worktree state to decide what to do next.
-
-[53] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[54] ▶ Bash  git status
-[55] Thinking...
-[56] ▶ Bash  ls -la issues/ review/ 2>/dev/null || echo "No issues or review ...
-[57] Thinking...
-**Reasoning:**
-
-No issues exist in `issues/` or `review/`. The worktree is clean with no uncommitted changes. There are no tasks to plan, implement, or land. Following the dispatch routing logic: when nothing is plannable or implementable, the worker should sleep.
+**Conclusion:** With no plannable or implementable work available, this worker should sleep and wait for new commits on main.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 8.3s · 4 turns  (:N to view)
-  Total cost: $0.20
+Done  $0.04 · 9.6s · 5 turns  (:N to view)
+  Total cost: $0.04
 
 Transition: sleep — waiting for new commits...
 
@@ -258,33 +57,254 @@ Removing worktree...
 --- worker_b ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: light-nova-1 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/light-nova-1)
+Worker started: fleet-oak-26 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/fleet-oak-26)
 
 === Agent: dispatch ===
 
-Session b37aa1c2-7034-402a-be74-66d76ec3e630 (claude-haiku-4-5-20251001)
+Session 423817bd-8678-4e4c-adfb-261fa071bcc1 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll check the current state of issues and the worktree to decide what to work on next.
+I'll check the current state of issues and the worktree to determine what work to dispatch next.
 
 [2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[3] ▶ Bash  git status --short
-[4] ▶ Bash  git log --oneline -3
-[5] Thinking...
-**Analysis:**
-- **Worktree state**: Clean, no uncommitted changes or commits ahead of main
-- **Issues**: No issues in `issues/` or `review/` directories
-- **Assessment**: No plannable or implementable work available
+[3] ▶ Bash  git status
+[4] Thinking...
+[5] ▶ Bash  ls -la issues/ 2>/dev/null || echo "No issues directory"
+[6] Thinking...
+[7] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[8] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[9] Thinking...
+**Reasoning:**
+- Worktree is clean and on branch fleet-oak-26
+- No issues in `review/` waiting for human approval
+- Two approved issues ready for implementation, both P1 priority
+- No other workers active
+- No planning needed — both issues already have plans written
 
-Since there are no issues to plan or implement, the worker should sleep and wait for new issues to be created.
+I'll route to the implement agent to work on the first approved issue.
+
+<next>
+agent: implement
+issue: issues/add-contributing.md
+</next>
+
+
+Done  $0.02 · 10.1s · 6 turns  (:N to view)
+  Total cost: $0.02
+
+Transition: implement issue=issues/add-contributing.md
+
+=== Agent: implement ===
+
+Session 4650a04a-1e39-4df8-966e-3d9a8ac14ee5 (claude-haiku-4-5-20251001)
+
+[10] Thinking...
+I'll implement the plan from the issue file. Let me start by reading it.
+
+[11] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[12] Thinking...
+Now let me check the current state of the repository to understand what's already there.
+
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: EISDIR: illegal operation on a directory, read
+[14] Thinking...
+[15] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[16] Thinking...
+[17] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[18] Thinking...
+Now I'll create the CONTRIBUTING.md file with a brief "how to contribute" section.
+
+[19] ▶ Write  (20 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[20] Thinking...
+Perfect! Now I'll commit the changes and delete the issue file.
+
+[21] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[22] Thinking...
+[23] ▶ Bash  rm /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[24] Thinking...
+Implementation complete! I've created the CONTRIBUTING.md file with contribution guidelines and committed the changes. The issue has been deleted.
+
+<next>
+agent: land
+issue: issues/add-contributing.md
+</next>
+
+
+Done  $0.04 · 17.0s · 8 turns  (:N to view)
+  Total cost: $0.07
+
+Transition: land issue=issues/add-contributing.md
+
+=== Agent: land ===
+
+Session 81208b86-6b4a-4edc-8a44-d95c7a83a890 (claude-haiku-4-5-20251001)
+
+[25] Thinking...
+I'll review the current branch's changes and land them on main. Let me start by examining the commits and diff.
+
+[26] ▶ Bash  git log --oneline main..HEAD
+[27] ▶ Bash  git diff main...HEAD
+[28] ▶ Bash  git status
+[29] Thinking...
+I see there's one commit to land and the working directory has an unstaged deletion. Let me clean up the working directory first by staging the deletion.
+
+[30] ▶ Bash  git add issues/add-contributing.md && git status
+[31] Thinking...
+Now let me commit this cleanup before landing:
+
+[32] ▶ Bash  git commit -m "Remove completed issue file"
+[33] Thinking...
+Now let me run the landing script to rebase and fast-forward merge to main:
+
+[34] ▶ Bash  bash .coven/land.sh
+[35] Thinking...
+✓ Successfully landed changes on main. The branch has been rebased and merged, including:
+- Added CONTRIBUTING.md with contribution guidelines
+- Removed the completed issue file
+
+<next>
+agent: dispatch
+worker_status: Completed landing of CONTRIBUTING.md feature. Ready for next task.
+</next>
+
+
+Done  $0.03 · 13.6s · 7 turns  (:N to view)
+  Total cost: $0.10
+
+Transition: dispatch worker_status=Completed landing of CONTRIBUTING.md feature. Ready for next task.
+
+=== Agent: dispatch ===
+
+Session afb32bc7-fb3c-4cff-92b5-5138f12a35fb (claude-haiku-4-5-20251001)
+
+[36] Thinking...
+I'll check the current issues to determine what work should be assigned next.
+
+[37] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+[38] Thinking...
+[39] ▶ Bash  ls -la issues/ 2>/dev/null || echo "No issues directory"
+[40] Thinking...
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[42] Thinking...
+## Analysis
+
+I found 1 issue in the queue:
+- **fix-typo.md** (P1, approved) — Fix "Helo" to "Hello" in README.md
+
+Since this issue has `state: approved`, it's ready for implementation. There are no issues in `new`, `changes-requested`, or `needs-replan` states awaiting planning, and no `review/` items. The worktree is clean.
+
+## Decision
+
+Route this approved issue to the implement agent to fix the typo.
+
+<next>
+agent: implement
+issue: issues/fix-typo.md
+</next>
+
+
+Done  $0.02 · 10.3s · 4 turns  (:N to view)
+  Total cost: $0.12
+
+Transition: implement issue=issues/fix-typo.md
+
+=== Agent: implement ===
+
+Session 7061231e-f0c6-429f-b1f6-535cd420db0e (claude-haiku-4-5-20251001)
+
+[43] Thinking...
+I'll implement the plan in the issue file. Let me start by reading it to understand what needs to be done.
+
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] Thinking...
+Now let me read the README.md file to find and fix the typo.
+
+[46] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[47] Thinking...
+I found the typo! Let me fix it by changing "Helo" to "Hello".
+
+[48] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[49] Thinking...
+Perfect! The typo has been fixed. Now let me commit the changes and delete the issue file.
+
+[50] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[51] Thinking...
+[52] ▶ Bash  rm /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[53] Thinking...
+Done! I've successfully implemented the plan:
+
+1. ✅ Fixed the typo in README.md (changed "Helo" to "Hello")
+2. ✅ Committed the fix
+3. ✅ Deleted the issue file and committed the deletion
+
+The implementation is complete and ready to be landed.
+
+<next>
+agent: land
+issue: issues/fix-typo.md
+</next>
+
+
+Done  $0.03 · 13.0s · 6 turns  (:N to view)
+  Total cost: $0.15
+
+Transition: land issue=issues/fix-typo.md
+
+=== Agent: land ===
+
+Session aa0697d1-2b17-4761-960e-b30aa498de8e (claude-haiku-4-5-20251001)
+
+[54] Thinking...
+I'll review and land the changes on main. Let me start by examining the current branch's commits and diff.
+
+[55] ▶ Bash  git log --oneline main..HEAD
+[56] ▶ Bash  git diff main...HEAD
+[57] Thinking...
+The changes look good - a straightforward typo fix in the README and removal of the completed issue file. Let me proceed with landing these changes on main.
+
+[58] ▶ Bash  bash .coven/land.sh
+[59] Thinking...
+Perfect! The changes have been successfully landed on main. The 2 commits (typo fix and issue cleanup) are now merged.
+
+<next>
+agent: dispatch
+worker_status: Completed landing the typo fix and issue cleanup on main
+</next>
+
+
+Done  $0.02 · 8.2s · 4 turns  (:N to view)
+  Total cost: $0.17
+
+Transition: dispatch worker_status=Completed landing the typo fix and issue cleanup on main
+
+=== Agent: dispatch ===
+
+Session e0923a72-7652-4d80-8f7c-0f4038c097b1 (claude-haiku-4-5-20251001)
+
+[60] Thinking...
+I'll check the current state of issues and the worktree to decide what to do next.
+
+[61] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+[62] ▶ Bash  git status
+[63] Thinking...
+[64] ▶ Bash  ls -la issues/ review/ 2>/dev/null || echo "No issues/ or review...
+[65] Thinking...
+[66] ▶ Bash  git log main..HEAD --oneline
+[67] Thinking...
+## Analysis
+
+**Worktree Status:** Clean, not ahead of main
+**Issues:** No new issues, no pending reviews, no approved issues
+
+There are no issues to plan or implement, and the worktree is clean and synced with main. The worker has completed the previous landing task.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 6.7s · 4 turns  (:N to view)
-  Total cost: $0.02
+Done  $0.02 · 9.8s · 5 turns  (:N to view)
+  Total cost: $0.20
 
 Transition: sleep — waiting for new commits...
 

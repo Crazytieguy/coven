@@ -279,6 +279,8 @@ async fn run_agent_chain<W: Write>(
         let _semaphore_permit =
             vcr_acquire_semaphore(ctx.vcr, &wt_str, &agent_name, agent_def).await?;
 
+        vcr_update_worker_state(ctx.vcr, &wt_str, branch, Some(&agent_name), &agent_args).await?;
+
         // Auto-inject worker_status if the agent declares it
         if is_entry
             && agent_def
@@ -337,8 +339,6 @@ async fn run_agent_chain<W: Write>(
         else {
             return Ok(ChainResult::Exited);
         };
-
-        vcr_update_worker_state(ctx.vcr, &wt_str, branch, Some(&agent_name), &agent_args).await?;
 
         *total_cost += cost;
         ctx.renderer

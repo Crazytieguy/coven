@@ -19,34 +19,226 @@ Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: light-delta-12 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-needs_replan-worker-worktrees/coven-vcr-needs_replan/light-delta-12)
+Worker started: agile-willow-5 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-needs_replan-worker-worktrees/coven-vcr-needs_replan/agile-willow-5)
 
 === Agent: dispatch ===
 
-Session 21d78504-9e99-4b6f-95fb-c84e4a4db743 (claude-haiku-4-5-20251001)
+Session 589003a4-27bb-4a13-b6a1-915d51c95271 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Bash  git status --short
-[3] ▶ Bash  git log --oneline main..HEAD 2>/dev/null | head -10 || echo "No c...
-[4] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[5] Thinking...
-**Worktree Status:**
-- Clean (no uncommitted changes)
-- Not ahead of main (no local commits)
+I'll check the current issue state to decide what work should be done next.
 
-**Available Issues:**
-- No issues found in `issues/` or `review/` directories
+[2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+[3] Thinking...
+[4] ▶ Bash  ls -la issues/ 2>/dev/null || echo "No issues directory"; ls -la ...
+[5] Thinking...
+[6] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[7] Thinking...
+## Dispatch Decision
+
+**Issue found:** `add-validation.md` with state `approved`
 
 **Reasoning:**
-With no issues in any state (`new`, `changes-requested`, `needs-replan`, or `approved`), there is no work to plan or implement. No other workers are active, so there's nothing to coordinate around.
+- 1 approved issue ready for implementation (P1 priority)
+- No issues in review (no overwhelm)
+- No other workers active
+- Worktree is clean
+- Routing rule: `approved` issues go to `implement` agent
+
+<next>
+agent: implement
+issue: issues/add-validation.md
+</next>
+
+
+Done  $0.02 · 11.6s · 4 turns  (:N to view)
+  Total cost: $0.02
+
+Transition: implement issue=issues/add-validation.md
+
+=== Agent: implement ===
+
+Session 1968050d-e7f6-4b4f-ae1c-add1eb327678 (claude-haiku-4-5-20251001)
+
+[8] Thinking...
+[9] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[10] Thinking...
+[11] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+     ✗ Sibling tool call errored
+[12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[13] Thinking...
+[14] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[15] Thinking...
+[16] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[17] Thinking...
+[18] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[19] Thinking...
+[20] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[21] Thinking...
+I need to update the issue as `needs-replan` because the files referenced in the plan don't exist. The plan mentions `src/processor.py` and `tests/test_processor.py`, but the project only contains `src/app.py`.
+
+[22] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[23] Thinking...
+[24] ▶ Edit  (+13)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[25] Thinking...
+[26] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[27] Thinking...
+<next>
+agent: dispatch
+worker_status: Discovered that the plan for add-validation references non-existent files (src/processor.py and tests/test_processor.py). Issue moved to needs-replan state with implementation notes explaining the mismatch.
+</next>
+
+
+Done  $0.05 · 27.4s · 11 turns  (:N to view)
+  Total cost: $0.08
+
+Transition: dispatch worker_status=Discovered that the plan for add-validation references non-existent files (src/processor.py and tests/test_processor.py). Issue moved to needs-replan state with implementation notes explaining the mismatch.
+
+=== Agent: dispatch ===
+
+Session c97e7a71-e266-41c8-a0f2-c770f93cd0e4 (claude-haiku-4-5-20251001)
+
+[28] Thinking...
+[29] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+[30] Thinking...
+[31] ▶ Bash  head -7 issues/*.md 2>/dev/null || true
+[32] Thinking...
+[33] ▶ Bash  git status && git log --oneline -5
+[34] Thinking...
+## Analysis
+
+Found 1 issue: **Add input validation to processor** with state `needs-replan` (P1).
+
+The worktree is clean with no uncommitted changes. The issue is marked for replanning because the previous implementation attempt revealed that the plan referenced non-existent files (src/processor.py and tests/test_processor.py).
+
+## Routing
+
+**State: `needs-replan` → Route to `plan` agent**
+
+The plan agent will examine the actual codebase structure and revise the plan to match the real file layout, incorporating the implementation failure notes.
+
+<next>
+agent: plan
+issue: issues/add-input-validation-to-processor.md
+</next>
+
+
+Done  $0.02 · 9.6s · 4 turns  (:N to view)
+  Total cost: $0.10
+
+Transition: plan issue=issues/add-input-validation-to-processor.md
+
+=== Agent: plan ===
+
+Session 68d6e295-c170-47e7-b784-da4494854aca (claude-haiku-4-5-20251001)
+
+[35] Thinking...
+[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[37] Thinking...
+[38] ▶ Bash  ls -la issues/ 2>/dev/null || echo "issues directory not found"
+[39] Thinking...
+[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[41] Thinking...
+[42] ▶ Bash  find . -type f -name "*.py" | head -20
+[43] Thinking...
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] Thinking...
+Now let me check the directory structure to understand the project layout better:
+
+[46] ▶ Bash  ls -la && echo "---" && find . -type f -not -path './.git/*' | sort
+     ✗ Error: This Bash command contains multiple operations. The following p...
+[47] Thinking...
+[48] ▶ Bash  find . -type f -not -path './.git/*' | sort
+[49] Thinking...
+Now I'll revise the plan based on the actual project structure:
+
+[50] ▶ Edit  (-1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[51] Thinking...
+Now I'll update the frontmatter to set the state to review:
+
+[52] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[53] Thinking...
+Now I'll move the file from issues/ to review/:
+
+[54] ▶ Bash  mv issues/add-validation.md review/add-validation.md
+[55] Thinking...
+[56] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[57] Thinking...
+Now I'll land the changes onto main:
+
+[58] ▶ Bash  bash .coven/land.sh
+[59] Thinking...
+Perfect! I've successfully revised the plan for the add-validation issue. Here's what I did:
+
+1. **Explored the codebase** - Found that the project only contains `src/app.py` with a simple `greet()` function, unlike the previous plan which referenced non-existent files.
+
+2. **Wrote a realistic plan** that:
+   - Adds input validation to the `greet()` function in `src/app.py` (validating that `name` is a non-empty string)
+   - Creates basic tests in `tests/test_app.py`
+   - Tests valid inputs, non-string inputs, and empty/whitespace inputs
+
+3. **Added Questions** section to clarify:
+   - Whether to reject empty/whitespace-only strings
+   - Whether to modify the name (e.g., title-case it) or just validate
+   - What specific error messages to use
+
+4. **Moved the issue** from `issues/` to `review/` and updated its state to `review`
+
+5. **Landed the changes** onto main
+
+The revised plan is now ready for human review at `review/add-validation.md`.
+
+<next>
+agent: dispatch
+worker_status: Revised plan for add-validation issue and landed changes onto main
+</next>
+
+
+Done  $0.07 · 39.8s · 13 turns  (:N to view)
+  Total cost: $0.17
+
+Transition: dispatch worker_status=Revised plan for add-validation issue and landed changes onto main
+
+=== Agent: dispatch ===
+
+Session fc987921-6761-43f0-a7a2-672666f35904 (claude-haiku-4-5-20251001)
+
+[60] Thinking...
+I'll check the current issues to determine the next task.
+
+[61] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
+[62] Thinking...
+Let me check for any issues more broadly:
+
+[63] ▶ Bash  find . -path "./.coven" -prune -o -name "*.md" -path "*/issues/*...
+[64] Thinking...
+[65] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[66] Thinking...
+Let me check the worktree status:
+
+[67] ▶ Bash  git status
+[68] Thinking...
+[69] ▶ Bash  git log --oneline main..HEAD
+[70] Thinking...
+## Analysis
+
+**Current state:**
+- Worktree is clean and synchronized with main
+- One issue exists: `review/add-validation.md` (state: review)
+- Issue is awaiting human review—not assigned to any agent
+
+**Routing decision:**
+The only issue is in `review` state, which should not be assigned. There are no new, approved, changes-requested, or needs-replan issues to route. Per the dispatch instructions, when nothing is plannable or implementable, the worker should sleep.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 5.9s · 4 turns  (:N to view)
-  Total cost: $0.02
+Done  $0.03 · 15.1s · 6 turns  (:N to view)
+  Total cost: $0.20
 
 Transition: sleep — waiting for new commits...
 
