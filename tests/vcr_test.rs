@@ -43,6 +43,19 @@ fn strip_ansi(s: &str) -> String {
                 // Trailing ESC at end of string
                 None => {}
             }
+        } else if c == '\r' {
+            if chars.peek() == Some(&'\n') {
+                // \r\n is a regular newline — just emit \n
+                chars.next();
+                result.push('\n');
+            } else {
+                // Bare \r — simulate carriage return: discard back to the last newline
+                if let Some(pos) = result.rfind('\n') {
+                    result.truncate(pos + 1);
+                } else {
+                    result.clear();
+                }
+            }
         } else {
             result.push(c);
         }
