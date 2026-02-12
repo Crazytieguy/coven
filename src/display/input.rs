@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::io::Write;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::{cursor, queue, terminal};
@@ -113,8 +113,7 @@ impl InputHandler {
     /// `term_cursor_display` to navigate to the start of the input,
     /// then reprints the prefix and buffer, clears leftover content,
     /// and moves the cursor to the correct column.
-    pub fn redraw(&mut self) {
-        let mut out = io::stdout();
+    pub fn redraw(&mut self, out: &mut impl Write) {
         let tw = term_width();
 
         // Move to start of input region
@@ -165,8 +164,7 @@ impl InputHandler {
 
     /// Clear all terminal lines occupied by the input (prefix + buffer),
     /// accounting for line wrapping at the terminal width.
-    fn clear_input_lines(&self) {
-        let mut out = io::stdout();
+    fn clear_input_lines(&self, out: &mut impl Write) {
         let tw = term_width();
         // Use term_cursor_display to find which line the cursor is on,
         // then move to the start of the input region.
@@ -188,26 +186,26 @@ impl InputHandler {
     }
 
     /// Move the cursor to `pos` and redraw.
-    fn move_cursor(&mut self, pos: usize) {
+    fn move_cursor(&mut self, pos: usize, out: &mut impl Write) {
         self.cursor = pos;
-        self.redraw();
+        self.redraw(out);
     }
 
     /// Insert a character at the cursor position and redraw.
-    fn insert_char(&mut self, c: char) {
+    fn insert_char(&mut self, c: char, out: &mut impl Write) {
         let byte_pos = self.cursor_byte_pos();
         self.buffer.insert(byte_pos, c);
         self.cursor += 1;
-        self.redraw();
+        self.redraw(out);
     }
 
     /// Delete chars in `[from_char..to_char)`, set cursor to `from_char`, and redraw.
-    fn delete_range(&mut self, from_char: usize, to_char: usize) {
+    fn delete_range(&mut self, from_char: usize, to_char: usize, out: &mut impl Write) {
         let from_byte = self.byte_pos_at(from_char);
         let to_byte = self.byte_pos_at(to_char);
         self.buffer.drain(from_byte..to_byte);
         self.cursor = from_char;
-        self.redraw();
+        self.redraw(out);
     }
 
     /// Byte offset for a given char index.
@@ -219,9 +217,9 @@ impl InputHandler {
     }
 
     /// Process a terminal key event. Returns the action to take.
-    pub fn handle_key(&mut self, event: &KeyEvent) -> InputAction {
+    pub fn handle_key(&mut self, event: &KeyEvent, out: &mut impl Write) -> InputAction {
         if !self.active {
-            return self.handle_inactive_key(event);
+            return self.handle_inactive_key(event, out);
         }
 
         let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
@@ -235,92 +233,92 @@ impl InputHandler {
 
             // Cursor movement
             KeyCode::Left if ctrl || alt => {
-                self.move_cursor(self.word_boundary_left());
+                self.move_cursor(self.word_boundary_left(), out);
                 InputAction::None
             }
             KeyCode::Right if ctrl || alt => {
-                self.move_cursor(self.word_boundary_right());
+                self.move_cursor(self.word_boundary_right(), out);
                 InputAction::None
             }
             KeyCode::Char('b') if alt => {
-                self.move_cursor(self.word_boundary_left());
+                self.move_cursor(self.word_boundary_left(), out);
                 InputAction::None
             }
             KeyCode::Char('f') if alt => {
-                self.move_cursor(self.word_boundary_right());
+                self.move_cursor(self.word_boundary_right(), out);
                 InputAction::None
             }
             KeyCode::Left if self.cursor > 0 => {
-                self.move_cursor(self.cursor - 1);
+                self.move_cursor(self.cursor - 1, out);
                 InputAction::None
             }
             KeyCode::Right if self.cursor < len => {
-                self.move_cursor(self.cursor + 1);
+                self.move_cursor(self.cursor + 1, out);
                 InputAction::None
             }
             KeyCode::Char('a') if ctrl => {
-                self.move_cursor(0);
+                self.move_cursor(0, out);
                 InputAction::None
             }
             KeyCode::Char('e') if ctrl => {
-                self.move_cursor(len);
+                self.move_cursor(len, out);
                 InputAction::None
             }
             KeyCode::Home => {
-                self.move_cursor(0);
+                self.move_cursor(0, out);
                 InputAction::None
             }
             KeyCode::End => {
-                self.move_cursor(len);
+                self.move_cursor(len, out);
                 InputAction::None
             }
 
             // Deletion
             KeyCode::Backspace if alt => {
                 let t = self.word_boundary_left();
-                self.delete_range(t, self.cursor);
+                self.delete_range(t, self.cursor, out);
                 InputAction::None
             }
             KeyCode::Char('w') if ctrl => {
                 let t = self.word_boundary_left();
-                self.delete_range(t, self.cursor);
+                self.delete_range(t, self.cursor, out);
                 InputAction::None
             }
             KeyCode::Char('u') if ctrl => {
-                self.delete_range(0, self.cursor);
+                self.delete_range(0, self.cursor, out);
                 InputAction::None
             }
             KeyCode::Char('k') if ctrl => {
-                self.delete_range(self.cursor, len);
+                self.delete_range(self.cursor, len, out);
                 InputAction::None
             }
             KeyCode::Char('d') if alt => {
                 let t = self.word_boundary_right();
-                self.delete_range(self.cursor, t);
+                self.delete_range(self.cursor, t, out);
                 InputAction::None
             }
             KeyCode::Delete if self.cursor < len => {
-                self.delete_range(self.cursor, self.cursor + 1);
+                self.delete_range(self.cursor, self.cursor + 1, out);
                 InputAction::None
             }
 
             // Character insertion
             KeyCode::Char(c) => {
-                self.insert_char(c);
+                self.insert_char(c, out);
                 InputAction::None
             }
 
             // Backspace
             KeyCode::Backspace if self.cursor > 0 => {
-                self.delete_range(self.cursor - 1, self.cursor);
+                self.delete_range(self.cursor - 1, self.cursor, out);
                 InputAction::None
             }
 
             // Submit / cancel
-            KeyCode::Enter => self.handle_enter(event),
+            KeyCode::Enter => self.handle_enter(event, out),
             KeyCode::Esc => {
                 self.deactivate();
-                self.clear_input_lines();
+                self.clear_input_lines(out);
                 InputAction::Cancel
             }
 
@@ -328,7 +326,7 @@ impl InputHandler {
         }
     }
 
-    fn handle_inactive_key(&mut self, event: &KeyEvent) -> InputAction {
+    fn handle_inactive_key(&mut self, event: &KeyEvent, out: &mut impl Write) -> InputAction {
         let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
         match event.code {
             KeyCode::Char('c') if ctrl => InputAction::Interrupt,
@@ -336,17 +334,17 @@ impl InputHandler {
             KeyCode::Char('o') if ctrl => InputAction::Interactive,
             KeyCode::Char(c) => {
                 self.activate();
-                self.insert_char(c);
+                self.insert_char(c, out);
                 InputAction::Activated(c)
             }
             _ => InputAction::None,
         }
     }
 
-    fn handle_enter(&mut self, event: &KeyEvent) -> InputAction {
+    fn handle_enter(&mut self, event: &KeyEvent, out: &mut impl Write) -> InputAction {
         let text = self.buffer.clone();
         self.deactivate();
-        self.clear_input_lines();
+        self.clear_input_lines(out);
 
         if text.is_empty() {
             return InputAction::None;

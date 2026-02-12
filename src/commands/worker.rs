@@ -1238,7 +1238,7 @@ async fn wait_for_new_commits<W: Write>(
             event = vcr.call("next_event", (), async |(): &()| io.next_event().await) => {
                 let event = event?;
                 if let IoEvent::Terminal(Event::Key(key_event)) = event {
-                    let action = input.handle_key(&key_event);
+                    let action = input.handle_key(&key_event, renderer.writer());
                     if matches!(action, InputAction::Interrupt | InputAction::EndSession) {
                         return Ok(WaitOutcome::Exited);
                     }

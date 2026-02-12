@@ -172,6 +172,10 @@ impl<W: Write> Renderer<W> {
         self.config.show_thinking = show;
     }
 
+    pub fn writer(&mut self) -> &mut W {
+        &mut self.out
+    }
+
     pub fn messages(&self) -> &[StoredMessage] {
         &self.messages
     }

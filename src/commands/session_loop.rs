@@ -193,11 +193,11 @@ async fn handle_session_key_event<W: Write>(
     locals: &mut SessionLocals,
     vcr: &VcrContext,
 ) -> Result<LoopAction> {
-    let action = input.handle_key(key_event);
+    let action = input.handle_key(key_event, renderer.writer());
     match action {
         InputAction::Activated(_) => {
             renderer.begin_input_line();
-            input.redraw();
+            input.redraw(renderer.writer());
         }
         InputAction::Submit(text, mode) => {
             let flush = flush_event_buffer(locals, state, renderer);
@@ -505,7 +505,7 @@ async fn wait_for_text_input<W: Write>(
             .await?;
         match io_event {
             IoEvent::Terminal(Event::Key(key_event)) => {
-                let action = input.handle_key(&key_event);
+                let action = input.handle_key(&key_event, renderer.writer());
                 match action {
                     InputAction::Submit(text, _) => {
                         renderer.render_user_message(&text);
@@ -526,7 +526,7 @@ async fn wait_for_text_input<W: Write>(
                     }
                     InputAction::Activated(_) => {
                         renderer.begin_input_line();
-                        input.redraw();
+                        input.redraw(renderer.writer());
                     }
                     InputAction::None => {}
                 }
