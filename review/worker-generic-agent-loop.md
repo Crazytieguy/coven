@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: review
+state: rejected
 ---
 
 # Redesign worker as a generic agent loop
@@ -193,16 +193,24 @@ This replaces the current hardcoded injection in `run_dispatch()`. The dispatch 
 - Remove `agent_catalog` from args (auto-appended now)
 - Keep `worker_status` as required arg
 - Change output instructions from `<dispatch>` to `<next>` format
+
+Review note: these instructions should probably be auto-injected, and I want to see the exact format before I approve the plan.
+
 - Add routing for "worktree ahead of main" → `next: land`
 
 **`.coven/agents/plan.md`**:
 - Add transition instruction: after completing, output `<next>agent: dispatch</next>`
+
+Review note: again, syntax is owned by coven, not the agent files. It can say in natural language to continue to dispatch
+
 - Plan agent still lands its own commits directly (rebase to main) for lightweight changes
 
 **`.coven/agents/implement.md`**:
 - Add transition instructions:
   - On success: `<next>agent: land</next>`
   - On needs-replan: `<next>agent: dispatch</next>`
+
+Review note: same
 
 **`.coven/agents/land.md`** (new):
 - Description: "Audits changes and lands them on main"
@@ -214,6 +222,8 @@ This replaces the current hardcoded injection in `run_dispatch()`. The dispatch 
   - Success: `<next>agent: dispatch</next>`
   - Needs more work: `<next>agent: land</next>` (retry)
   - Fundamental problems: mark issue as needs-replan, `<next>agent: dispatch</next>`
+
+Review note: same
 
 ### Step 9: Update `init.rs`
 
@@ -249,6 +259,12 @@ After re-recording: `cargo insta review` to verify snapshot diffs look correct.
 
 1. **Land agent naming**: The issue mentions `land`, `finalize`, `review-and-land`, `ship`. I've used `land` throughout the plan. Do you prefer a different name?
 
+Review: let's go with `land`
+
 2. **Agent catalog auto-append vs template variable**: The plan auto-appends the catalog to every agent prompt (agents can't control placement). Alternative: make it a template variable `{{agent_catalog}}` that agents include explicitly, with a build-time warning if an agent doesn't reference it. Which do you prefer?
 
+Review: I'd like to see a concrete design for the auto-inject before approving. I think this should be in the system prompt, not the user prompt
+
 3. **Cleanup aggressiveness before entry agent**: If the worktree is dirty on re-entry (e.g., after crash), the plan discards uncommitted changes and aborts any in-progress rebase. Committed-but-unlanded work is preserved (dispatch can detect "ahead of main" and route to land). Is this acceptable, or do you want more cautious recovery?
+
+Dispatch should call the `land` agent. Don't automatically clean up work. The land agent has instructions to always leave everything clean and rebase main, resolving merge conflicts as needed 
