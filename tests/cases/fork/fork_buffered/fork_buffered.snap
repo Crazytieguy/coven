@@ -3,10 +3,10 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 770005ac-ba87-4d6b-8b02-d7d6f1b22960 (claude-haiku-4-5-20251001)
+Session fd4fa46c-49e9-48fe-9b77-0bb81194eb8e (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll use fork to delegate these two file creation tasks in parallel.
+I'll use fork to delegate these two independent file creation tasks:
 
 <fork>
 - Create hello.txt with 'hello world'
@@ -15,21 +15,21 @@ I'll use fork to delegate these two file creation tasks in parallel.
 
 [2] ⑂ Fork  Create hello.txt with 'hello world'
 [3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
   [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
 [4] ⑂ Fork Result
 ⏳ queued: x
 [5] Thinking...
 Perfect! Both files have been created successfully:
-- **hello.txt** containing "hello world"
-- **goodbye.txt** containing "goodbye world"
+- **hello.txt** with 'hello world'
+- **goodbye.txt** with 'goodbye world'
 
-Both tasks completed in parallel as expected.
+The fork mechanism ran both tasks concurrently and completed them both.
 
 ⤷ follow-up: x
 [6] Thinking...
-I'm ready to help! What would you like me to do next?
+I'm ready to help! What would you like to do next?
 
 
-Done  $0.03 · 1.9s · 1 turn  (:N to view)
+Done  $0.01 · 2.5s · 1 turn  (:N to view)
 >

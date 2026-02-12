@@ -217,6 +217,8 @@ async fn worker_loop<W: Write>(
             .await?
             .context("failed to sync worktree to main")?;
 
+        let pre_chain_head = vcr_main_head_sha(ctx.vcr, wt_str.clone()).await?;
+
         let chain_result = run_agent_chain(
             config,
             worktree_path,
@@ -234,8 +236,14 @@ async fn worker_loop<W: Write>(
                 ctx.renderer
                     .write_raw("\r\nTransition: sleep \u{2014} waiting for new commits...\r\n");
                 ctx.io.clear_event_channel();
-                let wait =
-                    wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
+                let wait = wait_for_new_commits(
+                    worktree_path,
+                    &pre_chain_head,
+                    ctx.renderer,
+                    ctx.input,
+                    ctx.io,
+                    ctx.vcr,
+                );
                 if matches!(wait.await?, WaitOutcome::Exited) {
                     return Ok(());
                 }
@@ -657,6 +665,7 @@ fn resolve_ref_paths(worktree_path: &Path) -> Option<RefPaths> {
 /// the user to exit.
 async fn wait_for_new_commits<W: Write>(
     worktree_path: &Path,
+    pre_chain_head: &str,
     renderer: &mut Renderer<W>,
     input: &mut InputHandler,
     io: &mut Io,
@@ -674,8 +683,6 @@ async fn wait_for_new_commits<W: Write>(
     // _watcher must stay alive for the duration of the loop.
     let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
 
-    let initial_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
-
     renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
 
@@ -683,7 +690,7 @@ async fn wait_for_new_commits<W: Write>(
         tokio::select! {
             _ = rx.recv() => {
                 let current = vcr_main_head_sha(vcr, wt_str.clone()).await?;
-                if current != initial_head {
+                if current != pre_chain_head {
                     renderer.write_raw("New commits detected on main.\r\n");
                     return Ok(WaitOutcome::NewCommits);
                 }
