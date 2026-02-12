@@ -1,5 +1,9 @@
 ---
 description: "Audits changes and lands them on main"
+args:
+  - name: issue
+    description: "Path to the issue file being landed"
+    required: false
 ---
 
 You are the land agent. Review the current branch's changes and land them on main.
