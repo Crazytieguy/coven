@@ -365,6 +365,9 @@ pub struct Io {
     term_rx: mpsc::UnboundedReceiver<Event>,
     /// Kept alive so `event_rx.recv()` doesn't return `None` while idle.
     idle_tx: Option<mpsc::UnboundedSender<AppEvent>>,
+    /// Gate for pausing/resuming the background terminal reader.
+    /// `Some` in live mode, `None` for dummy/replay.
+    term_gate: Option<tokio::sync::watch::Sender<bool>>,
 }
 
 impl Io {
@@ -376,6 +379,7 @@ impl Io {
             event_rx,
             term_rx,
             idle_tx: None,
+            term_gate: None,
         }
     }
 
@@ -387,6 +391,7 @@ impl Io {
             event_rx: rx1,
             term_rx: rx2,
             idle_tx: None,
+            term_gate: None,
         }
     }
 
@@ -427,6 +432,30 @@ impl Io {
         let (tx, rx) = mpsc::unbounded_channel();
         self.event_rx = rx;
         self.idle_tx = Some(tx);
+    }
+
+    /// Set the watch channel sender for the background terminal reader gate.
+    pub fn set_term_gate(&mut self, gate: tokio::sync::watch::Sender<bool>) {
+        self.term_gate = Some(gate);
+    }
+
+    /// Signal the background terminal reader to pause (drop its `EventStream`).
+    pub fn pause_term_reader(&self) {
+        if let Some(ref gate) = self.term_gate {
+            let _ = gate.send(false);
+        }
+    }
+
+    /// Signal the background terminal reader to resume (recreate its `EventStream`).
+    pub fn resume_term_reader(&self) {
+        if let Some(ref gate) = self.term_gate {
+            let _ = gate.send(true);
+        }
+    }
+
+    /// Drain any residual terminal events queued before the pause took effect.
+    pub fn drain_term_events(&mut self) {
+        while self.term_rx.try_recv().is_ok() {}
     }
 }
 

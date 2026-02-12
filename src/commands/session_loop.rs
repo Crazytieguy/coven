@@ -478,7 +478,7 @@ pub async fn wait_for_interrupt_input<W: Write>(
         match wait_for_text_input(input, renderer, io, vcr).await? {
             Some(WaitResult::Text(text)) => return Ok(Some(text)),
             Some(WaitResult::Interactive) => {
-                open_interactive_session(session_id, working_dir, extra_args, vcr)?;
+                open_interactive_session(session_id, working_dir, extra_args, io, vcr)?;
                 renderer.render_interrupted();
             }
             None => return Ok(None),
@@ -554,15 +554,21 @@ pub async fn spawn_session(
 ///
 /// Temporarily exits raw mode, spawns `claude --resume <session_id>` as a
 /// blocking child process, waits for it to exit, and re-enables raw mode.
+/// Pauses the background terminal reader so the child gets exclusive stdin access.
 pub fn open_interactive_session(
     session_id: &str,
     working_dir: Option<&Path>,
     extra_args: &[String],
+    io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<()> {
     if !vcr.is_live() {
         bail!("interactive sessions are not supported in VCR replay mode");
     }
+
+    // Pause the background terminal reader so the child process gets
+    // exclusive access to stdin — prevents keypress competition.
+    io.pause_term_reader();
 
     terminal::disable_raw_mode().context("failed to disable raw mode for interactive session")?;
     print!("\r\n[opening interactive session — exit to return]\r\n");
@@ -592,6 +598,12 @@ pub fn open_interactive_session(
     // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
     // discards buffered input bytes — no memory or resource safety concerns.
     unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
+
+    // Drain any residual events queued in the channel before the pause took
+    // effect, then resume the background reader.
+    io.drain_term_events();
+    io.resume_term_reader();
+
     terminal::enable_raw_mode()
         .context("failed to re-enable raw mode after interactive session")?;
     print!("\r\n[returned to coven]\r\n");

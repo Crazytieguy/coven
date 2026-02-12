@@ -121,22 +121,47 @@ async fn main() -> Result<()> {
 fn create_live_io() -> (Io, VcrContext) {
     use crossterm::event::EventStream;
     use futures::StreamExt;
-    use tokio::sync::mpsc;
+    use tokio::sync::{mpsc, watch};
 
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
+    let (gate_tx, mut gate_rx) = watch::channel(true);
 
-    // Background task: forward crossterm events to the channel
+    // Background task: forward crossterm events to the channel.
+    // Respects the pause gate — when paused, drops the EventStream to
+    // release stdin, then waits for the gate to become true again.
     tokio::spawn(async move {
         let mut stream = EventStream::new();
-        while let Some(Ok(event)) = stream.next().await {
-            if term_tx.send(event).is_err() {
-                break;
+        loop {
+            if !*gate_rx.borrow() {
+                // Paused: drop the stream to release stdin
+                drop(stream);
+                // Wait for resume signal
+                loop {
+                    if gate_rx.changed().await.is_err() {
+                        return; // gate sender dropped, shut down
+                    }
+                    if *gate_rx.borrow() {
+                        break;
+                    }
+                }
+                // Recreate the stream after resuming
+                stream = EventStream::new();
+            }
+
+            match stream.next().await {
+                Some(Ok(event)) => {
+                    if term_tx.send(event).is_err() {
+                        break;
+                    }
+                }
+                Some(Err(_)) | None => break,
             }
         }
     });
 
     let mut io = Io::new(event_rx, term_rx);
+    io.set_term_gate(gate_tx);
     // Keep the event channel alive so recv() blocks instead of
     // returning ProcessExit immediately (the sender was dropped above).
     io.clear_event_channel();
