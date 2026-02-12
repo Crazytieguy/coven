@@ -11,10 +11,11 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+
+use crate::worktree;
 
 /// State of a single worker, serialized to JSON.
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,24 +30,8 @@ pub struct WorkerState {
 
 /// Resolve the shared coven directory: `<git-common-dir>/coven/`.
 pub(crate) fn coven_dir(repo_path: &Path) -> Result<PathBuf> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(repo_path)
-        .args(["rev-parse", "--git-common-dir"])
-        .output()
-        .context("failed to run git rev-parse --git-common-dir")?;
-
-    if !output.status.success() {
-        anyhow::bail!("git rev-parse --git-common-dir failed");
-    }
-
-    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let git_dir = if Path::new(&raw).is_absolute() {
-        PathBuf::from(raw)
-    } else {
-        repo_path.join(raw)
-    };
-
+    let git_dir =
+        worktree::git_common_dir(repo_path).context("failed to resolve git common dir")?;
     Ok(git_dir.join("coven"))
 }
 
@@ -199,6 +184,8 @@ fn is_pid_alive(pid: u32) -> bool {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
+    use std::process::Command;
+
     use super::*;
     use tempfile::TempDir;
 

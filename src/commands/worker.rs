@@ -443,14 +443,6 @@ async fn vcr_main_head_sha(vcr: &VcrContext, wt_str: String) -> Result<String> {
     .await
 }
 
-/// VCR-wrapped `resolve_ref_paths`.
-async fn vcr_resolve_ref_paths(vcr: &VcrContext, wt_str: String) -> Result<Option<RefPaths>> {
-    vcr.call("resolve_ref_paths", wt_str, async |p: &String| {
-        Ok(resolve_ref_paths(Path::new(p)))
-    })
-    .await
-}
-
 /// VCR-wrapped agent loading.
 async fn vcr_load_agents(vcr: &VcrContext, worktree_path: &Path) -> Result<Vec<AgentDef>> {
     let agents_dir = worktree_path.join(agents::AGENTS_DIR);
@@ -657,24 +649,7 @@ struct RefPaths {
 /// Resolve the git ref paths to watch. Returns `None` if the git commands fail.
 fn resolve_ref_paths(worktree_path: &Path) -> Option<RefPaths> {
     let main_branch = worktree::main_branch_name(worktree_path).ok()?;
-
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(worktree_path)
-        .args(["rev-parse", "--git-common-dir"])
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let git_common_dir = if Path::new(&raw).is_absolute() {
-        PathBuf::from(raw)
-    } else {
-        worktree_path.join(raw)
-    };
+    let git_common_dir = worktree::git_common_dir(worktree_path).ok()?;
 
     Some(RefPaths {
         refs_heads_dir: git_common_dir.join("refs/heads"),
@@ -696,7 +671,11 @@ async fn wait_for_new_commits<W: Write>(
 
     // Set up watcher BEFORE reading HEAD to avoid TOCTOU race:
     // a commit between HEAD read and watcher setup would be missed.
-    let ref_paths = vcr_resolve_ref_paths(vcr, wt_str.clone()).await?;
+    let ref_paths = vcr
+        .call("resolve_ref_paths", wt_str.clone(), async |p: &String| {
+            Ok(resolve_ref_paths(Path::new(p)))
+        })
+        .await?;
     // _watcher must stay alive for the duration of the loop.
     let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
 

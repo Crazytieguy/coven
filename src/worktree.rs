@@ -145,6 +145,20 @@ fn generate_branch_name() -> String {
     format!("{adj}-{noun}-{num}")
 }
 
+/// Resolve the git common directory for a repository or worktree.
+///
+/// Runs `git rev-parse --git-common-dir` and normalizes the result to an
+/// absolute path (the command may return a relative path in some setups).
+pub fn git_common_dir(repo_path: &Path) -> Result<PathBuf, WorktreeError> {
+    let raw = git(repo_path, &["rev-parse", "--git-common-dir"])?;
+    let trimmed = raw.trim();
+    Ok(if Path::new(trimmed).is_absolute() {
+        PathBuf::from(trimmed)
+    } else {
+        repo_path.join(trimmed)
+    })
+}
+
 // ── Public API ──────────────────────────────────────────────────────────
 
 /// Get the main branch name by parsing `git worktree list --porcelain`.

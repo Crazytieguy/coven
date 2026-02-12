@@ -184,7 +184,8 @@ pub fn parse_fork_tag(text: &str) -> Option<Vec<String>> {
 pub fn compose_reintegration_message(results: &[(String, Result<String, String>)]) -> String {
     use std::fmt::Write;
 
-    let mut xml = String::from("<fork-results>\n");
+    let mut xml = String::new();
+    let _ = writeln!(xml, "<fork-results>");
     for (label, outcome) in results {
         // Escape label for XML attribute. Body text is intentionally not escaped —
         // these results are consumed by language models, not XML parsers.
@@ -205,7 +206,7 @@ pub fn compose_reintegration_message(results: &[(String, Result<String, String>)
             }
         }
     }
-    xml.push_str("</fork-results>");
+    let _ = write!(xml, "</fork-results>");
     xml
 }
 
