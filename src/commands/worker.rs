@@ -1257,14 +1257,17 @@ async fn wait_for_new_commits<W: Write>(
     vcr: &VcrContext,
 ) -> Result<WaitOutcome> {
     let wt_str = worktree_path.display().to_string();
+
+    // Set up watcher BEFORE reading HEAD to avoid TOCTOU race:
+    // a commit between HEAD read and watcher setup would be missed.
+    let ref_paths = vcr_resolve_ref_paths(vcr, wt_str.clone()).await?;
+    // _watcher must stay alive for the duration of the loop.
+    let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
+
     let initial_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
 
     renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
-
-    // _watcher must stay alive for the duration of the loop.
-    let ref_paths = vcr_resolve_ref_paths(vcr, wt_str.clone()).await?;
-    let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
 
     loop {
         tokio::select! {
