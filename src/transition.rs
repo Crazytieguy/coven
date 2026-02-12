@@ -17,11 +17,11 @@ fn yaml_scalar_to_string(v: &Value) -> Option<String> {
     }
 }
 
-/// A decision output by the dispatch agent.
+/// A transition declared by an agent via the `<next>` tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DispatchDecision {
-    /// Run the named agent with the given arguments.
-    RunAgent {
+pub enum Transition {
+    /// Hand off to the named agent with the given arguments.
+    Next {
         agent: String,
         args: HashMap<String, String>,
     },
@@ -29,17 +29,18 @@ pub enum DispatchDecision {
     Sleep,
 }
 
-/// Parse a dispatch decision from the agent's text output.
+/// Parse a transition from an agent's text output.
 ///
-/// Looks for `<dispatch>...</dispatch>` containing YAML. The rest of the
+/// Looks for `<next>...</next>` containing YAML. The rest of the
 /// output is reasoning/status visible to the human and is ignored here.
-pub fn parse_decision(text: &str) -> Result<DispatchDecision> {
-    let yaml_str = extract_tag_content(text, "dispatch")?;
+pub fn parse_transition(text: &str) -> Result<Transition> {
+    let yaml_str = extract_tag_content(text, "next")?;
 
-    let value: Value = serde_yaml::from_str(&yaml_str).context("failed to parse dispatch YAML")?;
+    let value: Value =
+        serde_yaml::from_str(&yaml_str).context("failed to parse transition YAML")?;
     let map = value
         .as_mapping()
-        .context("dispatch content is not a YAML mapping")?;
+        .context("transition content is not a YAML mapping")?;
 
     // Check for sleep
     if map
@@ -47,14 +48,14 @@ pub fn parse_decision(text: &str) -> Result<DispatchDecision> {
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        return Ok(DispatchDecision::Sleep);
+        return Ok(Transition::Sleep);
     }
 
     // Extract agent name
     let agent = map
         .get(Value::String("agent".into()))
         .and_then(|v| v.as_str())
-        .context("dispatch YAML must contain 'agent' or 'sleep: true'")?
+        .context("transition YAML must contain 'agent' or 'sleep: true'")?
         .to_string();
 
     // Collect remaining fields as string arguments
@@ -70,24 +71,35 @@ pub fn parse_decision(text: &str) -> Result<DispatchDecision> {
         })
         .collect();
 
-    Ok(DispatchDecision::RunAgent { agent, args })
+    Ok(Transition::Next { agent, args })
 }
 
-/// Format a catalog of available agents and the dispatch output syntax.
+/// Format the transition protocol system prompt, including the agent catalog.
 ///
-/// This text is injected into the dispatch prompt so the dispatch agent knows
-/// what agents exist, what arguments they take, and how to format its output.
-pub fn format_agent_catalog(agents: &[AgentDef]) -> String {
+/// This text is injected into every agent session via `--append-system-prompt`.
+/// It teaches the agent the `<next>` tag syntax and lists all available agents.
+pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     let mut out = String::new();
+
+    out.push_str("# Transition Protocol\n\n");
+    out.push_str(
+        "When you finish your work, output a <next> tag containing YAML to declare\n\
+         what should happen next. This is how the orchestration system routes between\n\
+         agents.\n\n",
+    );
+
+    out.push_str("## Hand off to another agent\n\n");
+    out.push_str("<next>\nagent: <agent-name>\n<arg>: <value>\n</next>\n\n");
+
+    out.push_str("## Sleep (no actionable work)\n\n");
+    out.push_str("<next>\nsleep: true\n</next>\n\n");
 
     out.push_str("## Available Agents\n\n");
 
-    let non_dispatch: Vec<_> = agents.iter().filter(|a| a.name != "dispatch").collect();
-
-    if non_dispatch.is_empty() {
+    if agents.is_empty() {
         out.push_str("No agents configured.\n\n");
     } else {
-        for agent in &non_dispatch {
+        for agent in agents {
             let _ = writeln!(out, "### {}", agent.name);
             let _ = writeln!(out, "{}", agent.frontmatter.description);
 
@@ -104,29 +116,48 @@ pub fn format_agent_catalog(agents: &[AgentDef]) -> String {
         }
     }
 
-    out.push_str("## Dispatch Output Format\n\n");
-    out.push_str("Output your decision inside a `<dispatch>` tag. The content is YAML.\n\n");
+    out.push_str("## Examples\n\n");
 
-    // Generate an example for each non-dispatch agent
-    for agent in &non_dispatch {
-        let _ = write!(out, "```\n<dispatch>\nagent: {}\n", agent.name);
+    // Generate an example for each agent that has args
+    let agents_with_args: Vec<_> = agents
+        .iter()
+        .filter(|a| !a.frontmatter.args.is_empty())
+        .collect();
+    for agent in &agents_with_args {
+        let _ = write!(out, "<next>\nagent: {}\n", agent.name);
         for arg in &agent.frontmatter.args {
             let _ = writeln!(out, "{}: <{}>", arg.name, arg.description);
         }
-        out.push_str("</dispatch>\n```\n\n");
+        out.push_str("</next>\n\n");
     }
 
-    out.push_str("To sleep (no actionable work available):\n\n");
-    out.push_str("```\n<dispatch>\nsleep: true\n</dispatch>\n```\n");
+    // Example for an agent with no args (if any exist)
+    if let Some(agent) = agents.iter().find(|a| a.frontmatter.args.is_empty()) {
+        let _ = writeln!(out, "<next>\nagent: {}\n</next>\n", agent.name);
+    }
+
+    out.push_str("<next>\nsleep: true\n</next>\n");
 
     out
+}
+
+/// Build the corrective prompt for when a `<next>` tag is missing or malformed.
+pub fn corrective_prompt(parse_err: &anyhow::Error) -> String {
+    format!(
+        "Your previous output could not be parsed: {parse_err}\n\n\
+         Please output your decision inside a <next> tag containing YAML. \
+         For example:\n\n\
+         <next>\nagent: plan\nissue: issues/example.md\n</next>\n\n\
+         Or to sleep:\n\n\
+         <next>\nsleep: true\n</next>"
+    )
 }
 
 /// Extract content between `<tag>` and `</tag>`.
 fn extract_tag_content(text: &str, tag: &str) -> Result<String> {
     crate::protocol::parse::extract_tag_inner(text, tag)
         .map(|s| s.trim().to_string())
-        .with_context(|| format!("no <{tag}>...</{tag}> found in dispatch output"))
+        .with_context(|| format!("no <{tag}>...</{tag}> found in agent output"))
 }
 
 #[cfg(test)]
@@ -137,24 +168,24 @@ mod tests {
 
     #[test]
     fn parse_sleep() {
-        let text = "No actionable work right now.\n\n<dispatch>\nsleep: true\n</dispatch>";
-        let decision = parse_decision(text).unwrap();
-        assert_eq!(decision, DispatchDecision::Sleep);
+        let text = "No actionable work right now.\n\n<next>\nsleep: true\n</next>";
+        let transition = parse_transition(text).unwrap();
+        assert_eq!(transition, Transition::Sleep);
     }
 
     #[test]
     fn parse_agent_with_args() {
         let text = r"The scroll bug is highest priority.
 
-<dispatch>
+<next>
 agent: plan
 issue: issues/fix-scroll-bug.md
-</dispatch>";
+</next>";
 
-        let decision = parse_decision(text).unwrap();
+        let transition = parse_transition(text).unwrap();
         assert_eq!(
-            decision,
-            DispatchDecision::RunAgent {
+            transition,
+            Transition::Next {
                 agent: "plan".into(),
                 args: HashMap::from([("issue".into(), "issues/fix-scroll-bug.md".into())]),
             }
@@ -163,11 +194,11 @@ issue: issues/fix-scroll-bug.md
 
     #[test]
     fn parse_agent_no_args() {
-        let text = "Time for a routine audit.\n\n<dispatch>\nagent: audit\n</dispatch>";
-        let decision = parse_decision(text).unwrap();
+        let text = "Time for a routine audit.\n\n<next>\nagent: audit\n</next>";
+        let transition = parse_transition(text).unwrap();
         assert_eq!(
-            decision,
-            DispatchDecision::RunAgent {
+            transition,
+            Transition::Next {
                 agent: "audit".into(),
                 args: HashMap::new(),
             }
@@ -176,11 +207,11 @@ issue: issues/fix-scroll-bug.md
 
     #[test]
     fn parse_agent_multiple_args() {
-        let text = "<dispatch>\nagent: implement\nissue: issues/dark-mode.md\ncontext: depends on theme system\n</dispatch>";
-        let decision = parse_decision(text).unwrap();
+        let text = "<next>\nagent: implement\nissue: issues/dark-mode.md\ncontext: depends on theme system\n</next>";
+        let transition = parse_transition(text).unwrap();
         assert_eq!(
-            decision,
-            DispatchDecision::RunAgent {
+            transition,
+            Transition::Next {
                 agent: "implement".into(),
                 args: HashMap::from([
                     ("issue".into(), "issues/dark-mode.md".into()),
@@ -193,44 +224,44 @@ issue: issues/fix-scroll-bug.md
     #[test]
     fn parse_missing_tag() {
         let text = "I think we should work on the scroll bug.";
-        let err = parse_decision(text).unwrap_err();
+        let err = parse_transition(text).unwrap_err();
         assert!(
-            err.to_string().contains("<dispatch>"),
+            err.to_string().contains("<next>"),
             "unexpected error: {err}"
         );
     }
 
     #[test]
     fn parse_unclosed_tag() {
-        let text = "<dispatch>\nagent: plan\n";
-        let err = parse_decision(text).unwrap_err();
+        let text = "<next>\nagent: plan\n";
+        let err = parse_transition(text).unwrap_err();
         assert!(
-            err.to_string().contains("<dispatch>"),
+            err.to_string().contains("<next>"),
             "unexpected error: {err}"
         );
     }
 
     #[test]
     fn parse_invalid_yaml() {
-        let text = "<dispatch>\n: : : not yaml\n</dispatch>";
-        let err = parse_decision(text).unwrap_err();
+        let text = "<next>\n: : : not yaml\n</next>";
+        let err = parse_transition(text).unwrap_err();
         assert!(err.to_string().contains("parse"), "unexpected error: {err}");
     }
 
     #[test]
     fn parse_missing_agent_and_sleep() {
-        let text = "<dispatch>\npriority: high\n</dispatch>";
-        let err = parse_decision(text).unwrap_err();
+        let text = "<next>\npriority: high\n</next>";
+        let err = parse_transition(text).unwrap_err();
         assert!(err.to_string().contains("agent"), "unexpected error: {err}");
     }
 
     #[test]
     fn parse_surrounding_text_ignored() {
-        let text = "Lots of reasoning here.\n\nI considered the priorities and decided:\n\n<dispatch>\nagent: plan\nissue: issues/foo.md\n</dispatch>\n\nThis is the best choice because...";
-        let decision = parse_decision(text).unwrap();
+        let text = "Lots of reasoning here.\n\nI considered the priorities and decided:\n\n<next>\nagent: plan\nissue: issues/foo.md\n</next>\n\nThis is the best choice because...";
+        let transition = parse_transition(text).unwrap();
         assert_eq!(
-            decision,
-            DispatchDecision::RunAgent {
+            transition,
+            Transition::Next {
                 agent: "plan".into(),
                 args: HashMap::from([("issue".into(), "issues/foo.md".into())]),
             }
@@ -239,11 +270,11 @@ issue: issues/fix-scroll-bug.md
 
     #[test]
     fn parse_non_string_args_converted() {
-        let text = "<dispatch>\nagent: implement\nissue: issues/fix-bug.md\npriority: 1\nverbose: true\n</dispatch>";
-        let decision = parse_decision(text).unwrap();
+        let text = "<next>\nagent: implement\nissue: issues/fix-bug.md\npriority: 1\nverbose: true\n</next>";
+        let transition = parse_transition(text).unwrap();
         assert_eq!(
-            decision,
-            DispatchDecision::RunAgent {
+            transition,
+            Transition::Next {
                 agent: "implement".into(),
                 args: HashMap::from([
                     ("issue".into(), "issues/fix-bug.md".into()),
@@ -267,18 +298,19 @@ issue: issues/fix-scroll-bug.md
     }
 
     #[test]
-    fn catalog_excludes_dispatch() {
+    fn system_prompt_lists_all_agents() {
         let agents = vec![
-            make_agent("dispatch", "The dispatch agent", vec![]),
+            make_agent("dispatch", "Chooses the next task", vec![]),
             make_agent("plan", "Plans work", vec![]),
         ];
-        let catalog = format_agent_catalog(&agents);
-        assert!(!catalog.contains("### dispatch"));
-        assert!(catalog.contains("### plan"));
+        let prompt = format_transition_system_prompt(&agents);
+        // All agents listed (including dispatch)
+        assert!(prompt.contains("### dispatch"));
+        assert!(prompt.contains("### plan"));
     }
 
     #[test]
-    fn catalog_shows_args() {
+    fn system_prompt_shows_args() {
         let agents = vec![make_agent(
             "plan",
             "Plans work",
@@ -288,21 +320,21 @@ issue: issues/fix-scroll-bug.md
                 required: true,
             }],
         )];
-        let catalog = format_agent_catalog(&agents);
-        assert!(catalog.contains("`issue`"));
-        assert!(catalog.contains("(required)"));
-        assert!(catalog.contains("The issue file"));
+        let prompt = format_transition_system_prompt(&agents);
+        assert!(prompt.contains("`issue`"));
+        assert!(prompt.contains("(required)"));
+        assert!(prompt.contains("The issue file"));
     }
 
     #[test]
-    fn catalog_shows_no_args() {
+    fn system_prompt_shows_no_args() {
         let agents = vec![make_agent("audit", "Reviews code quality", vec![])];
-        let catalog = format_agent_catalog(&agents);
-        assert!(catalog.contains("No arguments."));
+        let prompt = format_transition_system_prompt(&agents);
+        assert!(prompt.contains("No arguments."));
     }
 
     #[test]
-    fn catalog_examples_per_agent() {
+    fn system_prompt_examples() {
         let agents = vec![
             make_agent(
                 "plan",
@@ -315,17 +347,24 @@ issue: issues/fix-scroll-bug.md
             ),
             make_agent("audit", "Reviews code", vec![]),
         ];
-        let catalog = format_agent_catalog(&agents);
-        // Should have dispatch examples for each agent
-        assert!(catalog.contains("agent: plan\nissue: <Path to issue>"));
-        assert!(catalog.contains("agent: audit"));
-        // And the sleep example
-        assert!(catalog.contains("sleep: true"));
+        let prompt = format_transition_system_prompt(&agents);
+        assert!(prompt.contains("agent: plan\nissue: <Path to issue>"));
+        assert!(prompt.contains("agent: audit"));
+        assert!(prompt.contains("sleep: true"));
     }
 
     #[test]
-    fn catalog_empty_agents() {
-        let catalog = format_agent_catalog(&[]);
-        assert!(catalog.contains("No agents configured."));
+    fn system_prompt_empty_agents() {
+        let prompt = format_transition_system_prompt(&[]);
+        assert!(prompt.contains("No agents configured."));
+    }
+
+    #[test]
+    fn system_prompt_contains_protocol() {
+        let agents = vec![make_agent("plan", "Plans work", vec![])];
+        let prompt = format_transition_system_prompt(&agents);
+        assert!(prompt.contains("# Transition Protocol"));
+        assert!(prompt.contains("<next>"));
+        assert!(prompt.contains("</next>"));
     }
 }

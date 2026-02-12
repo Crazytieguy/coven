@@ -2,6 +2,43 @@
 
 This project uses [coven](https://github.com/Crazytieguy/coven) for orchestrated development. Multiple workers run simultaneously, each picking up tasks from the issue queue.
 
+## Agent Loop
+
+Workers run a generic agent loop:
+
+1. Sync worktree to main
+2. Run entry agent (default: `dispatch`, configurable in `.coven/config.toml`)
+3. Parse `<next>` transition from agent output
+4. Handle transition:
+   - `agent: <name>` → run that agent, goto 3
+   - `sleep: true` → wait for new commits on main, goto 1
+
+Every agent outputs a `<next>` tag at the end of its session to declare what should happen next. Coven parses this universally and injects the transition protocol into every agent's system prompt.
+
+## Transition Protocol
+
+All agents end their session with a `<next>` tag containing YAML:
+
+```yaml
+# Hand off to another agent:
+<next>
+agent: implement
+issue: issues/fix-scroll-bug.md
+</next>
+
+# Sleep (wait for new commits on main):
+<next>
+sleep: true
+</next>
+```
+
+## Default Agents
+
+- **dispatch** — Chooses the next task. Routes issues to plan/implement agents, dirty worktrees to the land agent.
+- **plan** — Writes implementation plans for issues.
+- **implement** — Implements code changes for planned issues.
+- **land** — Audits changes and lands them on main via rebase + fast-forward merge.
+
 ## Issue Files
 
 Issues are markdown files with YAML frontmatter in `issues/` or `review/`.
@@ -62,5 +99,6 @@ issues/          Active issues (new, approved, changes-requested, needs-replan)
 review/          Plans awaiting human review
 .coven/
   agents/        Agent prompt templates
+  config.toml    Optional configuration (entry_agent)
   workflow.md    This file
 ```

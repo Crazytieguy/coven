@@ -6,13 +6,14 @@ use session::state::{SessionState, SessionStatus};
 
 pub mod agents;
 pub mod commands;
-pub mod dispatch;
+pub mod config;
 pub mod display;
 pub mod event;
 pub mod fork;
 pub mod protocol;
 pub mod semaphore;
 pub mod session;
+pub mod transition;
 pub mod vcr;
 pub mod worker_state;
 pub mod worktree;

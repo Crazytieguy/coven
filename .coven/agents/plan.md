@@ -18,6 +18,8 @@ You are the plan agent. Write an implementation plan for the issue at `{{issue}}
 6. Move the file from `issues/` to `review/`
 7. Commit with a message describing what you planned
 
+When you're done, hand off to the dispatch agent.
+
 ## Revising a Plan
 
 If the state is `changes-requested` or `needs-replan`, the issue already has a plan and feedback. Read the existing plan and any comments, revise accordingly, then move to `review/` with `state: review`.

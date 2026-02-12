@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::io::Write;
-use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use crossterm::event::{Event, KeyCode, KeyModifiers};
+use crossterm::event::Event;
 use notify::{RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 
 use crate::agents::{self, AgentDef};
-use crate::dispatch::{self, DispatchDecision};
+use crate::config;
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
 use crate::fork::{self, ForkConfig};
 use crate::semaphore;
 use crate::session::runner::SessionConfig;
 use crate::session::state::SessionState;
+use crate::transition::{self, Transition};
 use crate::vcr::{Io, IoEvent, VcrContext};
 use crate::worker_state;
 use crate::worktree::{self, SpawnOptions};
@@ -67,7 +67,7 @@ struct SemaphoreAcquireArgs {
     max_concurrency: u32,
 }
 
-/// Run a worker: spawn a worktree, loop dispatch → agent → land.
+/// Run a worker: spawn a worktree, loop through the generic agent loop.
 pub async fn worker<W: Write>(
     mut config: WorkerConfig,
     io: &mut Io,
@@ -186,99 +186,10 @@ pub async fn worker<W: Write>(
     result
 }
 
-/// Outcome of the dispatch phase.
-struct DispatchResult {
-    decision: DispatchDecision,
-    cost: f64,
-}
-
-/// Run the dispatch phase: run dispatch session, parse decision.
+/// Generic agent loop: entry agent → parse transition → next agent → ...
 ///
-/// Agent definitions must be pre-loaded by the caller (needed for semaphore
-/// acquisition before this function runs).
-async fn run_dispatch<W: Write>(
-    agent_defs: &[AgentDef],
-    worktree_path: &Path,
-    branch: &str,
-    extra_args: &[String],
-    worker_status: &str,
-    ctx: &mut PhaseContext<'_, W>,
-) -> Result<Option<DispatchResult>> {
-    ctx.renderer
-        .set_title(&format!("cv dispatch \u{2014} {branch}"));
-    ctx.renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
-
-    let dispatch_agent = agent_defs
-        .iter()
-        .find(|a| a.name == "dispatch")
-        .context("no dispatch.md agent definition found")?;
-
-    let catalog = dispatch::format_agent_catalog(agent_defs);
-    let dispatch_args = HashMap::from([
-        ("agent_catalog".to_string(), catalog),
-        ("worker_status".to_string(), worker_status.to_string()),
-    ]);
-
-    let dispatch_prompt = dispatch_agent.render(&dispatch_args)?;
-
-    // Run the dispatch session
-    let PhaseOutcome::Completed {
-        result_text,
-        cost,
-        session_id,
-    } = run_phase_session(&dispatch_prompt, worktree_path, extra_args, None, ctx).await?
-    else {
-        return Ok(None);
-    };
-
-    // Try to parse the decision
-    match dispatch::parse_decision(&result_text) {
-        Ok(decision) => Ok(Some(DispatchResult { decision, cost })),
-        Err(parse_err) => {
-            // If we have a session to resume, retry with a correction prompt
-            let Some(session_id) = session_id else {
-                return Err(parse_err).context("failed to parse dispatch decision");
-            };
-
-            ctx.renderer.write_raw(&format!(
-                "\r\nDispatch output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
-            ));
-
-            let retry_prompt = format!(
-                "Your previous output could not be parsed: {parse_err}\n\n\
-                 Please output your decision inside a <dispatch> tag containing YAML. \
-                 For example:\n\n\
-                 <dispatch>\nagent: plan\nissue: issues/example.md\n</dispatch>\n\n\
-                 Or to sleep:\n\n\
-                 <dispatch>\nsleep: true\n</dispatch>"
-            );
-
-            let PhaseOutcome::Completed {
-                result_text: retry_text,
-                cost: retry_cost,
-                ..
-            } = run_phase_session(
-                &retry_prompt,
-                worktree_path,
-                extra_args,
-                Some(&session_id),
-                ctx,
-            )
-            .await?
-            else {
-                return Ok(None);
-            };
-
-            let decision = dispatch::parse_decision(&retry_text)
-                .context("failed to parse dispatch decision after retry")?;
-            Ok(Some(DispatchResult {
-                decision,
-                cost: cost + retry_cost,
-            }))
-        }
-    }
-}
-
+/// Outer loop: sync to main, run entry agent.
+/// Inner loop: chain agents via `<next>` transitions.
 async fn worker_loop<W: Write>(
     config: &WorkerConfig,
     worktree_path: &Path,
@@ -286,9 +197,18 @@ async fn worker_loop<W: Write>(
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<()> {
+    let wt_str = worktree_path.display().to_string();
+
+    // Load project config (entry agent name)
+    let project_config: config::Config = ctx
+        .vcr
+        .call("config::load", wt_str.clone(), async |p: &String| {
+            config::load(Path::new(p))
+        })
+        .await?;
+
     loop {
-        // Sync worktree to latest main so dispatch sees current issue state
-        let wt_str = worktree_path.display().to_string();
+        // Sync worktree to latest main so the entry agent sees current state
         ctx.vcr
             .call_typed_err(
                 "worktree::sync_to_main",
@@ -298,57 +218,22 @@ async fn worker_loop<W: Write>(
             .await?
             .context("failed to sync worktree to main")?;
 
-        // Load agents and acquire dispatch semaphore
-        let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
-        let dispatch_def = agent_defs
-            .iter()
-            .find(|a| a.name == "dispatch")
-            .context("no dispatch.md agent definition found")?;
-        let dispatch_permit =
-            vcr_acquire_semaphore(ctx.vcr, &wt_str, "dispatch", dispatch_def).await?;
-
-        let all_workers = ctx
-            .vcr
-            .call(
-                "worker_state::read_all",
-                wt_str.clone(),
-                async |p: &String| worker_state::read_all(Path::new(p)),
-            )
-            .await?;
-        let worker_status = worker_state::format_status(&all_workers, branch);
-
-        let Some(dispatch) = run_dispatch(
-            &agent_defs,
+        let chain_result = run_agent_chain(
+            config,
             worktree_path,
             branch,
-            &config.extra_args,
-            &worker_status,
+            &project_config.entry_agent,
             ctx,
+            total_cost,
         )
-        .await?
-        else {
-            return Ok(());
-        };
+        .await?;
 
-        // Update worker state before releasing dispatch permit so the next dispatch sees it
-        let empty = HashMap::new();
-        let (agent_name, agent_args) = match &dispatch.decision {
-            DispatchDecision::Sleep => (None, &empty),
-            DispatchDecision::RunAgent { agent, args } => (Some(agent.as_str()), args),
-        };
-        vcr_update_worker_state(ctx.vcr, &wt_str, branch, agent_name, agent_args).await?;
-        drop(dispatch_permit);
-
-        *total_cost += dispatch.cost;
-        ctx.renderer
-            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-
-        match dispatch.decision {
-            DispatchDecision::Sleep => {
+        match chain_result {
+            ChainResult::Sleep => {
                 ctx.renderer
                     .set_title(&format!("cv sleeping \u{2014} {branch}"));
                 ctx.renderer
-                    .write_raw("\r\nDispatch: sleep — waiting for new commits...\r\n");
+                    .write_raw("\r\nTransition: sleep \u{2014} waiting for new commits...\r\n");
                 ctx.io.clear_event_channel();
                 let wait =
                     wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
@@ -356,649 +241,195 @@ async fn worker_loop<W: Write>(
                     return Ok(());
                 }
             }
-            DispatchDecision::RunAgent { agent, args } => {
-                let mut args_parts: Vec<_> = args.iter().map(|(k, v)| format!("{k}={v}")).collect();
-                args_parts.sort();
-                let args_display = args_parts.join(" ");
-                ctx.renderer
-                    .write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
+            ChainResult::Exited => return Ok(()),
+        }
+    }
+}
 
-                let agent_def = agent_defs
-                    .iter()
-                    .find(|a| a.name == agent)
-                    .with_context(|| format!("dispatch chose unknown agent: {agent}"))?;
+/// Result of running an agent chain.
+enum ChainResult {
+    /// Chain ended with a sleep transition — wait for new commits.
+    Sleep,
+    /// User exited.
+    Exited,
+}
 
-                // Acquire semaphore for the dispatched agent if it has max_concurrency
-                let _agent_permit =
-                    vcr_acquire_semaphore(ctx.vcr, &wt_str, &agent, agent_def).await?;
+/// Run a chain of agents starting from `entry_agent`, following `<next>` transitions.
+async fn run_agent_chain<W: Write>(
+    config: &WorkerConfig,
+    worktree_path: &Path,
+    branch: &str,
+    entry_agent: &str,
+    ctx: &mut PhaseContext<'_, W>,
+    total_cost: &mut f64,
+) -> Result<ChainResult> {
+    let wt_str = worktree_path.display().to_string();
+    let mut agent_name = entry_agent.to_string();
+    let mut agent_args: HashMap<String, String> = HashMap::new();
+    let mut is_entry = true;
 
-                let agent_prompt = agent_def.render(&args)?;
-                ctx.renderer
-                    .write_raw(&format!("\r\n=== Agent: {agent} ===\r\n\r\n"));
-                let title_suffix = if args_display.is_empty() {
-                    agent
-                } else {
-                    format!("{agent} {args_display}")
-                };
-                ctx.renderer
-                    .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
+    loop {
+        let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
 
-                let should_exit = run_agent(
-                    &agent_prompt,
-                    worktree_path,
-                    &config.extra_args,
-                    ctx,
-                    total_cost,
+        let agent_def = agent_defs
+            .iter()
+            .find(|a| a.name == agent_name)
+            .with_context(|| format!("unknown agent: {agent_name}"))?;
+
+        let _semaphore_permit =
+            vcr_acquire_semaphore(ctx.vcr, &wt_str, &agent_name, agent_def).await?;
+
+        // Auto-inject worker_status if the agent declares it
+        if is_entry
+            && agent_def
+                .frontmatter
+                .args
+                .iter()
+                .any(|a| a.name == "worker_status")
+        {
+            let all_workers = ctx
+                .vcr
+                .call(
+                    "worker_state::read_all",
+                    wt_str.clone(),
+                    async |p: &String| worker_state::read_all(Path::new(p)),
                 )
                 .await?;
-                if should_exit {
-                    return Ok(());
-                }
-
-                // Clear state so other dispatchers don't see stale agent info
-                vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;
-            }
+            let worker_status = worker_state::format_status(&all_workers, branch);
+            agent_args.insert("worker_status".to_string(), worker_status);
         }
-    }
-}
 
-/// Run the agent phase: execute the agent session, ensure commits, and land.
-/// Returns true if the worker should exit (user interrupted).
-async fn run_agent<W: Write>(
-    prompt: &str,
-    worktree_path: &Path,
-    extra_args: &[String],
-    ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
-) -> Result<bool> {
-    let agent_session_id =
-        match run_phase_session(prompt, worktree_path, extra_args, None, ctx).await? {
-            PhaseOutcome::Completed {
-                cost, session_id, ..
-            } => {
-                *total_cost += cost;
-                ctx.renderer
-                    .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-                session_id
-            }
-            PhaseOutcome::Exited => return Ok(true),
+        let agent_prompt = agent_def.render(&agent_args)?;
+
+        // Build system prompt: transition protocol + optional fork
+        let transition_prompt = transition::format_transition_system_prompt(&agent_defs);
+        let system_prompt = match ctx.fork_config {
+            Some(_) => format!("{transition_prompt}\n\n{}", fork::fork_system_prompt()),
+            None => transition_prompt,
         };
 
-    // === Phase 3: Land ===
-    // First ensure the agent produced commits. If not, resume once to ask.
-    let commit_result =
-        ensure_commits(worktree_path, agent_session_id, extra_args, ctx, total_cost).await?;
-
-    match commit_result {
-        CommitCheck::HasCommits { session_id } => {
-            // Clean untracked files (test artifacts, temp files) before checking
-            // for remaining dirty state. This runs after ensure_commits so that
-            // uncommitted new files aren't deleted before the agent can commit them.
-            warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
-
-            // Ensure the worktree is clean before landing. If dirty (e.g. unstaged
-            // deletions from `rm` without `git rm`), resume to ask for cleanup.
-            match ensure_clean(worktree_path, session_id, extra_args, ctx, total_cost).await? {
-                CleanCheck::Clean { session_id } => {
-                    let should_exit = land_or_resolve(
-                        worktree_path,
-                        session_id.as_deref(),
-                        extra_args,
-                        ctx,
-                        total_cost,
-                    )
-                    .await?;
-                    if should_exit {
-                        return Ok(true);
-                    }
-                }
-                CleanCheck::Dirty => {
-                    ctx.renderer
-                        .write_raw("Worktree still dirty after cleanup — resetting.\r\n");
-                    abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
-                }
-                CleanCheck::Exited => return Ok(true),
-            }
-        }
-        CommitCheck::NoCommits => {
-            ctx.renderer
-                .write_raw("Agent produced no commits — skipping land.\r\n");
-        }
-        CommitCheck::Exited => return Ok(true),
-    }
-
-    Ok(false)
-}
-
-enum CommitCheck {
-    /// Agent has commits ready to land, with the session ID to use for conflict resolution.
-    HasCommits { session_id: Option<String> },
-    /// Agent produced no commits even after being asked.
-    NoCommits,
-    /// User exited during the commit prompt.
-    Exited,
-}
-
-/// Check if the agent produced commits. If not, resume once to ask it to commit.
-async fn ensure_commits<W: Write>(
-    worktree_path: &Path,
-    agent_session_id: Option<String>,
-    extra_args: &[String],
-    ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
-) -> Result<CommitCheck> {
-    let wt_str = worktree_path.display().to_string();
-    if vcr_has_unique_commits(ctx.vcr, wt_str.clone()).await?? {
-        return Ok(CommitCheck::HasCommits {
-            session_id: agent_session_id,
-        });
-    }
-
-    let Some(sid) = agent_session_id.as_deref() else {
+        // Display agent header
+        let args_display = format_args_display(&agent_args);
         ctx.renderer
-            .write_raw("Agent produced no commits and no session to resume.\r\n");
-        return Ok(CommitCheck::NoCommits);
-    };
-
-    ctx.renderer
-        .write_raw("Agent produced no commits — resuming session to ask for a commit.\r\n\r\n");
-
-    match run_phase_session(
-        "You finished without committing anything. \
-         If you have changes worth keeping, please commit them now. \
-         If there's nothing to commit, just confirm that.",
-        worktree_path,
-        extra_args,
-        Some(sid),
-        ctx,
-    )
-    .await?
-    {
-        PhaseOutcome::Completed {
-            cost, session_id, ..
-        } => {
-            *total_cost += cost;
-            ctx.renderer
-                .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-
-            if vcr_has_unique_commits(ctx.vcr, wt_str).await?? {
-                Ok(CommitCheck::HasCommits { session_id })
-            } else {
-                Ok(CommitCheck::NoCommits)
-            }
-        }
-        PhaseOutcome::Exited => Ok(CommitCheck::Exited),
-    }
-}
-
-enum CleanCheck {
-    /// Worktree is clean, ready to land.
-    Clean { session_id: Option<String> },
-    /// Worktree still dirty after max cleanup attempts.
-    Dirty,
-    /// User exited during cleanup.
-    Exited,
-}
-
-/// Maximum cleanup attempts before giving up.
-const MAX_CLEANUP_ATTEMPTS: u32 = 2;
-
-/// Check if the worktree is clean. If dirty, resume the agent session to ask
-/// it to commit or discard remaining changes. Limited retries.
-async fn ensure_clean<W: Write>(
-    worktree_path: &Path,
-    session_id: Option<String>,
-    extra_args: &[String],
-    ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
-) -> Result<CleanCheck> {
-    let wt_str = worktree_path.display().to_string();
-
-    let state = vcr_dirty_state(ctx.vcr, wt_str.clone()).await??;
-    if matches!(state, worktree::DirtyState::Clean) {
-        return Ok(CleanCheck::Clean { session_id });
-    }
-
-    let Some(sid) = session_id.as_deref() else {
+            .write_raw(&format!("\r\n=== Agent: {agent_name} ===\r\n\r\n"));
+        let title_suffix = if args_display.is_empty() {
+            agent_name.clone()
+        } else {
+            format!("{agent_name} {args_display}")
+        };
         ctx.renderer
-            .write_raw("Worktree is dirty but no session to resume.\r\n");
-        return Ok(CleanCheck::Dirty);
-    };
+            .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
 
-    let prompt = match state {
-        worktree::DirtyState::UncommittedChanges => {
-            "You left uncommitted changes in the worktree (unstaged or staged modifications). \
-             Please commit them or revert with `git checkout -- .`."
-        }
-        worktree::DirtyState::UntrackedFiles => {
-            "You left untracked files in the worktree. \
-             Please commit them or remove them."
-        }
-        worktree::DirtyState::Clean => unreachable!(),
-    };
-
-    let mut current_sid = sid.to_string();
-    for attempt in 1..=MAX_CLEANUP_ATTEMPTS {
-        ctx.renderer.write_raw(&format!(
-            "Worktree is dirty — resuming session to clean up \
-             (attempt {attempt}/{MAX_CLEANUP_ATTEMPTS}).\r\n\r\n"
-        ));
-
-        match run_phase_session(prompt, worktree_path, extra_args, Some(&current_sid), ctx).await? {
-            PhaseOutcome::Completed {
-                cost, session_id, ..
-            } => {
-                *total_cost += cost;
-                ctx.renderer
-                    .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-                warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
-
-                let state = vcr_dirty_state(ctx.vcr, wt_str.clone()).await??;
-                if matches!(state, worktree::DirtyState::Clean) {
-                    return Ok(CleanCheck::Clean { session_id });
-                }
-                if let Some(sid) = session_id {
-                    current_sid = sid;
-                }
-            }
-            PhaseOutcome::Exited => return Ok(CleanCheck::Exited),
-        }
-    }
-
-    Ok(CleanCheck::Dirty)
-}
-
-/// Maximum land attempts (shared across ff-retry and conflict resolution)
-/// before pausing for user input.
-const MAX_LAND_ATTEMPTS: u32 = 5;
-
-/// Result of a single `worktree::land` call, flattened for easy matching.
-enum LandAttempt {
-    Landed { branch: String, main_branch: String },
-    Conflict(Vec<String>),
-    FastForwardRace,
-    OtherError(anyhow::Error),
-}
-
-/// Call `worktree::land` via VCR and map the result into a flat enum.
-async fn try_land(vcr: &VcrContext, wt_str: String) -> Result<LandAttempt> {
-    match vcr
-        .call_typed_err("worktree::land", wt_str, async |p: &String| {
-            worktree::land(Path::new(p))
-        })
+        // Run the agent session
+        let PhaseOutcome::Completed {
+            result_text,
+            cost,
+            session_id,
+        } = run_phase_session(
+            &agent_prompt,
+            worktree_path,
+            &config.extra_args,
+            None,
+            Some(&system_prompt),
+            ctx,
+        )
         .await?
-    {
-        Ok(result) => Ok(LandAttempt::Landed {
-            branch: result.branch,
-            main_branch: result.main_branch,
-        }),
-        Err(worktree::WorktreeError::RebaseConflict(files)) => Ok(LandAttempt::Conflict(files)),
-        Err(worktree::WorktreeError::FastForwardFailed) => Ok(LandAttempt::FastForwardRace),
-        Err(e) => Ok(LandAttempt::OtherError(e.into())),
-    }
-}
+        else {
+            return Ok(ChainResult::Exited);
+        };
 
-/// Handle a fast-forward race: bump attempts, pause if too many.
-/// Returns `Break(true)` to exit, `Continue(())` to retry.
-async fn handle_ff_retry<W: Write>(
-    attempts: &mut u32,
-    ctx: &mut PhaseContext<'_, W>,
-) -> Result<ControlFlow<bool>> {
-    *attempts += 1;
-    if *attempts > MAX_LAND_ATTEMPTS {
-        ctx.renderer.write_raw(&format!(
-            "Fast-forward failed after {MAX_LAND_ATTEMPTS} attempts \
-             — pausing worker. Press Enter to retry.\r\n\x07",
-        ));
-        if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
-            return Ok(ControlFlow::Break(true));
-        }
-        *attempts = 0;
-    } else {
+        vcr_update_worker_state(ctx.vcr, &wt_str, branch, Some(&agent_name), &agent_args).await?;
+
+        *total_cost += cost;
         ctx.renderer
-            .write_raw("Main advanced during land — retrying...\r\n");
+            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+
+        // Parse transition from agent output (with retry on failure)
+        let Some(parsed_transition) = parse_transition_with_retry(
+            &result_text,
+            session_id.as_deref(),
+            worktree_path,
+            &config.extra_args,
+            Some(&system_prompt),
+            ctx,
+            total_cost,
+        )
+        .await?
+        else {
+            return Ok(ChainResult::Exited);
+        };
+
+        match parsed_transition {
+            Transition::Next { agent, args } => {
+                let args_display = format_args_display(&args);
+                ctx.renderer
+                    .write_raw(&format!("\r\nTransition: {agent} {args_display}\r\n"));
+                agent_name = agent;
+                agent_args = args;
+                is_entry = false;
+            }
+            Transition::Sleep => {
+                vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;
+                return Ok(ChainResult::Sleep);
+            }
+        }
     }
-    Ok(ControlFlow::Continue(()))
 }
 
-/// Handle a non-conflict, non-ff error: abort rebase and pause for user.
-/// No attempts counter — user manually presses Enter each time,
-/// so they can inspect the worktree and fix the issue before retrying.
-/// Returns `Break(true)` to exit, `Continue(())` to retry.
-async fn handle_land_error<W: Write>(
-    err: anyhow::Error,
-    wt_str: &str,
-    ctx: &mut PhaseContext<'_, W>,
-) -> Result<ControlFlow<bool>> {
-    let _ = vcr_abort_rebase(ctx.vcr, wt_str.to_string()).await?;
-    ctx.renderer.write_raw(&format!(
-        "Land failed: {err} — pausing worker. Press Enter to retry.\r\n\x07",
-    ));
-    if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
-        return Ok(ControlFlow::Break(true));
-    }
-    Ok(ControlFlow::Continue(()))
+/// Format args as a sorted display string.
+fn format_args_display(args: &HashMap<String, String>) -> String {
+    let mut parts: Vec<_> = args.iter().map(|(k, v)| format!("{k}={v}")).collect();
+    parts.sort();
+    parts.join(" ")
 }
 
-/// Handle a rebase conflict: bump attempts, resolve via agent session.
-/// Returns `Break(true)` to exit, `Continue(())` to retry landing.
-async fn handle_conflict<W: Write>(
-    conflict_files: Vec<String>,
-    attempts: &mut u32,
-    resume_session_id: &mut Option<String>,
-    worktree_path: &Path,
-    extra_args: &[String],
-    ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
-) -> Result<ControlFlow<bool>> {
-    let wt_str = worktree_path.display().to_string();
-    *attempts += 1;
-
-    if *attempts > MAX_LAND_ATTEMPTS {
-        vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
-        ctx.renderer.write_raw(&format!(
-            "Conflict resolution failed after {MAX_LAND_ATTEMPTS} attempts \
-             — pausing worker. Press Enter to retry.\r\n\x07",
-        ));
-        if wait_for_enter_or_exit(ctx.io, ctx.vcr).await? {
-            return Ok(ControlFlow::Break(true));
-        }
-        *attempts = 0;
-        return Ok(ControlFlow::Continue(()));
-    }
-
-    let files_display = conflict_files.join(", ");
-
-    let Some(sid) = resume_session_id.as_deref() else {
-        vcr_abort_rebase(ctx.vcr, wt_str.clone()).await??;
-        bail!(
-            "Rebase conflict in {files_display} but no session ID available \
-             — this should be impossible"
-        );
-    };
-
-    ctx.renderer.write_raw(&format!(
-        "Rebase conflict in: {files_display} — resuming session to resolve.\r\n"
-    ));
-    ctx.renderer
-        .write_raw("\r\n=== Conflict Resolution ===\r\n\r\n");
-
-    let prompt = format!(
-        "The rebase onto main hit conflicts in: {files_display}\n\n\
-         Resolve the conflicts in those files, stage them with `git add`, \
-         and run `git rebase --continue`. If more conflicts appear after \
-         continuing, resolve those too until the rebase completes."
-    );
-
-    match resolve_conflict(&prompt, worktree_path, sid, extra_args, ctx).await? {
-        ResolveOutcome::Resolved { session_id, cost } => {
-            *total_cost += cost;
-            ctx.renderer
-                .write_raw("Conflict resolution complete, retrying land...\r\n");
-            *resume_session_id = session_id;
-        }
-        ResolveOutcome::Incomplete { session_id, cost } => {
-            *total_cost += cost;
-            ctx.renderer.write_raw("Retrying land...\r\n");
-            *resume_session_id = session_id;
-        }
-        ResolveOutcome::Exited => return Ok(ControlFlow::Break(true)),
-    }
-    Ok(ControlFlow::Continue(()))
-}
-
-/// Attempt to land and, on rebase conflict, resume the agent session to resolve.
-///
-/// After successful conflict resolution, retries the full land (rebase + ff-merge)
-/// rather than just ff-merge. This handles the case where another worker landed
-/// while conflict resolution was in progress, which would cause a bare ff-merge
-/// to fail and silently lose the resolved work.
-///
-/// Returns true if the worker should exit (user interrupted during resolution).
-async fn land_or_resolve<W: Write>(
-    worktree_path: &Path,
+/// Parse transition from agent output, retrying once if parsing fails.
+async fn parse_transition_with_retry<W: Write>(
+    result_text: &str,
     session_id: Option<&str>,
+    worktree_path: &Path,
     extra_args: &[String],
+    system_prompt: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
-) -> Result<bool> {
-    ctx.renderer.write_raw("\r\n=== Landing ===\r\n");
+) -> Result<Option<Transition>> {
+    match transition::parse_transition(result_text) {
+        Ok(t) => Ok(Some(t)),
+        Err(parse_err) => {
+            let Some(sid) = session_id else {
+                return Err(parse_err).context("failed to parse transition");
+            };
 
-    // Track the session to resume for conflict resolution. Starts as the
-    // agent's session, then updated to the resolution session's ID so
-    // subsequent rounds of conflicts can be resolved in-context.
-    let mut resume_session_id = session_id.map(String::from);
-    let mut attempts: u32 = 0;
-    let wt_str = worktree_path.display().to_string();
+            ctx.renderer.write_raw(&format!(
+                "\r\nTransition output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
+            ));
 
-    loop {
-        match try_land(ctx.vcr, wt_str.clone()).await? {
-            LandAttempt::Landed {
-                branch,
-                main_branch,
-            } => {
-                ctx.renderer
-                    .write_raw(&format!("Landed {branch} onto {main_branch}\r\n"));
-                return Ok(false);
-            }
-            LandAttempt::FastForwardRace => {
-                if let ControlFlow::Break(exit) = handle_ff_retry(&mut attempts, ctx).await? {
-                    return Ok(exit);
-                }
-            }
-            LandAttempt::OtherError(err) => {
-                if let ControlFlow::Break(exit) = handle_land_error(err, &wt_str, ctx).await? {
-                    return Ok(exit);
-                }
-            }
-            LandAttempt::Conflict(files) => {
-                if let ControlFlow::Break(exit) = handle_conflict(
-                    files,
-                    &mut attempts,
-                    &mut resume_session_id,
-                    worktree_path,
-                    extra_args,
-                    ctx,
-                    total_cost,
-                )
-                .await?
-                {
-                    return Ok(exit);
-                }
-            }
+            let retry_prompt = transition::corrective_prompt(&parse_err);
+
+            let PhaseOutcome::Completed {
+                result_text: retry_text,
+                cost: retry_cost,
+                ..
+            } = run_phase_session(
+                &retry_prompt,
+                worktree_path,
+                extra_args,
+                Some(sid),
+                system_prompt,
+                ctx,
+            )
+            .await?
+            else {
+                return Ok(None);
+            };
+
+            *total_cost += retry_cost;
+
+            let t = transition::parse_transition(&retry_text)
+                .context("failed to parse transition after retry")?;
+            Ok(Some(t))
         }
     }
-}
-
-enum ResolveOutcome {
-    /// Conflict resolved (possibly after nudge), retry land with this session ID.
-    Resolved {
-        session_id: Option<String>,
-        cost: f64,
-    },
-    /// Rebase still incomplete after nudge — rebase aborted, retry loop continues.
-    Incomplete {
-        session_id: Option<String>,
-        cost: f64,
-    },
-    /// User exited — cleanup already done.
-    Exited,
-}
-
-/// Run a conflict resolution session, nudging once if the rebase remains incomplete.
-async fn resolve_conflict<W: Write>(
-    prompt: &str,
-    worktree_path: &Path,
-    sid: &str,
-    extra_args: &[String],
-    ctx: &mut PhaseContext<'_, W>,
-) -> Result<ResolveOutcome> {
-    let wt_str = worktree_path.display().to_string();
-
-    let PhaseOutcome::Completed {
-        cost, session_id, ..
-    } = run_phase_session(prompt, worktree_path, extra_args, Some(sid), ctx).await?
-    else {
-        abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
-        return Ok(ResolveOutcome::Exited);
-    };
-
-    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
-
-    let is_rebasing = vcr_is_rebase_in_progress(ctx.vcr, wt_str.clone())
-        .await?
-        .unwrap_or(false);
-    if !is_rebasing {
-        if session_id.as_deref() != Some(sid) {
-            ctx.renderer.write_raw(
-                "Warning: resolution session returned a different session ID than expected.\r\n",
-            );
-        }
-        return Ok(ResolveOutcome::Resolved { session_id, cost });
-    }
-
-    // Nudge Claude to complete the rebase
-    ctx.renderer
-        .write_raw("Rebase still in progress — nudging session to complete it.\r\n\r\n");
-    let nudge_sid = session_id.as_deref().unwrap_or(sid);
-
-    let PhaseOutcome::Completed {
-        cost: nudge_cost,
-        session_id: nudge_session_id,
-        ..
-    } = run_phase_session(
-        "The rebase is still in progress — please run `git rebase --continue` to complete it.",
-        worktree_path,
-        extra_args,
-        Some(nudge_sid),
-        ctx,
-    )
-    .await?
-    else {
-        abort_and_reset(worktree_path, ctx.renderer, ctx.vcr).await?;
-        return Ok(ResolveOutcome::Exited);
-    };
-
-    let total_cost = cost + nudge_cost;
-    warn_clean(worktree_path, ctx.renderer, ctx.vcr).await?;
-
-    let is_rebasing = vcr_is_rebase_in_progress(ctx.vcr, wt_str.clone())
-        .await?
-        .unwrap_or(false);
-    if is_rebasing {
-        ctx.renderer
-            .write_raw("Rebase still in progress after nudge — aborting this attempt.\r\n");
-        vcr_abort_rebase(ctx.vcr, wt_str).await??;
-        return Ok(ResolveOutcome::Incomplete {
-            session_id: nudge_session_id,
-            cost: total_cost,
-        });
-    }
-
-    Ok(ResolveOutcome::Resolved {
-        session_id: nudge_session_id,
-        cost: total_cost,
-    })
-}
-
-/// Wait for Enter (returns false) or Ctrl-C/Ctrl-D/stream end (returns true = should exit).
-async fn wait_for_enter_or_exit(io: &mut Io, vcr: &VcrContext) -> Result<bool> {
-    loop {
-        let io_event: IoEvent = vcr
-            .call("next_event", (), async |(): &()| io.next_event().await)
-            .await?;
-        if let IoEvent::Terminal(Event::Key(key_event)) = io_event {
-            match key_event.code {
-                KeyCode::Enter => return Ok(false),
-                KeyCode::Char('c' | 'd') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    return Ok(true);
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-/// Abort any in-progress rebase, reset to main, and clean the worktree.
-async fn abort_and_reset<W: Write>(
-    worktree_path: &Path,
-    renderer: &mut Renderer<W>,
-    vcr: &VcrContext,
-) -> Result<()> {
-    let wt_str = worktree_path.display().to_string();
-    let _ = vcr_abort_rebase(vcr, wt_str.clone()).await?;
-    vcr.call_typed_err("worktree::reset_to_main", wt_str, async |p: &String| {
-        worktree::reset_to_main(Path::new(p))
-    })
-    .await??;
-    warn_clean(worktree_path, renderer, vcr).await?;
-    Ok(())
-}
-
-/// Run `git clean -fd` and warn (but don't fail) if it errors.
-async fn warn_clean<W: Write>(
-    worktree_path: &Path,
-    renderer: &mut Renderer<W>,
-    vcr: &VcrContext,
-) -> Result<()> {
-    let wt_str = worktree_path.display().to_string();
-    if let Err(e) = vcr
-        .call_typed_err("worktree::clean", wt_str, async |p: &String| {
-            worktree::clean(Path::new(p))
-        })
-        .await?
-    {
-        renderer.write_raw(&format!("Warning: worktree clean failed: {e}\r\n"));
-    }
-    Ok(())
-}
-
-/// VCR-wrapped `worktree::abort_rebase`.
-async fn vcr_abort_rebase(
-    vcr: &VcrContext,
-    wt_str: String,
-) -> Result<Result<(), worktree::WorktreeError>> {
-    vcr.call_typed_err("worktree::abort_rebase", wt_str, async |p: &String| {
-        worktree::abort_rebase(Path::new(p))
-    })
-    .await
-}
-
-/// VCR-wrapped `worktree::has_unique_commits`.
-async fn vcr_has_unique_commits(
-    vcr: &VcrContext,
-    wt_str: String,
-) -> Result<Result<bool, worktree::WorktreeError>> {
-    vcr.call_typed_err(
-        "worktree::has_unique_commits",
-        wt_str,
-        async |p: &String| worktree::has_unique_commits(Path::new(p)),
-    )
-    .await
-}
-
-/// VCR-wrapped `worktree::dirty_state`.
-async fn vcr_dirty_state(
-    vcr: &VcrContext,
-    wt_str: String,
-) -> Result<Result<worktree::DirtyState, worktree::WorktreeError>> {
-    vcr.call_typed_err("worktree::dirty_state", wt_str, async |p: &String| {
-        worktree::dirty_state(Path::new(p))
-    })
-    .await
-}
-
-/// VCR-wrapped `worktree::is_rebase_in_progress`.
-async fn vcr_is_rebase_in_progress(
-    vcr: &VcrContext,
-    wt_str: String,
-) -> Result<Result<bool, worktree::WorktreeError>> {
-    vcr.call_typed_err(
-        "worktree::is_rebase_in_progress",
-        wt_str,
-        async |p: &String| worktree::is_rebase_in_progress(Path::new(p)),
-    )
-    .await
 }
 
 /// VCR-wrapped `main_head_sha`.
@@ -1091,20 +522,22 @@ enum PhaseOutcome {
     Exited,
 }
 
-/// Run an interactive claude session for a worker phase (dispatch or agent).
+/// Run an interactive claude session for a worker phase.
 ///
 /// If `resume` is provided, the session is resumed from the given session ID
-/// rather than starting fresh. Used for conflict resolution.
+/// rather than starting fresh. `system_prompt` is set via `--append-system-prompt`.
 async fn run_phase_session<W: Write>(
     prompt: &str,
     working_dir: &Path,
     extra_args: &[String],
     resume: Option<&str>,
+    system_prompt: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<PhaseOutcome> {
-    let append_system_prompt = ctx
-        .fork_config
-        .map(|_| fork::fork_system_prompt().to_string());
+    let append_system_prompt = system_prompt.map(String::from).or_else(|| {
+        ctx.fork_config
+            .map(|_| fork::fork_system_prompt().to_string())
+    });
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
         extra_args: extra_args.to_vec(),

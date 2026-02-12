@@ -11,6 +11,7 @@ use crate::vcr::VcrContext;
 const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
 const PLAN_PROMPT: &str = include_str!("../../.coven/agents/plan.md");
 const IMPLEMENT_PROMPT: &str = include_str!("../../.coven/agents/implement.md");
+const LAND_PROMPT: &str = include_str!("../../.coven/agents/land.md");
 const WORKFLOW_DOC: &str = include_str!("../../.coven/workflow.md");
 
 struct TemplateFile {
@@ -30,6 +31,10 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
     TemplateFile {
         path: "implement.md",
         content: IMPLEMENT_PROMPT,
+    },
+    TemplateFile {
+        path: "land.md",
+        content: LAND_PROMPT,
     },
 ];
 

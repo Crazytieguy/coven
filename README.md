@@ -48,7 +48,7 @@ Loop Claude with fresh sessions — filesystem state persists between iterations
 
 ### `coven worker`
 
-Orchestration worker: dispatch → agent → land loop. Creates a git worktree, picks issues, runs agents, and lands changes.
+Orchestration worker: generic agent loop. Creates a git worktree, runs agents that chain via `<next>` transitions, and sleeps when idle.
 
 | Flag | Description |
 |------|-------------|
@@ -77,7 +77,7 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 ## Orchestration
 
-`coven init` + `coven worker` enable multi-agent orchestration: workers pick issues, run agent prompts, and land changes on branches. `coven init` generates a `.coven/workflow.md` with full details.
+`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: an entry agent (default: dispatch) picks work, then agents chain via `<next>` transitions. Agents handle all domain logic including git operations and landing. `coven init` generates a `.coven/workflow.md` with full details.
 
 ## Testing
 

@@ -2,9 +2,6 @@
 description: "Chooses the next task for a worker"
 max_concurrency: 1
 args:
-  - name: agent_catalog
-    description: "Available agents and dispatch syntax"
-    required: true
   - name: worker_status
     description: "What other workers are currently doing"
     required: true
@@ -26,6 +23,11 @@ Run `head -7 issues/*.md review/*.md 2>/dev/null || true` to see the state, prio
 | `approved` | `implement` agent |
 | `review` | Do not assign |
 
+### Worktree State
+
+- If the worktree is ahead of main (has commits not on main), hand off to the land agent.
+- If the worktree is dirty (e.g. after a crash), hand off to the land agent.
+
 ### Dispatch Preferences
 
 - Prefer planning new issues over implementing approved ones at the same priority.
@@ -38,8 +40,6 @@ Run `head -7 issues/*.md review/*.md 2>/dev/null || true` to see the state, prio
 
 {{worker_status}}
 
-{{agent_catalog}}
-
 ## Instructions
 
-Briefly explain your reasoning (visible to the human), then output your decision.
+Briefly explain your reasoning, then transition to the appropriate agent.

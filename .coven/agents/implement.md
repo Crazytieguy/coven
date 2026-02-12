@@ -19,6 +19,7 @@ You are the implement agent. Implement the plan in the issue at `{{issue}}`.
 
 - Delete the issue file
 - Commit all changes with a descriptive message
+- Hand off to the land agent
 
 ## On Failure
 
@@ -27,6 +28,7 @@ If you can't complete the implementation (plan is wrong, unexpected blocker, cha
 - Update the issue frontmatter: set `state: needs-replan`
 - Add a `## Implementation Notes` section explaining what went wrong
 - Commit the updated issue file (don't commit broken code)
+- Hand off to the dispatch agent
 
 ## Noticing Other Issues
 
