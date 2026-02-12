@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved with comments
 ---
 
 # Audit template files and system prompts for redundancy and consistency
@@ -23,11 +23,17 @@ Audited all 4 agent templates (`.coven/agents/*.md`), `workflow.md`, and the Rus
 
 3. `workflow.md` "Transition Protocol" section overlaps with the auto-injected system prompt from `transition.rs`. Agents in worker sessions see both. However, workflow.md also serves as human documentation and is referenced by interactive sessions via CLAUDE.md — keeping it is correct.
 
-4. `workflow.md` "Default Agents" section repeats agent frontmatter descriptions. Serves as human-readable overview — keeping it is correct.
+Review comment: no it's not, it should be removed
+
+1. `workflow.md` "Default Agents" section repeats agent frontmatter descriptions. Serves as human-readable overview — keeping it is correct.
+
+Review comment: no. Anything that is duplicated with the agent definitions or system prompt injections should be removed. Not meant for human overview. If anything suggests that workflow.md is meant for humans, that should be removed as well.
 
 **Missing guidance:**
 
-5. **Only implement.md has "Noticing Other Issues"**: Plan and land agents also explore code and could encounter unrelated bugs or tech debt, but lack guidance to record them.
+1. **Only implement.md has "Noticing Other Issues"**: Plan and land agents also explore code and could encounter unrelated bugs or tech debt, but lack guidance to record them.
+
+Review comment: good catch, should be moved to workflow.md
 
 ### Changes
 
