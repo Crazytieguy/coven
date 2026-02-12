@@ -266,7 +266,6 @@ async fn run_agent_chain<W: Write>(
     let wt_str = worktree_path.display().to_string();
     let mut agent_name = entry_agent.to_string();
     let mut agent_args: HashMap<String, String> = HashMap::new();
-    let mut is_entry = true;
 
     loop {
         let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
@@ -281,26 +280,6 @@ async fn run_agent_chain<W: Write>(
 
         vcr_update_worker_state(ctx.vcr, &wt_str, branch, Some(&agent_name), &agent_args).await?;
 
-        // Auto-inject worker_status if the agent declares it
-        if is_entry
-            && agent_def
-                .frontmatter
-                .args
-                .iter()
-                .any(|a| a.name == "worker_status")
-        {
-            let all_workers = ctx
-                .vcr
-                .call(
-                    "worker_state::read_all",
-                    wt_str.clone(),
-                    async |p: &String| worker_state::read_all(Path::new(p)),
-                )
-                .await?;
-            let worker_status = worker_state::format_status(&all_workers, branch);
-            agent_args.insert("worker_status".to_string(), worker_status);
-        }
-
         let agent_prompt = agent_def.render(&agent_args)?;
 
         // Merge per-agent claude_args with worker-level extra_args.
@@ -308,11 +287,31 @@ async fn run_agent_chain<W: Write>(
         let mut merged_args = agent_def.frontmatter.claude_args.clone();
         merged_args.extend(config.extra_args.iter().cloned());
 
-        // Build system prompt: transition protocol + optional fork
+        // Build system prompt: transition protocol + worker status + optional fork
         let transition_prompt = transition::format_transition_system_prompt(&agent_defs);
+        let all_workers = ctx
+            .vcr
+            .call(
+                "worker_state::read_all",
+                wt_str.clone(),
+                async |p: &String| worker_state::read_all(Path::new(p)),
+            )
+            .await?;
+        let others: Vec<_> = all_workers.iter().filter(|s| s.branch != branch).collect();
+        let worker_status_section = if others.is_empty() {
+            "\n\nNo other workers active.".to_string()
+        } else {
+            format!(
+                "\n\n## Worker Status\n\n{}",
+                worker_state::format_workers(&others, worker_state::StatusStyle::Dispatch)
+            )
+        };
         let system_prompt = match ctx.fork_config {
-            Some(_) => format!("{transition_prompt}\n\n{}", fork::fork_system_prompt()),
-            None => transition_prompt,
+            Some(_) => format!(
+                "{transition_prompt}{worker_status_section}\n\n{}",
+                fork::fork_system_prompt()
+            ),
+            None => format!("{transition_prompt}{worker_status_section}"),
         };
 
         // Display agent header
@@ -371,7 +370,6 @@ async fn run_agent_chain<W: Write>(
                     .write_raw(&format!("\r\nTransition: {agent} {args_display}\r\n"));
                 agent_name = agent;
                 agent_args = args;
-                is_entry = false;
             }
             Transition::Sleep => {
                 vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;

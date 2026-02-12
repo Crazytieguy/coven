@@ -3,18 +3,28 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 94fe7900-110b-4702-9f1b-35a93e74aa5f (claude-haiku-4-5-20251001)
+Session d6cea6a6-3ded-466a-92c0-38b210707589 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[3] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[4] Thinking...
-Done! I've created both files in parallel:
-- **hello.txt** with content "hello world"
-- **goodbye.txt** with content "goodbye world"
+I'll use fork to delegate these two file creation tasks in parallel:
 
-Both files have been successfully created in the working directory.
+<fork>
+- Create hello.txt with 'hello world'
+- Create goodbye.txt with 'goodbye world'
+</fork>
+
+[2] ⑂ Fork  Create hello.txt with 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+[5] Thinking...
+Perfect! Both files have been created successfully:
+- **hello.txt** contains 'hello world'
+- **goodbye.txt** contains 'goodbye world'
+
+The fork delegated both tasks in parallel, and they completed without any issues.
 
 
-Done  $0.01 · 6.6s · 3 turns  (:N to view)
+Done  $0.03 · 1.6s · 1 turn  (:N to view)
 >

@@ -1,10 +1,6 @@
 ---
 description: "Chooses the next task for a worker"
 max_concurrency: 1
-args:
-  - name: worker_status
-    description: "What other workers are currently doing"
-    required: true
 claude_args:
   - "--allowedTools"
   - "Bash(head *)"
@@ -38,10 +34,6 @@ Run `head -7 issues/*.md review/*.md 2>/dev/null || true` to see the state, prio
 - Don't assign work another worker is already doing.
 - If nothing is plannable or implementable, sleep.
 - Consider codebase locality — avoid conflicts with other workers.
-
-## Current Worker Status
-
-{{worker_status}}
 
 ## Instructions
 

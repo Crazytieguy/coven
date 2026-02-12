@@ -3,24 +3,33 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 841826a2-b57d-4db3-a0ae-6a783540414d (claude-haiku-4-5-20251001)
+Session 770005ac-ba87-4d6b-8b02-d7d6f1b22960 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-> x> > x[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[3] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[4] Thinking...
-Done! I've created both files:
-- **hello.txt** with content "hello world"
-- **goodbye.txt** with content "goodbye world"
+> x> > xI'll use fork to delegate these two file creation tasks in parallel.
 
-I executed both writes in parallel since they're independent tasks. Both files were created successfully in the working directory.
+<fork>
+- Create hello.txt with 'hello world'
+- Create goodbye.txt with 'goodbye world'
+</fork>
 
-
-Done  $0.01 · 8.9s · 3 turns  (:N to view)
-> x
+[2] ⑂ Fork  Create hello.txt with 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+⏳ queued: x
 [5] Thinking...
-I'm not sure what you're looking for. Could you clarify what you'd like me to do next?
+Perfect! Both files have been created successfully:
+- **hello.txt** containing "hello world"
+- **goodbye.txt** containing "goodbye world"
+
+Both tasks completed in parallel as expected.
+
+⤷ follow-up: x
+[6] Thinking...
+I'm ready to help! What would you like me to do next?
 
 
-Done  $0.02 · 2.1s · 1 turn  (:N to view)
+Done  $0.03 · 1.9s · 1 turn  (:N to view)
 >

@@ -5,17 +5,9 @@
 ".coven/agents/dispatch.md" = '''---
 description: "Chooses the next task for a worker"
 max_concurrency: 1
-args:
-  - name: worker_status
-    description: "What other workers are currently doing"
-    required: true
 ---
 
 You are the dispatch agent for a worker. Decide what to do next.
-
-## Worker Status
-
-{{{worker_status}}}
 
 Check if hello.txt exists in the project root:
 - If it exists, sleep (all work is done).

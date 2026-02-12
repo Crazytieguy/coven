@@ -181,20 +181,6 @@ pub fn format_workers<S: Borrow<WorkerState>>(states: &[S], style: StatusStyle) 
     out
 }
 
-/// Format worker status for injection into the dispatch prompt.
-///
-/// Excludes the current process (the worker calling dispatch doesn't need
-/// to see itself in the status list).
-pub fn format_status(states: &[WorkerState], own_branch: &str) -> String {
-    let others: Vec<_> = states.iter().filter(|s| s.branch != own_branch).collect();
-
-    if others.is_empty() {
-        return "No other workers active.".to_string();
-    }
-
-    format_workers(&others, StatusStyle::Dispatch)
-}
-
 // ── Private helpers ─────────────────────────────────────────────────────
 
 fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {
@@ -320,50 +306,6 @@ mod tests {
         let states = read_all(repo.path()).unwrap();
         assert!(!states.iter().any(|s| s.pid == 4_000_000_000));
         assert!(!stale_path.exists());
-    }
-
-    #[test]
-    fn format_status_no_others() {
-        let status = format_status(
-            &[WorkerState {
-                pid: std::process::id(),
-                branch: "my-branch".into(),
-                agent: Some("plan".into()),
-                args: HashMap::new(),
-            }],
-            "my-branch",
-        );
-        assert_eq!(status, "No other workers active.");
-    }
-
-    #[test]
-    fn format_status_with_others() {
-        let states = vec![
-            WorkerState {
-                pid: std::process::id(),
-                branch: "my-branch".into(),
-                agent: None,
-                args: HashMap::new(),
-            },
-            WorkerState {
-                pid: 12345,
-                branch: "swift-fox-42".into(),
-                agent: Some("implement".into()),
-                args: HashMap::from([("issue".into(), "issues/foo.md".into())]),
-            },
-            WorkerState {
-                pid: 12346,
-                branch: "bold-oak-7".into(),
-                agent: None,
-                args: HashMap::new(),
-            },
-        ];
-        let formatted = format_status(&states, "my-branch");
-        assert!(
-            formatted.contains("swift-fox-42 (PID 12345): running implement (issue=issues/foo.md)")
-        );
-        assert!(formatted.contains("bold-oak-7 (PID 12346): idle"));
-        assert!(!formatted.contains("my-branch"));
     }
 
     #[test]
