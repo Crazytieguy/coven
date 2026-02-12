@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 use tokio::task::LocalSet;
 
 use coven::commands;
@@ -137,14 +137,19 @@ async fn main() -> Result<()> {
         all_cases
     };
 
-    // Record all cases concurrently using LocalSet (VcrContext is !Send due to RefCell).
+    // Record cases concurrently using LocalSet (VcrContext is !Send due to RefCell).
     // Tasks interleave at await points — the real parallelism is I/O-bound (Claude API calls).
+    // Cap concurrency at 8 to avoid overwhelming the API.
+    const MAX_CONCURRENT: usize = 8;
     let local = LocalSet::new();
     let errors = local
         .run_until(async {
+            let semaphore = std::rc::Rc::new(Semaphore::new(MAX_CONCURRENT));
             let mut handles = Vec::new();
             for case in cases {
+                let sem = semaphore.clone();
                 handles.push(tokio::task::spawn_local(async move {
+                    let _permit = sem.acquire().await.unwrap();
                     let name = case.name.clone();
                     let result = record_case(&case.case_dir, &case.name).await;
                     (name, result)
