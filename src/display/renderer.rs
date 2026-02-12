@@ -564,6 +564,7 @@ impl<W: Write> Renderer<W> {
         input: &Value,
         parent_tool_use_id: Option<&str>,
     ) {
+        self.close_tool_line();
         let display_name = display_tool_name(name);
         let detail = format_tool_detail(name, input);
         let is_child = parent_tool_use_id.is_some();
@@ -1139,5 +1140,70 @@ mod tests {
     fn format_tool_detail_unknown_tool_empty() {
         let input = serde_json::json!({});
         assert_eq!(format_tool_detail("CustomTool", &input), "");
+    }
+
+    /// Helper to create a StreamEvent from JSON.
+    fn stream_event(json: Value) -> StreamEvent {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn subagent_tool_call_does_not_merge_with_pending_tool_line() {
+        let mut r = Renderer::with_writer(Vec::<u8>::new());
+
+        // 1. Complete a Task tool call to register subagent "sub1"
+        r.handle_stream_event(&stream_event(serde_json::json!({
+            "event": { "type": "content_block_start",
+                       "content_block": { "type": "tool_use", "name": "Task", "id": "sub1" } }
+        })));
+        r.handle_stream_event(&stream_event(serde_json::json!({
+            "event": { "type": "content_block_delta",
+                       "delta": { "type": "input_json_delta", "partial_json": "{\"description\":\"explore\"}" } }
+        })));
+        r.handle_stream_event(&stream_event(serde_json::json!({
+            "event": { "type": "content_block_stop" }
+        })));
+
+        // 2. Start a second ToolUse block (still in progress — no block_stop)
+        r.handle_stream_event(&stream_event(serde_json::json!({
+            "event": { "type": "content_block_start",
+                       "content_block": { "type": "tool_use", "name": "Task", "id": "other" } }
+        })));
+        r.handle_stream_event(&stream_event(serde_json::json!({
+            "event": { "type": "content_block_delta",
+                       "delta": { "type": "input_json_delta", "partial_json": "{\"description\":\"search\"}" } }
+        })));
+
+        // Clear output so we only inspect what happens next
+        r.out.clear();
+
+        // 3. Subagent child tool call arrives while second block is in progress
+        let input = serde_json::json!({"command": "ls"});
+        r.render_subagent_tool_call("Bash", &input, "sub1");
+
+        let output = String::from_utf8(r.out).unwrap();
+
+        // The output should contain two separate tool lines, each ending with \r\n.
+        // Before the fix, the second line would be appended directly to the first
+        // (no \r\n separator), causing them to render on the same terminal line.
+        let lines: Vec<&str> = output.split("\r\n").collect();
+        // Expect: [tool-2-line, subagent-line] — the subagent line is still
+        // open (no trailing \r\n) which is correct behavior.
+        assert!(
+            lines.len() >= 2,
+            "expected two tool lines separated by \\r\\n, got: {output:?}"
+        );
+        // First line: the pending Task block that finish_current_block() flushes
+        assert!(
+            lines[0].contains("Task"),
+            "first line should be the flushed Task block: {:?}",
+            lines[0]
+        );
+        // Second line: the subagent child Bash call
+        assert!(
+            lines[1].contains("Bash"),
+            "second line should be the subagent Bash call: {:?}",
+            lines[1]
+        );
     }
 }
