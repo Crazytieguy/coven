@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Ctrl+O keybinding in interrupted state doesn't work
