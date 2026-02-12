@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: review
+state: approved
 ---
 
 # Worker state sharing broken after agent overhaul
