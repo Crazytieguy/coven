@@ -177,6 +177,8 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
 
 /// Run a multi-step test case. Each step replays from its own VCR file,
 /// and outputs are concatenated with `--- <step_name> ---` headers.
+/// Steps sharing a `concurrent_group` run concurrently via `join_all`,
+/// mirroring the recording-side behavior in `record_multi_case`.
 async fn run_multi_vcr_test(theme: &str, name: &str) -> TestResult {
     let base = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/cases")
@@ -188,25 +190,59 @@ async fn run_multi_vcr_test(theme: &str, name: &str) -> TestResult {
         toml::from_str(&std::fs::read_to_string(&toml_path).expect("Failed to read TOML file"))
             .expect("Failed to parse TOML file");
 
-    let multi = case.multi.as_ref().expect("Expected multi config");
+    let multi = case.multi.expect("Expected multi config");
     let show_thinking = case.display.show_thinking;
     let default_model = coven::vcr::DEFAULT_TEST_MODEL;
 
     let mut combined_output = String::new();
 
-    for step in &multi.steps {
-        let vcr_path = base.join(format!("{name}__{}.vcr", step.name));
+    let mut steps = multi.steps.into_iter().peekable();
+    while let Some(step) = steps.next() {
+        if step.concurrent_group.is_some() {
+            // Collect all consecutive steps with the same concurrent group.
+            let group_name = step.concurrent_group.clone();
+            let mut group = vec![step];
+            while let Some(next) = steps.next_if(|s| s.concurrent_group == group_name) {
+                group.push(next);
+            }
 
-        let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read step VCR file");
-        let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse step VCR file");
+            // Run grouped steps concurrently, mirroring the spawn_local behavior
+            // used during recording. join_all polls futures in order, providing
+            // deterministic interleaving at await points.
+            let futures: Vec<_> = group
+                .iter()
+                .map(|step| async {
+                    let vcr_path = base.join(format!("{name}__{}.vcr", step.name));
+                    let vcr_content =
+                        std::fs::read_to_string(&vcr_path).expect("Failed to read step VCR file");
+                    let vcr =
+                        VcrContext::replay(&vcr_content).expect("Failed to parse step VCR file");
+                    let mut output = Vec::new();
+                    run_multi_step(step, &vcr, show_thinking, default_model, &mut output).await;
+                    let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
+                    (step.name.clone(), raw)
+                })
+                .collect();
 
-        let mut output = Vec::new();
-        run_multi_step(step, &vcr, show_thinking, default_model, &mut output).await;
-
-        let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
-        combined_output.push_str(&format!("--- {} ---\n", step.name));
-        combined_output.push_str(&strip_ansi(&raw));
-        combined_output.push('\n');
+            let results = futures::future::join_all(futures).await;
+            for (step_name, raw) in results {
+                combined_output.push_str(&format!("--- {step_name} ---\n"));
+                combined_output.push_str(&strip_ansi(&raw));
+                combined_output.push('\n');
+            }
+        } else {
+            // Sequential step (no concurrent group).
+            let vcr_path = base.join(format!("{name}__{}.vcr", step.name));
+            let vcr_content =
+                std::fs::read_to_string(&vcr_path).expect("Failed to read step VCR file");
+            let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse step VCR file");
+            let mut output = Vec::new();
+            run_multi_step(&step, &vcr, show_thinking, default_model, &mut output).await;
+            let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
+            combined_output.push_str(&format!("--- {} ---\n", step.name));
+            combined_output.push_str(&strip_ansi(&raw));
+            combined_output.push('\n');
+        }
     }
 
     TestResult {
