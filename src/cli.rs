@@ -79,7 +79,7 @@ pub enum Command {
         #[arg(long)]
         branch: Option<String>,
 
-        /// Base directory for worktrees. Default: ~/worktrees.
+        /// Base directory for worktrees. Default: ~/.coven/worktrees.
         #[arg(long)]
         worktree_base: Option<PathBuf>,
 

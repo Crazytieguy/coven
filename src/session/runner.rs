@@ -18,7 +18,7 @@ pub struct SessionConfig {
     pub prompt: Option<String>,
     /// Extra arguments to pass to claude.
     pub extra_args: Vec<String>,
-    /// Append to system prompt (for ralph mode).
+    /// Append to system prompt.
     pub append_system_prompt: Option<String>,
     /// Resume an existing session by ID (uses `--resume`).
     pub resume: Option<String>,

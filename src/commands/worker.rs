@@ -199,7 +199,6 @@ async fn worker_loop<W: Write>(
 ) -> Result<()> {
     let wt_str = worktree_path.display().to_string();
 
-    // Load project config (entry agent name)
     let project_config: config::Config = ctx
         .vcr
         .call("config::load", wt_str.clone(), async |p: &String| {
@@ -287,7 +286,6 @@ async fn run_agent_chain<W: Write>(
         let mut merged_args = agent_def.frontmatter.claude_args.clone();
         merged_args.extend(config.extra_args.iter().cloned());
 
-        // Build system prompt: transition protocol + worker status + optional fork
         let transition_prompt = transition::format_transition_system_prompt(&agent_defs);
         let all_workers = ctx
             .vcr
@@ -314,7 +312,6 @@ async fn run_agent_chain<W: Write>(
             None => format!("{transition_prompt}{worker_status_section}"),
         };
 
-        // Display agent header
         let args_display = format_args_display(&agent_args);
         ctx.renderer
             .write_raw(&format!("\r\n=== Agent: {agent_name} ===\r\n\r\n"));
@@ -326,7 +323,6 @@ async fn run_agent_chain<W: Write>(
         ctx.renderer
             .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
 
-        // Run the agent session
         let PhaseOutcome::Completed {
             result_text,
             cost,
@@ -348,7 +344,6 @@ async fn run_agent_chain<W: Write>(
         ctx.renderer
             .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
 
-        // Parse transition from agent output (with retry on failure)
         let Some(parsed_transition) = parse_transition_with_retry(
             &result_text,
             session_id.as_deref(),

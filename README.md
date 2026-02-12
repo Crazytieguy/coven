@@ -53,7 +53,7 @@ Orchestration worker: generic agent loop. Creates a git worktree, runs agents th
 | Flag | Description |
 |------|-------------|
 | `--branch NAME` | Worktree branch name (random if omitted) |
-| `--worktree-base DIR` | Base directory for worktrees (default: `~/worktrees`) |
+| `--worktree-base DIR` | Base directory for worktrees (default: `~/.coven/worktrees`) |
 
 ### `coven init`
 
@@ -78,16 +78,6 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 ## Orchestration
 
 `coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: an entry agent (default: dispatch) picks work, then agents chain via `<next>` transitions. Agents handle all domain logic including git operations and landing. `coven init` generates a `.coven/workflow.md` with full details.
-
-## Testing
-
-Tests use VCR-recorded Claude sessions organized by theme in `tests/cases/{theme}/{name}/`.
-
-```bash
-cargo run --bin record-vcr           # re-record all fixtures
-cargo run --bin record-vcr simple_qa # re-record one (searches all themes)
-cargo insta review                   # review snapshot changes
-```
 
 ## License
 

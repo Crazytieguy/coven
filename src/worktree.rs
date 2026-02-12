@@ -11,18 +11,6 @@ pub enum WorktreeError {
     NotGitRepo,
     #[error("branch '{0}' already exists")]
     BranchExists(String),
-    #[error("worktree has uncommitted changes")]
-    DirtyWorkingTree,
-    #[error("worktree has untracked files")]
-    UntrackedFiles,
-    #[error("cannot land from the main worktree")]
-    IsMainWorktree,
-    #[error("detached HEAD state")]
-    DetachedHead,
-    #[error("rebase conflict in: {0:?}")]
-    RebaseConflict(Vec<String>),
-    #[error("fast-forward failed — main has diverged")]
-    FastForwardFailed,
     #[error("git command failed: {0}")]
     GitCommand(String),
 }
@@ -42,13 +30,6 @@ pub struct SpawnOptions<'a> {
 pub struct SpawnResult {
     pub worktree_path: PathBuf,
     pub branch: String,
-}
-
-/// Result of a successful land operation.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LandResult {
-    pub branch: String,
-    pub main_branch: String,
 }
 
 // ── Word lists for random branch names ──────────────────────────────────
@@ -272,84 +253,6 @@ pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
     })
 }
 
-/// Land the worktree's branch onto the main branch.
-///
-/// - Validates we're in a secondary worktree with clean working tree
-/// - Rebases current branch onto main
-/// - Fast-forward merges main to current branch tip
-///
-/// Does NOT remove the worktree — the worktree persists for continued use.
-/// Returns an error with conflict details if rebase fails.
-pub fn land(worktree_path: &Path) -> Result<LandResult, WorktreeError> {
-    let (main_path, main_branch) = find_main_worktree(worktree_path)?;
-
-    // Check we're not in the main worktree
-    let toplevel = git(worktree_path, &["rev-parse", "--show-toplevel"])?;
-    if main_path == Path::new(toplevel.trim()) {
-        return Err(WorktreeError::IsMainWorktree);
-    }
-
-    // Check for detached HEAD
-    let current_branch = git(worktree_path, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-    let current_branch = current_branch.trim().to_string();
-    if current_branch == "HEAD" {
-        return Err(WorktreeError::DetachedHead);
-    }
-
-    // Check for uncommitted changes or untracked files
-    match dirty_state(worktree_path)? {
-        DirtyState::Clean => {}
-        DirtyState::UncommittedChanges => return Err(WorktreeError::DirtyWorkingTree),
-        DirtyState::UntrackedFiles => return Err(WorktreeError::UntrackedFiles),
-    }
-
-    // Rebase onto main
-    let rebase_output = Command::new("git")
-        .arg("-C")
-        .arg(worktree_path)
-        .args(["rebase", &main_branch])
-        .output()
-        .map_err(|e| WorktreeError::GitCommand(format!("failed to run git: {e}")))?;
-
-    if !rebase_output.status.success() {
-        let conflicts = match git(worktree_path, &["diff", "--name-only", "--diff-filter=U"]) {
-            Ok(output) => output,
-            Err(diff_err) => {
-                let stderr = String::from_utf8_lossy(&rebase_output.stderr);
-                return Err(WorktreeError::GitCommand(format!(
-                    "rebase failed: {} (and failed to list conflicts: {diff_err})",
-                    stderr.trim()
-                )));
-            }
-        };
-        let conflict_files: Vec<String> = conflicts
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(String::from)
-            .collect();
-
-        if conflict_files.is_empty() {
-            let stderr = String::from_utf8_lossy(&rebase_output.stderr);
-            return Err(WorktreeError::GitCommand(format!(
-                "rebase failed: {}",
-                stderr.trim()
-            )));
-        }
-
-        return Err(WorktreeError::RebaseConflict(conflict_files));
-    }
-
-    // Fast-forward merge main to current branch tip
-    if !git_status(&main_path, &["merge", "--ff-only", &current_branch])? {
-        return Err(WorktreeError::FastForwardFailed);
-    }
-
-    Ok(LandResult {
-        branch: current_branch,
-        main_branch,
-    })
-}
-
 /// Remove a worktree and delete its branch.
 ///
 /// - Runs `git worktree remove [--force] <path>`
@@ -430,40 +333,6 @@ pub fn has_unique_commits(worktree_path: &Path) -> Result<bool, WorktreeError> {
         .parse()
         .map_err(|e| WorktreeError::GitCommand(format!("failed to parse rev-list count: {e}")))?;
     Ok(count > 0)
-}
-
-/// What kind of dirt the worktree has.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum DirtyState {
-    Clean,
-    /// Staged or unstaged modifications/deletions.
-    UncommittedChanges,
-    /// Untracked, non-ignored files.
-    UntrackedFiles,
-}
-
-/// Check the worktree for uncommitted changes or untracked files.
-///
-/// Returns the first kind of dirt found (uncommitted changes take priority
-/// over untracked files since `git clean -fd` handles the latter).
-pub fn dirty_state(worktree_path: &Path) -> Result<DirtyState, WorktreeError> {
-    // Unstaged changes
-    if !git_status(worktree_path, &["diff", "--quiet"])? {
-        return Ok(DirtyState::UncommittedChanges);
-    }
-    // Staged but uncommitted changes
-    if !git_status(worktree_path, &["diff", "--cached", "--quiet"])? {
-        return Ok(DirtyState::UncommittedChanges);
-    }
-    // Untracked files
-    let untracked = git(
-        worktree_path,
-        &["ls-files", "--others", "--exclude-standard"],
-    )?;
-    if !untracked.trim().is_empty() {
-        return Ok(DirtyState::UntrackedFiles);
-    }
-    Ok(DirtyState::Clean)
 }
 
 /// Check if a rebase is currently in progress in the worktree.
@@ -629,119 +498,6 @@ mod tests {
     }
 
     #[test]
-    fn land_clean_rebase() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("feature"),
-        ));
-        let spawned = spawned.unwrap();
-
-        // Commit in the worktree
-        commit_file(&spawned.worktree_path, "new.txt", "hello\n", "add new file");
-
-        // Land
-        let landed = land(&spawned.worktree_path).unwrap();
-        assert_eq!(landed.branch, "feature");
-
-        // Verify main has the commit
-        let log = git(repo_dir.path(), &["log", "--oneline"]).unwrap();
-        assert!(log.contains("add new file"));
-
-        // Verify worktree still exists
-        assert!(spawned.worktree_path.exists());
-    }
-
-    #[test]
-    fn land_with_conflict() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("conflict-branch"),
-        ));
-        let spawned = spawned.unwrap();
-
-        // Commit conflicting change on main
-        commit_file(repo_dir.path(), "file.txt", "main content\n", "main change");
-
-        // Commit conflicting change in worktree
-        commit_file(
-            &spawned.worktree_path,
-            "file.txt",
-            "worktree content\n",
-            "worktree change",
-        );
-
-        let result = land(&spawned.worktree_path);
-        assert!(
-            matches!(result, Err(WorktreeError::RebaseConflict(ref files)) if files.contains(&"file.txt".to_string()))
-        );
-
-        // Clean up the rebase state
-        abort_rebase(&spawned.worktree_path).unwrap();
-    }
-
-    #[test]
-    fn land_dirty_worktree_errors() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("dirty-branch"),
-        ));
-        let spawned = spawned.unwrap();
-
-        // Modify a file without committing
-        fs::write(spawned.worktree_path.join("README.md"), "modified\n").unwrap();
-
-        let result = land(&spawned.worktree_path);
-        assert!(matches!(result, Err(WorktreeError::DirtyWorkingTree)));
-    }
-
-    #[test]
-    fn abort_rebase_restores_clean_state() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("abort-branch"),
-        ));
-        let spawned = spawned.unwrap();
-
-        // Create a conflict
-        commit_file(repo_dir.path(), "conflict.txt", "main\n", "main side");
-        commit_file(
-            &spawned.worktree_path,
-            "conflict.txt",
-            "worktree\n",
-            "wt side",
-        );
-
-        let result = land(&spawned.worktree_path);
-        assert!(matches!(result, Err(WorktreeError::RebaseConflict(_))));
-
-        // Abort the rebase
-        abort_rebase(&spawned.worktree_path).unwrap();
-
-        // Verify clean state — diff should be quiet
-        assert!(git_status(&spawned.worktree_path, &["diff", "--quiet"]).unwrap());
-    }
-
-    #[test]
     fn sync_to_main_picks_up_new_commits() {
         let repo_dir = TempDir::new().unwrap();
         let base_dir = TempDir::new().unwrap();
@@ -814,36 +570,6 @@ mod tests {
 
         // Local file should be gone
         assert!(!spawned.worktree_path.join("local.txt").exists());
-    }
-
-    #[test]
-    fn reset_to_main_after_conflict_abort() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("reset-conflict"),
-        ))
-        .unwrap();
-
-        // Create a conflict
-        commit_file(repo_dir.path(), "file.txt", "main\n", "main side");
-        commit_file(&spawned.worktree_path, "file.txt", "worktree\n", "wt side");
-
-        // Land fails with conflict
-        let result = land(&spawned.worktree_path);
-        assert!(matches!(result, Err(WorktreeError::RebaseConflict(_))));
-
-        // Abort rebase, then reset to main
-        abort_rebase(&spawned.worktree_path).unwrap();
-        reset_to_main(&spawned.worktree_path).unwrap();
-
-        // Worktree should now have main's version
-        let content = fs::read_to_string(spawned.worktree_path.join("file.txt")).unwrap();
-        assert_eq!(content, "main\n");
     }
 
     #[test]
@@ -947,28 +673,6 @@ mod tests {
 
         // Now has unique commits
         assert!(has_unique_commits(&spawned.worktree_path).unwrap());
-    }
-
-    #[test]
-    fn has_unique_commits_false_after_land() {
-        let repo_dir = TempDir::new().unwrap();
-        let base_dir = TempDir::new().unwrap();
-        init_repo(repo_dir.path());
-
-        let spawned = spawn(&spawn_opts(
-            repo_dir.path(),
-            base_dir.path(),
-            Some("unique-land"),
-        ))
-        .unwrap();
-
-        commit_file(&spawned.worktree_path, "new.txt", "hello\n", "add file");
-        assert!(has_unique_commits(&spawned.worktree_path).unwrap());
-
-        land(&spawned.worktree_path).unwrap();
-
-        // After landing, worktree branch and main are at the same tip
-        assert!(!has_unique_commits(&spawned.worktree_path).unwrap());
     }
 
     #[test]

@@ -219,7 +219,7 @@ impl VcrContext {
     /// Like [`call()`](Self::call), but preserves typed errors through recording/replay.
     ///
     /// Use this for operations where callers need to match on specific error
-    /// variants (e.g., `WorktreeError::RebaseConflict`). Errors are serialized
+    /// variants (e.g., `WorktreeError::BranchExists`). Errors are serialized
     /// using their [`RecordableError`] impl instead of being stringified.
     ///
     /// Returns `Result<std::result::Result<T, E>>` — the outer `Result` carries
@@ -325,17 +325,14 @@ impl VcrContext {
         Ok(())
     }
 
-    /// Whether this context is in live (production) mode.
     pub fn is_live(&self) -> bool {
         matches!(&self.mode, VcrMode::Live)
     }
 
-    /// Whether this context is in replay mode.
     pub fn is_replay(&self) -> bool {
         matches!(&self.mode, VcrMode::Replay(_))
     }
 
-    /// Whether this context is in record mode.
     pub fn is_record(&self) -> bool {
         matches!(&self.mode, VcrMode::Record(_))
     }
