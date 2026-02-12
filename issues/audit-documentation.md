@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Audit documentation for inconsistencies and redundancy
@@ -41,6 +41,8 @@ Delete it.
 
 Contains only a heading with no content. Delete it.
 
+Review comment: No, this is used by the mats plugin. Please keep
+
 ### 5. Remove unnecessary inline comments in `worker.rs`
 
 **File:** `src/commands/worker.rs`
@@ -67,7 +69,14 @@ Remove the doc comments on `is_live()`, `is_replay()`, and `is_record()`. The me
 
 README says `cargo insta review` (interactive). CLAUDE.md says `cargo insta accept` (non-interactive, intended for agents). Both are valid commands but for different audiences. Change README to `cargo insta review` (already correct) and keep CLAUDE.md as `cargo insta accept` — but add a parenthetical to each clarifying the distinction: README gets "(interactive review)" and CLAUDE.md gets "(non-interactive)".
 
+Review comment: I think we probably don't need testing documentation in the readme, just remove it (unless you think I'm wrong)
+
 ## Questions
 
 - `worktree::land()` in `src/worktree.rs:269-337` duplicates `land.sh` exactly but is never called from production code (only tests). Should I file a separate issue to either remove the Rust function (relying solely on `land.sh`) or migrate agents to use the Rust function? This feels like a code quality issue more than documentation.
+
+Answer: Remove the function, it's no longer used. Also remove the tests
+
 - Should `ideas.md` be deleted outright, or would you prefer to keep it for historical reference?
+
+Answer: delete
