@@ -231,6 +231,7 @@ impl InputHandler {
         match event.code {
             KeyCode::Char('c') if ctrl => InputAction::Interrupt,
             KeyCode::Char('d') if ctrl => InputAction::EndSession,
+            KeyCode::Char('o') if ctrl => InputAction::Interactive,
 
             // Cursor movement
             KeyCode::Left if ctrl || alt => {
