@@ -22,6 +22,7 @@ pub struct AgentFrontmatter {
     pub description: String,
     #[serde(default)]
     pub args: Vec<AgentArg>,
+    pub max_concurrency: Option<u32>,
 }
 
 /// A fully loaded agent definition.
@@ -256,6 +257,20 @@ You are a code reviewer working on {{issue}}.
         let rendered = agent.render(&args).unwrap();
         assert!(rendered.contains("fix the bug"));
         assert!(!rendered.contains("Additional context"));
+    }
+
+    #[test]
+    fn parse_max_concurrency() {
+        let input = "---\ndescription: \"Limited agent\"\nmax_concurrency: 2\n---\n\nDo the thing.";
+        let (fm, _body) = parse_agent_file(input).unwrap();
+        assert_eq!(fm.max_concurrency, Some(2));
+    }
+
+    #[test]
+    fn parse_no_max_concurrency() {
+        let input = "---\ndescription: \"Unlimited agent\"\n---\n\nDo the thing.";
+        let (fm, _body) = parse_agent_file(input).unwrap();
+        assert_eq!(fm.max_concurrency, None);
     }
 
     #[test]

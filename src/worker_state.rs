@@ -1,7 +1,6 @@
-//! Worker state tracking and dispatch serialization.
+//! Worker state tracking.
 //!
 //! Worker state files live in `<git-common-dir>/coven/workers/<branch>.json`.
-//! The dispatch lock lives at `<git-common-dir>/coven/dispatch.lock`.
 //!
 //! These files are in the shared git directory (not the worktree) so all
 //! worktrees can access them. The git common dir is resolved via
@@ -10,12 +9,11 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::fs::{self, File, OpenOptions};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
-use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
 /// State of a single worker, serialized to JSON.
@@ -27,28 +25,10 @@ pub struct WorkerState {
     pub args: HashMap<String, String>,
 }
 
-/// A held dispatch lock. Released when dropped.
-pub struct DispatchLock {
-    _file: File,
-}
-
-impl crate::vcr::Recordable for DispatchLock {
-    type Recorded = ();
-
-    fn to_recorded(&self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn from_recorded((): ()) -> anyhow::Result<Self> {
-        let file = File::open("/dev/null")?;
-        Ok(DispatchLock { _file: file })
-    }
-}
-
 // ── Path helpers ────────────────────────────────────────────────────────
 
 /// Resolve the shared coven directory: `<git-common-dir>/coven/`.
-fn coven_dir(repo_path: &Path) -> Result<PathBuf> {
+pub(crate) fn coven_dir(repo_path: &Path) -> Result<PathBuf> {
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_path)
@@ -213,45 +193,6 @@ pub fn format_status(states: &[WorkerState], own_branch: &str) -> String {
     }
 
     format_workers(&others, StatusStyle::Dispatch)
-}
-
-/// Acquire the dispatch lock. Retries with async sleep until available.
-///
-/// The lock is released when the returned `DispatchLock` is dropped.
-/// If the process crashes, the OS releases the lock automatically.
-///
-/// Uses `try_lock_exclusive` in a loop rather than blocking `lock_exclusive`
-/// so the tokio runtime can schedule other tasks between attempts.
-/// This prevents deadlocks when multiple workers share a `LocalSet` thread
-/// (e.g. during VCR recording).
-///
-/// This intentionally retries forever rather than timing out. If the lock
-/// is stuck, the operator should investigate and resolve manually (e.g.
-/// kill the stuck worker). An automatic timeout could cause two workers
-/// to dispatch simultaneously, which is worse than retrying.
-pub async fn acquire_dispatch_lock(repo_path: &Path) -> Result<DispatchLock> {
-    let dir = coven_dir(repo_path)?;
-    fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
-
-    let lock_path = dir.join("dispatch.lock");
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(&lock_path)
-        .with_context(|| format!("failed to open {}", lock_path.display()))?;
-
-    loop {
-        match file.try_lock_exclusive() {
-            Ok(()) => return Ok(DispatchLock { _file: file }),
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }
-            Err(e) => {
-                return Err(anyhow::anyhow!(e).context("failed to acquire dispatch lock"));
-            }
-        }
-    }
 }
 
 // ── Private helpers ─────────────────────────────────────────────────────
@@ -444,20 +385,5 @@ mod tests {
         let formatted = format_workers(&states, StatusStyle::Cli);
         assert!(formatted.contains("  swift-fox-42 (PID 12345) — implement (issue=issues/foo.md)"));
         assert!(formatted.contains("  bold-oak-7 (PID 12346) — idle"));
-    }
-
-    #[tokio::test]
-    async fn dispatch_lock_acquire_release() {
-        let repo = TempDir::new().unwrap();
-        init_repo(repo.path());
-
-        let lock = acquire_dispatch_lock(repo.path()).await.unwrap();
-        let lock_path = coven_dir(repo.path()).unwrap().join("dispatch.lock");
-        assert!(lock_path.exists());
-
-        drop(lock);
-
-        // After drop, acquiring again should succeed immediately
-        let _lock2 = acquire_dispatch_lock(repo.path()).await.unwrap();
     }
 }

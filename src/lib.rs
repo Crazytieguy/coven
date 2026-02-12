@@ -11,6 +11,7 @@ pub mod display;
 pub mod event;
 pub mod fork;
 pub mod protocol;
+pub mod semaphore;
 pub mod session;
 pub mod vcr;
 pub mod worker_state;

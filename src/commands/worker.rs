@@ -13,6 +13,7 @@ use crate::dispatch::{self, DispatchDecision};
 use crate::display::input::{InputAction, InputHandler};
 use crate::display::renderer::Renderer;
 use crate::fork::{self, ForkConfig};
+use crate::semaphore;
 use crate::session::runner::SessionConfig;
 use crate::session::state::SessionState;
 use crate::vcr::{Io, IoEvent, VcrContext};
@@ -56,6 +57,14 @@ struct WorkerUpdateArgs {
     branch: String,
     agent: Option<String>,
     args: HashMap<String, String>,
+}
+
+/// Serializable args for VCR-recording `semaphore::acquire`.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct SemaphoreAcquireArgs {
+    path: String,
+    agent: String,
+    max_concurrency: u32,
 }
 
 /// Run a worker: spawn a worktree, loop dispatch → agent → land.
@@ -180,12 +189,15 @@ pub async fn worker<W: Write>(
 /// Outcome of the dispatch phase.
 struct DispatchResult {
     decision: DispatchDecision,
-    agent_defs: Vec<AgentDef>,
     cost: f64,
 }
 
-/// Run the dispatch phase: load agents, run dispatch session, parse decision.
+/// Run the dispatch phase: run dispatch session, parse decision.
+///
+/// Agent definitions must be pre-loaded by the caller (needed for semaphore
+/// acquisition before this function runs).
 async fn run_dispatch<W: Write>(
+    agent_defs: &[AgentDef],
     worktree_path: &Path,
     branch: &str,
     extra_args: &[String],
@@ -196,24 +208,12 @@ async fn run_dispatch<W: Write>(
         .set_title(&format!("cv dispatch \u{2014} {branch}"));
     ctx.renderer.write_raw("\r\n=== Dispatch ===\r\n\r\n");
 
-    let agents_dir = worktree_path.join(agents::AGENTS_DIR);
-    let agents_dir_str = agents_dir.display().to_string();
-    let agent_defs = ctx
-        .vcr
-        .call("agents::load_agents", agents_dir_str, async |d: &String| {
-            agents::load_agents(Path::new(d))
-        })
-        .await?;
-    if agent_defs.is_empty() {
-        bail!("no agent definitions found in {}", agents_dir.display());
-    }
-
     let dispatch_agent = agent_defs
         .iter()
         .find(|a| a.name == "dispatch")
         .context("no dispatch.md agent definition found")?;
 
-    let catalog = dispatch::format_agent_catalog(&agent_defs);
+    let catalog = dispatch::format_agent_catalog(agent_defs);
     let dispatch_args = HashMap::from([
         ("agent_catalog".to_string(), catalog),
         ("worker_status".to_string(), worker_status.to_string()),
@@ -233,11 +233,7 @@ async fn run_dispatch<W: Write>(
 
     // Try to parse the decision
     match dispatch::parse_decision(&result_text) {
-        Ok(decision) => Ok(Some(DispatchResult {
-            decision,
-            agent_defs,
-            cost,
-        })),
+        Ok(decision) => Ok(Some(DispatchResult { decision, cost })),
         Err(parse_err) => {
             // If we have a session to resume, retry with a correction prompt
             let Some(session_id) = session_id else {
@@ -277,7 +273,6 @@ async fn run_dispatch<W: Write>(
                 .context("failed to parse dispatch decision after retry")?;
             Ok(Some(DispatchResult {
                 decision,
-                agent_defs,
                 cost: cost + retry_cost,
             }))
         }
@@ -303,15 +298,15 @@ async fn worker_loop<W: Write>(
             .await?
             .context("failed to sync worktree to main")?;
 
-        // === Phase 1: Dispatch (under lock) ===
-        let lock = ctx
-            .vcr
-            .call(
-                "worker_state::acquire_dispatch_lock",
-                wt_str.clone(),
-                async |p: &String| worker_state::acquire_dispatch_lock(Path::new(p)).await,
-            )
-            .await?;
+        // Load agents and acquire dispatch semaphore
+        let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
+        let dispatch_def = agent_defs
+            .iter()
+            .find(|a| a.name == "dispatch")
+            .context("no dispatch.md agent definition found")?;
+        let dispatch_permit =
+            vcr_acquire_semaphore(ctx.vcr, &wt_str, "dispatch", dispatch_def).await?;
+
         let all_workers = ctx
             .vcr
             .call(
@@ -323,6 +318,7 @@ async fn worker_loop<W: Write>(
         let worker_status = worker_state::format_status(&all_workers, branch);
 
         let Some(dispatch) = run_dispatch(
+            &agent_defs,
             worktree_path,
             branch,
             &config.extra_args,
@@ -334,14 +330,14 @@ async fn worker_loop<W: Write>(
             return Ok(());
         };
 
-        // Update worker state before releasing lock so the next dispatch sees it
+        // Update worker state before releasing dispatch permit so the next dispatch sees it
         let empty = HashMap::new();
         let (agent_name, agent_args) = match &dispatch.decision {
             DispatchDecision::Sleep => (None, &empty),
             DispatchDecision::RunAgent { agent, args } => (Some(agent.as_str()), args),
         };
         vcr_update_worker_state(ctx.vcr, &wt_str, branch, agent_name, agent_args).await?;
-        drop(lock);
+        drop(dispatch_permit);
 
         *total_cost += dispatch.cost;
         ctx.renderer
@@ -367,11 +363,14 @@ async fn worker_loop<W: Write>(
                 ctx.renderer
                     .write_raw(&format!("\r\nDispatch: {agent} {args_display}\r\n"));
 
-                let agent_def = dispatch
-                    .agent_defs
+                let agent_def = agent_defs
                     .iter()
                     .find(|a| a.name == agent)
                     .with_context(|| format!("dispatch chose unknown agent: {agent}"))?;
+
+                // Acquire semaphore for the dispatched agent if it has max_concurrency
+                let _agent_permit =
+                    vcr_acquire_semaphore(ctx.vcr, &wt_str, &agent, agent_def).await?;
 
                 let agent_prompt = agent_def.render(&args)?;
                 ctx.renderer
@@ -1016,6 +1015,48 @@ async fn vcr_resolve_ref_paths(vcr: &VcrContext, wt_str: String) -> Result<Optio
         Ok(resolve_ref_paths(Path::new(p)))
     })
     .await
+}
+
+/// VCR-wrapped agent loading.
+async fn vcr_load_agents(vcr: &VcrContext, worktree_path: &Path) -> Result<Vec<AgentDef>> {
+    let agents_dir = worktree_path.join(agents::AGENTS_DIR);
+    let agents_dir_str = agents_dir.display().to_string();
+    let agent_defs = vcr
+        .call("agents::load_agents", agents_dir_str, async |d: &String| {
+            agents::load_agents(Path::new(d))
+        })
+        .await?;
+    if agent_defs.is_empty() {
+        bail!("no agent definitions found in {}", agents_dir.display());
+    }
+    Ok(agent_defs)
+}
+
+/// VCR-wrapped `semaphore::acquire`. Returns `None` if the agent has no
+/// `max_concurrency` set (unlimited concurrency).
+async fn vcr_acquire_semaphore(
+    vcr: &VcrContext,
+    wt_str: &str,
+    agent_name: &str,
+    agent_def: &AgentDef,
+) -> Result<Option<semaphore::SemaphorePermit>> {
+    let Some(max) = agent_def.frontmatter.max_concurrency else {
+        return Ok(None);
+    };
+    let permit = vcr
+        .call(
+            &format!("semaphore::acquire::{agent_name}"),
+            SemaphoreAcquireArgs {
+                path: wt_str.to_string(),
+                agent: agent_name.to_string(),
+                max_concurrency: max,
+            },
+            async |a: &SemaphoreAcquireArgs| {
+                semaphore::acquire(Path::new(&a.path), &a.agent, a.max_concurrency).await
+            },
+        )
+        .await?;
+    Ok(Some(permit))
 }
 
 /// VCR-wrapped `worker_state::update`.

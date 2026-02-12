@@ -1,5 +1,6 @@
 ---
 description: "Chooses the next task for a worker"
+max_concurrency: 1
 args:
   - name: agent_catalog
     description: "Available agents and dispatch syntax"

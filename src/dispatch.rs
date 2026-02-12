@@ -260,6 +260,7 @@ issue: issues/fix-scroll-bug.md
             frontmatter: AgentFrontmatter {
                 description: desc.into(),
                 args,
+                max_concurrency: None,
             },
             prompt_template: String::new(),
         }
