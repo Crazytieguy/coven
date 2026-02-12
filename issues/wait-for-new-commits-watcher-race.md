@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Race condition in wait_for_new_commits between HEAD read and watcher setup
@@ -53,3 +53,5 @@ The only scenario the original code got wrong was a commit between HEAD read and
 `setup_ref_watcher` is a plain synchronous function — not a VCR call. Moving it before `vcr_main_head_sha` doesn't change the VCR call sequence at all. The recorded fixtures remain valid.
 
 **Verification:** `cargo test` (no re-recording needed).
+
+Review note: I don't have enough context to verify this, so I want you to think carefully about whether this race condition is real and an issue, check for other race conditions related to the notifications (especially across claude sessions), and do whatever you think is best. I trust you!

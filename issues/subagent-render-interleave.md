@@ -1,6 +1,6 @@
 ---
 priority: P2
-state: review
+state: approved
 ---
 
 # Subagent tool call rendering interleaves across lines
@@ -65,3 +65,5 @@ Since the renderer fields are private, the test can set up the state through the
 ### Files to modify
 
 - `src/display/renderer.rs`: Add `self.close_tool_line()` at the top of `render_tool_call_line()`, add unit test
+
+Review note: While you're at it, make sure there are no other race conditions in the rendering code.
