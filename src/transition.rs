@@ -292,6 +292,7 @@ issue: issues/fix-scroll-bug.md
                 description: desc.into(),
                 args,
                 max_concurrency: None,
+                claude_args: Vec::new(),
             },
             prompt_template: String::new(),
         }

@@ -4,6 +4,9 @@ args:
   - name: issue
     description: "Path to the issue file"
     required: true
+claude_args:
+  - "--allowedTools"
+  - "Bash(git add:*),Bash(git mv:*),Bash(git commit:*),Bash(git log:*),Bash(git diff:*),Bash(git status),Bash(git rebase:*),Bash(bash .coven/land.sh)"
 ---
 
 You are the plan agent. Write an implementation plan for the issue at `{{issue}}`.

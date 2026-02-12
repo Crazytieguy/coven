@@ -303,6 +303,11 @@ async fn run_agent_chain<W: Write>(
 
         let agent_prompt = agent_def.render(&agent_args)?;
 
+        // Merge per-agent claude_args with worker-level extra_args.
+        // Agent args come first, worker args last (CLI-level `-- [ARGS]` can override).
+        let mut merged_args = agent_def.frontmatter.claude_args.clone();
+        merged_args.extend(config.extra_args.iter().cloned());
+
         // Build system prompt: transition protocol + optional fork
         let transition_prompt = transition::format_transition_system_prompt(&agent_defs);
         let system_prompt = match ctx.fork_config {
@@ -330,7 +335,7 @@ async fn run_agent_chain<W: Write>(
         } = run_phase_session(
             &agent_prompt,
             worktree_path,
-            &config.extra_args,
+            &merged_args,
             None,
             Some(&system_prompt),
             ctx,
@@ -349,7 +354,7 @@ async fn run_agent_chain<W: Write>(
             &result_text,
             session_id.as_deref(),
             worktree_path,
-            &config.extra_args,
+            &merged_args,
             Some(&system_prompt),
             ctx,
             total_cost,

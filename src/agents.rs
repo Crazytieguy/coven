@@ -23,6 +23,9 @@ pub struct AgentFrontmatter {
     #[serde(default)]
     pub args: Vec<AgentArg>,
     pub max_concurrency: Option<u32>,
+    /// Extra arguments to pass to the `claude` CLI when running this agent.
+    #[serde(default)]
+    pub claude_args: Vec<String>,
 }
 
 /// A fully loaded agent definition.
@@ -271,6 +274,29 @@ You are a code reviewer working on {{issue}}.
         let input = "---\ndescription: \"Unlimited agent\"\n---\n\nDo the thing.";
         let (fm, _body) = parse_agent_file(input).unwrap();
         assert_eq!(fm.max_concurrency, None);
+    }
+
+    #[test]
+    fn parse_claude_args() {
+        let input = r#"---
+description: "Agent with CLI args"
+claude_args:
+  - "--allowedTools"
+  - "Bash(git add:*),Bash(git commit:*)"
+---
+
+Do the thing."#;
+        let (fm, _body) = parse_agent_file(input).unwrap();
+        assert_eq!(fm.claude_args.len(), 2);
+        assert_eq!(fm.claude_args[0], "--allowedTools");
+        assert_eq!(fm.claude_args[1], "Bash(git add:*),Bash(git commit:*)");
+    }
+
+    #[test]
+    fn parse_claude_args_defaults_empty() {
+        let input = "---\ndescription: \"No claude args\"\n---\n\nDo the thing.";
+        let (fm, _body) = parse_agent_file(input).unwrap();
+        assert!(fm.claude_args.is_empty());
     }
 
     #[test]

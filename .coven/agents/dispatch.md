@@ -5,6 +5,9 @@ args:
   - name: worker_status
     description: "What other workers are currently doing"
     required: true
+claude_args:
+  - "--allowedTools"
+  - "Bash(head *)"
 ---
 
 You are the dispatch agent. Decide what this worker should do next.
