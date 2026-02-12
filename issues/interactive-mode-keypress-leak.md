@@ -1,6 +1,6 @@
 ---
 priority: P1
-state: review
+state: approved
 ---
 
 # Interactive mode (Ctrl+o) leaks keypresses to coven
