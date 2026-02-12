@@ -1,6 +1,6 @@
 ---
 priority: P0
-state: rejected
+state: changes-requested
 ---
 
 # Redesign worker as a generic agent loop
