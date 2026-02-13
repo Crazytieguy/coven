@@ -28,6 +28,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Create working branch
         run: git checkout -b claude/issue-${{ github.event.issue.number }}
 

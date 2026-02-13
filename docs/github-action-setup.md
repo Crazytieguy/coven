@@ -196,6 +196,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2  # or your ecosystem's cache action
+
       - name: Create working branch
         run: git checkout -b claude/issue-${{ github.event.issue.number }}
 
@@ -284,6 +287,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2  # or your ecosystem's cache action
+
       - name: Checkout PR branch
         run: gh pr checkout ${{ github.event.pull_request.number || github.event.issue.number }}
         env:
@@ -353,6 +359,10 @@ jobs:
 | **Filter out approvals** | `review.state != 'approved'` prevents wasting a run when a reviewer approves without actionable feedback. |
 | **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/<owner>/<repo>/pulls/*/comments` only. |
 
+### Dependency Caching
+
+Add a caching step between checkout and the Claude step to avoid redownloading/recompiling dependencies on every run. Most ecosystems have dedicated cache actions (e.g., `Swatinem/rust-cache` for Rust, `astral-sh/setup-uv` with `enable-cache: true` for uv). `actions/cache` works as a generic fallback.
+
 ### Authentication
 
 Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed by MATS). The built-in `/install-github-app` command in Claude Code handles setup, creating a PR with the workflow file. Most fellows aren't hitting subscription limits, and subscriptions are more cost-effective than API usage.
@@ -386,7 +396,7 @@ Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed
 
 ## Open Questions & Future Work
 
-1. **Cargo caching:** Add a caching step (e.g., `actions/cache` or `Swatinem/rust-cache`) to avoid recompiling on every run.
+1. ~~**Dependency caching:**~~ **Resolved.** See the Dependency Caching section below.
 2. ~~**PR trigger support:**~~ **Resolved.** Added `claude-pr.yml` — triggers on `pull_request_review` (auto for Claude's PRs) and `@claude` mentions in PR comments.
 3. **Async notification instead of cancel-in-progress:** Currently, a new trigger on the same PR cancels the running job and starts fresh. An alternative: notify the running Claude session of the new feedback mid-stream (similar to steering) so it can incorporate it without restarting. The action doesn't support this natively.
 4. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.

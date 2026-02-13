@@ -33,6 +33,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Checkout PR branch
         run: gh pr checkout ${{ github.event.pull_request.number || github.event.issue.number }}
         env:
