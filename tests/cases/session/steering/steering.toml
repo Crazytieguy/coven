@@ -4,9 +4,11 @@ prompt = "Read each .py file in this directory one at a time. After reading each
 [files]
 "hello.py" = "print('hello world')\nprint('goodbye')\n"
 "counter.py" = "count = 0\nfor i in range(10):\n    count += i\nprint(f'Total: {count}')\n"
-"greet.py" = "import sys\nname = sys.argv[1] if len(sys.argv) > 1 else 'World'\nprint(f'Hello, {name}!')\n"
 
+# Steer right after the session initializes (on the init event). This
+# sends the steering message early enough that the model sees it in its
+# first turn and follows the redirected instruction.
 [[messages]]
 content = "Actually, just count the lines in each file instead"
-trigger = '{"Ok": {"Claude": {"Claude": {"type": "stream_event", "event": {"type": "content_block_start", "content_block": {"type": "tool_use"}}}}}}'
+trigger = '{"Ok": {"Claude": {"Claude": {"subtype": "init", "type": "system"}}}}'
 mode = "steering"
