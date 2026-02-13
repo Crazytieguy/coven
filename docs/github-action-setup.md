@@ -151,7 +151,7 @@ To prevent Claude from pushing to `main` or other protected branches:
 |---|---|
 | **Agent mode** over tag mode | Full control over the prompt. Tag mode's ~870-line built-in prompt is opinionated and can't be replaced, only appended to. |
 | **`gh` CLI** over MCP tools for GitHub interaction | The `update_claude_comment` MCP tool doesn't work in agent mode (no pre-created comment ID). `gh issue comment --edit-last` provides equivalent functionality for progress tracking. |
-| **Issue triggers only** (no PR triggers) | The prompt references `github.event.issue.number` which doesn't exist for PR events. PR support requires a more sophisticated prompt with conditionals. Can be added later. |
+| **Separate issue and PR workflows** | Different contexts (branch handling, prompt, triggers) make two focused files cleaner than one file full of conditionals. Issue workflow: `claude-issue.yml`. PR workflow: `claude-pr.yml`. |
 | **Branch created by workflow step**, not Claude | Claude doesn't need general checkout permissions. The branch is ready before Claude starts. |
 | **`--permission-mode acceptEdits`** | Grants file operation tools (Edit, Write, Read, etc.) without listing each one in `--allowedTools`. |
 | **`Bash(git push origin HEAD)`** exact match | Prevents pushing to arbitrary branches. Combined with branch protection rules for defense in depth. |
@@ -161,10 +161,12 @@ To prevent Claude from pushing to `main` or other protected branches:
 | **Opus 4.6 model** | Sonnet 4.5 (the default) is not desired. Specify explicitly via `--model claude-opus-4-6`. |
 | **Two equal paths in prompt** (ask questions vs implement) | Ambiguity should trigger questions, not guesses. Both outcomes are equally valid — the prompt emphasizes this rather than treating implementation as the default. |
 
-### Current Workflow File
+### Current Workflow Files
+
+#### Issue Workflow (`claude-issue.yml`)
 
 ```yaml
-name: Claude Code
+name: Claude Code (Issues)
 
 on:
   issue_comment:
@@ -175,7 +177,7 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && !github.event.issue.pull_request) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
@@ -236,6 +238,100 @@ jobs:
             --disallowedTools TodoWrite
 ```
 
+**Key change from v1:** Added `!github.event.issue.pull_request` guard so PR comments don't trigger this workflow. PR comments are handled by the PR workflow instead.
+
+#### PR Review Workflow (`claude-pr.yml`)
+
+```yaml
+name: Claude Code (PR Review)
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'pull_request_review' &&
+        (github.event.pull_request.user.login == 'app/claude' ||
+         contains(github.event.review.body, '@claude'))) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout PR branch
+        run: gh pr checkout ${{ github.event.pull_request.number || github.event.issue.number }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: |
+            You are running autonomously via github action. You were triggered by
+            a review or comment on PR #${{ github.event.pull_request.number || github.event.issue.number }}
+            in ${{ github.repository }}.
+
+            ## Getting started
+
+            Read the PR with its reviews and comments:
+              gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,comments,reviews,labels
+
+            Read any linked issues referenced in the PR body (look for #N references):
+              gh issue view <number> --json title,body,comments,labels
+
+            Post a tracking comment on the PR:
+              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --body "Starting work..."
+
+            Update this comment as you work using:
+              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --edit-last --body "<updated content>"
+
+            Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
+
+            ## Your task
+
+            Address the review feedback. Read the review comments carefully, make the
+            requested changes, and push to the PR branch.
+
+            When done:
+              1. Push with: git push origin HEAD
+              2. Update your tracking comment with a summary of changes made.
+          claude_args: |
+            --model claude-opus-4-6
+            --permission-mode acceptEdits
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(git push origin HEAD)"
+            --disallowedTools TodoWrite
+```
+
+**Design decisions for the PR workflow:**
+
+| Decision | Reasoning |
+|---|---|
+| **Auto-trigger on Claude's PRs** | Any review on a PR authored by `app/claude` triggers Claude — reviewers don't need to remember `@claude`. |
+| **`pull_request_review` only** (not `pull_request_review_comment`) | The review event fires once per submission. Claude reads all inline comments via `gh pr view`. Triggering on both would cause duplicate runs. |
+| **`issue_comment` for top-level PR comments** | People leave general requests as top-level comments (not reviews). These still need `@claude` since they're not formal reviews. |
+| **`gh pr checkout` in workflow step** | The PR branch already exists. A workflow step handles checkout so Claude starts on the right branch without needing extra permissions. |
+| **No "ask questions" path** | PR reviews are concrete feedback. If a completely different approach is needed, the reviewer should close the PR and comment on the issue instead. |
+| **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
+
 ### Authentication
 
 Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed by MATS). The built-in `/install-github-app` command in Claude Code handles setup, creating a PR with the workflow file. Most fellows aren't hitting subscription limits, and subscriptions are more cost-effective than API usage.
@@ -264,7 +360,7 @@ Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed
 ## Open Questions & Future Work
 
 1. **Cargo caching:** Add a caching step (e.g., `actions/cache` or `Swatinem/rust-cache`) to avoid recompiling on every run.
-2. **PR trigger support:** Add `pull_request_review_comment` and `pull_request_review` triggers with a prompt that handles PR context (`gh pr view`, `gh pr diff`).
+2. ~~**PR trigger support:**~~ **Resolved.** Added `claude-pr.yml` — triggers on `pull_request_review` (auto for Claude's PRs) and `@claude` mentions in PR comments.
 3. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.
 4. **Runpod interaction model:** How to give Claude access to remote GPU compute without risking data loss. Needs a safe abstraction (e.g., MCP tool for spinning up environments and running code, rather than raw SSH).
 5. **Long-running experiment completion:** When a remote job finishes after Claude's session has ended, how should results flow back? Current answer: human opens a new issue. Future: remote machine triggers `workflow_dispatch`.
