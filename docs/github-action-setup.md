@@ -265,6 +265,7 @@ jobs:
   claude:
     if: |
       (github.event_name == 'pull_request_review' &&
+        github.event.review.state != 'approved' &&
         (github.event.pull_request.user.login == 'claude[bot]' ||
          contains(github.event.review.body, '@claude'))) ||
       (github.event_name == 'issue_comment' &&
@@ -349,6 +350,7 @@ jobs:
 | **No "ask questions" path** | PR reviews are concrete feedback. If a completely different approach is needed, the reviewer should close the PR and comment on the issue instead. |
 | **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
 | **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. `cancel-in-progress: true` ensures the latest trigger wins. |
+| **Filter out approvals** | `review.state != 'approved'` prevents wasting a run when a reviewer approves without actionable feedback. |
 | **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/<owner>/<repo>/pulls/*/comments` only. |
 
 ### Authentication
