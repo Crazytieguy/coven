@@ -174,6 +174,10 @@ on:
   issues:
     types: [opened, assigned]
 
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   claude:
     if: |
@@ -250,6 +254,10 @@ on:
     types: [submitted]
   issue_comment:
     types: [created]
+
+concurrency:
+  group: claude-pr-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
 
 jobs:
   claude:
@@ -331,6 +339,7 @@ jobs:
 | **`gh pr checkout` in workflow step** | The PR branch already exists. A workflow step handles checkout so Claude starts on the right branch without needing extra permissions. |
 | **No "ask questions" path** | PR reviews are concrete feedback. If a completely different approach is needed, the reviewer should close the PR and comment on the issue instead. |
 | **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
+| **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. `cancel-in-progress: true` ensures the latest trigger wins. |
 
 ### Authentication
 
@@ -355,18 +364,25 @@ Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed
 - Ran smoothly end-to-end: read issue, posted tracking comment, implemented changes, pushed branch, created PR, updated tracking comment with summary.
 - Significant time spent on `cargo clippy` and `cargo test` due to compilation. **Open item:** Add cargo build caching to the workflow.
 
+### Third Run (PR review workflow testing)
+
+- **`app/claude` vs `claude[bot]`:** The `gh` CLI reports PR author as `app/claude`, but GitHub Actions event payloads use `claude[bot]`. The auto-trigger filter failed silently (job skipped) until this was corrected.
+- **Multiple reviews = multiple runs:** Each inline review comment submitted separately fires a `pull_request_review: submitted` event. Three reviews on the same PR spawned three concurrent runs, all racing to push to the same branch. **Fix:** Added `concurrency` groups keyed to the PR/issue number with `cancel-in-progress: true`.
+- **`cancel-in-progress: true`:** Chosen over queuing because new review feedback likely supersedes what Claude was already working on. The latest trigger should win.
+
 ---
 
 ## Open Questions & Future Work
 
 1. **Cargo caching:** Add a caching step (e.g., `actions/cache` or `Swatinem/rust-cache`) to avoid recompiling on every run.
 2. ~~**PR trigger support:**~~ **Resolved.** Added `claude-pr.yml` — triggers on `pull_request_review` (auto for Claude's PRs) and `@claude` mentions in PR comments.
-3. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.
-4. **Runpod interaction model:** How to give Claude access to remote GPU compute without risking data loss. Needs a safe abstraction (e.g., MCP tool for spinning up environments and running code, rather than raw SSH).
-5. **Long-running experiment completion:** When a remote job finishes after Claude's session has ended, how should results flow back? Current answer: human opens a new issue. Future: remote machine triggers `workflow_dispatch`.
-6. **Prompt design iteration:** What the actual base prompt should contain for research tasks. When to stop and surface ambiguities vs. continue autonomously.
-7. **Per-task prompt variation:** Whether to use skills/plugins for different task types or a single flexible prompt.
-8. **Setup skill for MATS distribution:** A Claude Code skill (e.g., `/setup-async-workflow`) that walks fellows through the setup interactively.
+3. **Async notification instead of cancel-in-progress:** Currently, a new trigger on the same PR cancels the running job and starts fresh. An alternative: notify the running Claude session of the new feedback mid-stream (similar to steering) so it can incorporate it without restarting. The action doesn't support this natively.
+4. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.
+5. **Runpod interaction model:** How to give Claude access to remote GPU compute without risking data loss. Needs a safe abstraction (e.g., MCP tool for spinning up environments and running code, rather than raw SSH).
+6. **Long-running experiment completion:** When a remote job finishes after Claude's session has ended, how should results flow back? Current answer: human opens a new issue. Future: remote machine triggers `workflow_dispatch`.
+7. **Prompt design iteration:** What the actual base prompt should contain for research tasks. When to stop and surface ambiguities vs. continue autonomously.
+8. **Per-task prompt variation:** Whether to use skills/plugins for different task types or a single flexible prompt.
+9. **Setup skill for MATS distribution:** A Claude Code skill (e.g., `/setup-async-workflow`) that walks fellows through the setup interactively.
 
 ### Per-Fellow Integration Needs
 
