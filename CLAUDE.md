@@ -21,7 +21,6 @@ See @README.md for user-facing documentation.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
 - Never make security-relevant decisions without confirmation. This includes permission modes, authentication, access control, and anything that affects the trust boundary of the system. Always apply least-privilege: when granting permissions to spawned agents (e.g. in test fixtures), allow only the specific commands needed, never broad wildcards like `Bash(*)`.
 - Update README.md when adding/removing commands, changing flags, or altering user-facing behavior. Keep it under 100 lines.
-- This project dogfoods its own orchestration system (`coven init` + `coven worker`). See @.coven/workflow.md for the issue-based development workflow.
 
 ## Publishing
 
