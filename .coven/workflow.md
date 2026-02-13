@@ -76,5 +76,6 @@ review/          Plans awaiting human review
 .coven/
   agents/        Agent prompt templates
   config.toml    Optional configuration (entry_agent)
+  land.sh        Rebase & fast-forward landing script
   workflow.md    This file
 ```
