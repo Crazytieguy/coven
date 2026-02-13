@@ -216,13 +216,15 @@ jobs:
             Read the full issue:
               gh issue view ${{ github.event.issue.number }} --json title,body,comments,labels
 
-            Post a tracking comment on the issue:
+            Always post a new tracking comment (never reuse one from a previous run):
               gh issue comment ${{ github.event.issue.number }} --body "Starting work..."
 
             Update this comment as you work using:
               gh issue comment ${{ github.event.issue.number }} --edit-last --body "<updated content>"
 
             Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
+            Update after each significant step — reading the issue, making each change,
+            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
 
             ## Choose one of two paths
 
@@ -311,13 +313,15 @@ jobs:
             Read any linked issues referenced in the PR body (look for #N references):
               gh issue view <number> --json title,body,comments,labels
 
-            Post a tracking comment on the PR:
+            Always post a new tracking comment (never reuse one from a previous run):
               gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --body "Starting work..."
 
             Update this comment as you work using:
               gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --edit-last --body "<updated content>"
 
             Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
+            Update after each significant step — reading the PR, making each change,
+            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
 
             ## Your task
 
