@@ -6,6 +6,10 @@ on:
   issues:
     types: [opened, assigned]
 
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   claude:
     if: |
