@@ -1,4 +1,4 @@
-{"label":"current_dir","args":null,"result":{"Ok":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-init_fresh"}}
-{"label":"init_create_files","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-init_fresh","result":{"Ok":{"created":[".coven/agents/dispatch.md",".coven/agents/plan.md",".coven/agents/implement.md",".coven/agents/land.md",".coven/workflow.md",".coven/land.sh","issues/","review/"],"skipped":[]}}}
-{"label":"init_check_claude_md","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-init_fresh","result":{"Ok":{"existing_content":null,"needs_reference":true}}}
-{"label":"init_update_claude_md","args":"/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-init_fresh","result":{"Ok":null}}
+{"label":"current_dir","args":null,"result":{"Ok":"/tmp/coven-vcr-init_fresh"}}
+{"label":"init_create_files","args":"/tmp/coven-vcr-init_fresh","result":{"Ok":{"created":[".coven/agents/dispatch.md",".coven/agents/plan.md",".coven/agents/implement.md",".coven/agents/land.md",".coven/workflow.md",".coven/land.sh","issues/","review/"],"skipped":[]}}}
+{"label":"init_check_claude_md","args":"/tmp/coven-vcr-init_fresh","result":{"Ok":{"existing_content":null,"needs_reference":true}}}
+{"label":"init_update_claude_md","args":"/tmp/coven-vcr-init_fresh","result":{"Ok":null}}

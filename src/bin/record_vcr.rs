@@ -196,10 +196,6 @@ fn git_commit_all(dir: &Path, message: &str) -> Result<()> {
             .arg(cmd)
             .args(&args)
             .current_dir(dir)
-            .env("GIT_AUTHOR_NAME", "test")
-            .env("GIT_AUTHOR_EMAIL", "test@test.com")
-            .env("GIT_COMMITTER_NAME", "test")
-            .env("GIT_COMMITTER_EMAIL", "test@test.com")
             .output()?;
         anyhow::ensure!(
             output.status.success(),
@@ -228,6 +224,8 @@ fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
 
     for (cmd, args) in [
         ("init", vec![]),
+        ("config", vec!["user.name", "test"]),
+        ("config", vec!["user.email", "test@test.com"]),
         ("add", vec!["."]),
         ("commit", vec!["-m", "initial", "--allow-empty"]),
     ] {
@@ -235,10 +233,6 @@ fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
             .arg(cmd)
             .args(&args)
             .current_dir(&tmp_dir)
-            .env("GIT_AUTHOR_NAME", "test")
-            .env("GIT_AUTHOR_EMAIL", "test@test.com")
-            .env("GIT_COMMITTER_NAME", "test")
-            .env("GIT_COMMITTER_EMAIL", "test@test.com")
             .output()?;
         anyhow::ensure!(
             output.status.success(),
