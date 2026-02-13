@@ -700,8 +700,14 @@ async fn wait_for_new_commits<W: Write>(
                 let event = event?;
                 if let IoEvent::Terminal(Event::Key(key_event)) = event {
                     let action = input.handle_key(&key_event, renderer.writer());
-                    if matches!(action, InputAction::Interrupt | InputAction::EndSession) {
-                        return Ok(WaitOutcome::Exited);
+                    match action {
+                        InputAction::Interrupt | InputAction::EndSession => {
+                            return Ok(WaitOutcome::Exited);
+                        }
+                        InputAction::ViewMessage(ref query) => {
+                            session_loop::view_message(renderer, query)?;
+                        }
+                        _ => {}
                     }
                 }
             }
