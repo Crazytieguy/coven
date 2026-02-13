@@ -303,6 +303,11 @@ jobs:
             Read the PR with its reviews and comments:
               gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,comments,reviews,labels
 
+            Read inline review comments (these are not included in gh pr view):
+              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments --jq '.[] | {path, line, original_line, side, body, user: .user.login, in_reply_to_id}'
+
+            Use git to understand what the PR changed (e.g. git diff, git log).
+
             Read any linked issues referenced in the PR body (look for #N references):
               gh issue view <number> --json title,body,comments,labels
 
@@ -325,7 +330,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh api repos/<owner>/<repo>/pulls/*/comments *),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
 ```
 
@@ -334,12 +339,13 @@ jobs:
 | Decision | Reasoning |
 |---|---|
 | **Auto-trigger on Claude's PRs** | Any review on a PR authored by `claude[bot]` triggers Claude — reviewers don't need to remember `@claude`. |
-| **`pull_request_review` only** (not `pull_request_review_comment`) | The review event fires once per submission. Claude reads all inline comments via `gh pr view`. Triggering on both would cause duplicate runs. |
+| **`pull_request_review` only** (not `pull_request_review_comment`) | The review event fires once per submission. Claude reads all inline comments via `gh api`. Triggering on both would cause duplicate runs. |
 | **`issue_comment` for top-level PR comments** | People leave general requests as top-level comments (not reviews). These still need `@claude` since they're not formal reviews. |
 | **`gh pr checkout` in workflow step** | The PR branch already exists. A workflow step handles checkout so Claude starts on the right branch without needing extra permissions. |
 | **No "ask questions" path** | PR reviews are concrete feedback. If a completely different approach is needed, the reviewer should close the PR and comment on the issue instead. |
 | **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
 | **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. `cancel-in-progress: true` ensures the latest trigger wins. |
+| **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/<owner>/<repo>/pulls/*/comments` only. |
 
 ### Authentication
 

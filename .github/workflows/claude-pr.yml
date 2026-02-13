@@ -54,6 +54,11 @@ jobs:
             Read the PR with its reviews and comments:
               gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,comments,reviews,labels
 
+            Read inline review comments (these are not included in gh pr view):
+              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments --jq '.[] | {path, line, original_line, side, body, user: .user.login, in_reply_to_id}'
+
+            Use git to understand what the PR changed (e.g. git diff, git log).
+
             Read any linked issues referenced in the PR body (look for #N references):
               gh issue view <number> --json title,body,comments,labels
 
@@ -76,5 +81,5 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh api repos/Crazytieguy/coven/pulls/*/comments *),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
