@@ -1,14 +1,14 @@
 [run]
-prompt = "Read each .py file in this directory one at a time. After reading each file, write a summary of it before moving on to the next file."
+prompt = "Read each .py file in this directory one at a time. After reading each file, write a detailed summary of it before moving on to the next file."
 
 [files]
 "hello.py" = "print('hello world')\nprint('goodbye')\n"
 "counter.py" = "count = 0\nfor i in range(10):\n    count += i\nprint(f'Total: {count}')\n"
+"greet.py" = "def greet(name):\n    return f'Hello, {name}!'\n\nprint(greet('World'))\n"
+"fib.py" = "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n\nfor i in range(10):\n    print(fib(i))\n"
 
-# Steer right after the session initializes (on the init event). This
-# sends the steering message early enough that the model sees it in its
-# first turn and follows the redirected instruction.
+# Steer after first tool result — model is mid-task with multiple files left.
 [[messages]]
-content = "Actually, just count the lines in each file instead"
-trigger = '{"Ok": {"Claude": {"Claude": {"subtype": "init", "type": "system"}}}}'
+content = "count lines instead"
+trigger = '{"Ok": {"Claude": {"Claude": {"type": "user"}}}}'
 mode = "steering"
