@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Create working branch
         run: git checkout -b claude/issue-${{ github.event.issue.number }}
@@ -40,7 +40,7 @@ jobs:
             ## Getting started
 
             Read the full issue:
-              gh issue view ${{ github.event.issue.number }} --comments
+              gh issue view ${{ github.event.issue.number }} --json title,body,comments,labels
 
             Post a tracking comment on the issue:
               gh issue comment ${{ github.event.issue.number }} --body "Starting work..."
@@ -59,4 +59,7 @@ jobs:
               2. Create a PR: gh pr create --title "<title>" --body "<summary referencing #${{ github.event.issue.number }}>"
               3. Update your tracking comment with a summary and link to the PR.
           claude_args: |
-            --allowedTools "Bash(gh issue view *),Bash(gh issue comment *),Bash(gh pr create *),Bash(git push origin HEAD)"
+            --model claude-opus-4-6
+            --permission-mode acceptEdits
+            --allowedTools "Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(git push origin HEAD)"
+            --disallowedTools TodoWrite
