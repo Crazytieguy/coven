@@ -10,7 +10,7 @@ jobs:
   claude:
     if: |
       (github.event_name == 'pull_request_review' &&
-        (github.event.pull_request.user.login == 'app/claude' ||
+        (github.event.pull_request.user.login == 'claude[bot]' ||
          contains(github.event.review.body, '@claude'))) ||
       (github.event_name == 'issue_comment' &&
         github.event.issue.pull_request &&

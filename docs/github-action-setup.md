@@ -255,7 +255,7 @@ jobs:
   claude:
     if: |
       (github.event_name == 'pull_request_review' &&
-        (github.event.pull_request.user.login == 'app/claude' ||
+        (github.event.pull_request.user.login == 'claude[bot]' ||
          contains(github.event.review.body, '@claude'))) ||
       (github.event_name == 'issue_comment' &&
         github.event.issue.pull_request &&
@@ -325,7 +325,7 @@ jobs:
 
 | Decision | Reasoning |
 |---|---|
-| **Auto-trigger on Claude's PRs** | Any review on a PR authored by `app/claude` triggers Claude — reviewers don't need to remember `@claude`. |
+| **Auto-trigger on Claude's PRs** | Any review on a PR authored by `claude[bot]` triggers Claude — reviewers don't need to remember `@claude`. |
 | **`pull_request_review` only** (not `pull_request_review_comment`) | The review event fires once per submission. Claude reads all inline comments via `gh pr view`. Triggering on both would cause duplicate runs. |
 | **`issue_comment` for top-level PR comments** | People leave general requests as top-level comments (not reviews). These still need `@claude` since they're not formal reviews. |
 | **`gh pr checkout` in workflow step** | The PR branch already exists. A workflow step handles checkout so Claude starts on the right branch without needing extra permissions. |
