@@ -34,7 +34,9 @@ When review passes:
 
 If at any point you encounter ambiguity — stop. Do not guess at architectural choices, API design, or behavior that isn't explicitly described in the task and its decisions.
 
-Instead:
+More broadly: when you see multiple viable approaches — even for small decisions — prefer asking over choosing. If you'd mention "I went with X" in a scratch note, that's a sign you should ask first. The cost of a round-trip is low; the cost of rework is high.
+
+To ask:
 1. Discard your un-landed code changes
 2. Add questions to your board entry and move it above the divider
 3. Commit the board change
