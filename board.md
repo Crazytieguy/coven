@@ -2,6 +2,26 @@
 
 ---
 
-## P1: Investigate compaction handling
+## P1: Improve dispatch stale content cleanup
 
-Test whether coven correctly handles auto-compaction during long sessions. Trigger compaction by having haiku repeatedly read files with output each time. Document the observed behavior and any issues found. Do not implement a fix.
+The "Clean up stale content from board entries" section in the dispatch agent prompt is too aggressive. Fix by removing/simplifying the instructions rather than adding more.
+
+## P1: Prefer waiting for user input over exiting
+
+Compaction session crashed because the agent asked a question and coven exited. Either the retry limit for tag parsing failure was reached, or something else. Coven should always prefer to wait for user input rather than exiting.
+
+## P1: Add wait-for-user tag
+
+New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
+
+## P1: Propose improvements for post-compaction context loss
+
+Model tried `git push` instead of `bash .coven/land.sh` after session compaction. Also confused about interactive/non-interactive transitions. Propose possible improvements.
+
+## P1: Display compaction messages
+
+Show compaction messages compressed to a single line by default, viewable with `:N`. The previous worker found the format but crashed before landing.
+
+## P1: Add CLAUDE.md note about nested claude env var
+
+Running claude within claude requires removing an environment variable (VCR recording already does this). Document in CLAUDE.md for future reference.
