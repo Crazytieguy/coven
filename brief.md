@@ -1,4 +1,3 @@
 # Brief
 
-- Teminal title: let's keep the branch name
-- New issue: Make the main agent a bit more concise when asking questions, and have the dispatch agent remove stale content from issues
+Let's remove the stale issues and review dirs, and do an audit of all documentation to ensure consistency with the new `coven worker` system
