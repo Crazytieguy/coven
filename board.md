@@ -17,17 +17,9 @@ Investigate when exactly coven plays a bell sound. The user is getting a lot of 
 
 ---
 
-## P1: Main agent should be more willing to ask clarifying questions
-
-First session *focuses on* understanding and planning, asks if questions arise, but may start coding if everything is clear.
-
-**Decisions:**
-- Approach 3 chosen: pre-implementation checkpoint — prompt the agent to always spend its first session reading the task and listing questions before writing any code, a "plan then ask" phase built into the prompt structure
-- Approaches 1, 2, and 4 not selected
-- Variation A (soft first-session checkpoint) chosen: first session focuses on understanding and planning, asks if questions arise, but may start coding if everything is clear
-
 ## Done
 
+- P1: Main agent should be more willing to ask clarifying questions
 - P1: Transition YAML parsing fails on colons in values
 - P1: Refine post-compaction context: system.md scope and dispatch faithfulness
 - P1: Transition parsing failure behavior
