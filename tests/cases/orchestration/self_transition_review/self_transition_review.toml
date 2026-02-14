@@ -1,0 +1,21 @@
+[[multi.steps]]
+name = "init"
+command = "init"
+stdin = "y"
+
+[[multi.steps]]
+name = "worker"
+command = "worker"
+
+[[multi.steps.messages]]
+content = ""
+label = "main_head_sha"
+mode = "exit"
+
+[files]
+".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(bash .coven/land.sh)","Bash(rm:*)"]}}'
+"src/calc.py" = "def add(a, b):\n    return a + b\n"
+"brief.md" = """# Brief
+
+- Add a `subtract` function to src/calc.py that takes two arguments and returns their difference.
+"""

@@ -399,3 +399,4 @@ multi_vcr_test!(orchestration / concurrent_workers);
 multi_vcr_test!(orchestration / ambiguous_task);
 multi_vcr_test!(orchestration / priority_dispatch);
 multi_vcr_test!(orchestration / landing_conflict);
+multi_vcr_test!(orchestration / self_transition_review);
