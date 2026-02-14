@@ -1,5 +1,9 @@
 # Board
 
+## P1: Propose prompt changes for wait-for-user in ralph
+
+Please propose prompt changes. Keeping for ralph probably sounds good, could you just clarify the behavior difference with `<break>`?
+
 ---
 
 ## Done
