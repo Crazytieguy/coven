@@ -871,7 +871,6 @@ async fn wait_for_new_commits<W: Write>(
     // _watcher must stay alive for the duration of the loop.
     let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
 
-    renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
 
     loop {
