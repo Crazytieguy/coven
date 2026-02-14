@@ -68,12 +68,16 @@ Hardcode a convention: if the agent has a `task` arg, use its value as the title
 
 **Decisions:**
 - Use approach A (title template in agent frontmatter)
-
-**Questions:**
-- Should the branch name stay in the title? It's useful with multiple workers but takes space
+- Keep the branch name in the title
 
 ---
 
 ## P1: Investigate compaction handling
 
 Test whether coven correctly handles auto-compaction during long sessions. Trigger compaction by having haiku repeatedly read files with output each time. Document the observed behavior and any issues found. Do not implement a fix.
+
+## P1: Improve agent prompt conciseness and stale content cleanup
+
+Two prompt improvements:
+1. Make the main agent more concise when asking questions (currently too verbose)
+2. Have the dispatch agent remove stale content from board issues (old design notes, resolved alternatives, etc.) when syncing
