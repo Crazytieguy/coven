@@ -138,7 +138,7 @@ pub fn render_exit(&mut self, code: Option<i32>) {
 
 Re-recording will change `ProcessExit(None)` to `ProcessExit(Some(0))` in VCR files for normal exits. With step 5, the rendered output stays the same ("Claude process exited" without the code) so snapshot diffs should be minimal (just the serialized event field).
 
-Run `cargo run --bin record-vcr`, then `cargo test`, review diffs, and `cargo insta accept`.
+Run `cargo record-vcr`, then `cargo test`, review diffs, and `cargo insta accept`.
 
 ### Files changed
 
