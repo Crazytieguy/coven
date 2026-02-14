@@ -419,6 +419,7 @@ async fn run_phase_with_wait<W: Write>(
 
         match transition {
             Transition::WaitForUser { reason } => {
+                ctx.renderer.write_raw("\x07");
                 ctx.renderer
                     .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
                 let sid = session_id

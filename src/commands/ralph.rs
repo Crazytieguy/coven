@@ -198,6 +198,7 @@ async fn handle_session_outcome<W: Write>(
                 crate::protocol::parse::extract_tag_inner(&result_text, "wait-for-user")
             {
                 let reason = reason.trim();
+                ctx.renderer.write_raw("\x07");
                 ctx.renderer
                     .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
                 let Some((runner, new_state)) =
