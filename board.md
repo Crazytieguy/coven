@@ -16,6 +16,12 @@ Enrich corrective prompt with available agents and bump auto-retries to 3. On fi
 
 Keystrokes in `:N` pager mode are captured by coven instead of the pager. Same root cause as Ctrl+O interactive sessions — apply same fix. Also investigate whether the first keystroke in Ctrl+O interactive mode fails to send (could be a Claude Code loading delay vs a coven issue).
 
+## P1: Refine post-compaction context: system.md scope and dispatch faithfulness
+
+The recent post-compaction context loss fix was too aggressive. Two changes needed:
+1. **system.md scope:** system.md should only include context useful to all agents (e.g. land.sh script, general workflow). Move agent-specific context out.
+2. **Dispatch faithfulness:** The dispatch agent should copy useful context from the brief more faithfully, often copying content verbatim rather than summarizing.
+
 ## Done
 
 - P1: Add "Done" section to board
