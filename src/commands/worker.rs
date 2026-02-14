@@ -884,7 +884,7 @@ async fn wait_for_new_commits<W: Write>(
                             return Ok(WaitOutcome::Exited);
                         }
                         InputAction::ViewMessage(ref query) => {
-                            session_loop::view_message(renderer, query)?;
+                            session_loop::view_message(renderer, query, io)?;
                         }
                         _ => {}
                     }

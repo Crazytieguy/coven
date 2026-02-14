@@ -107,6 +107,26 @@ pub async fn run_session<W: Write>(
                 match action {
                     LoopAction::Continue => {}
                     LoopAction::Return(outcome) => return Ok(outcome),
+                    LoopAction::ViewMessage(ref query) => {
+                        view_message(renderer, query, io)?;
+                        let flush = flush_event_buffer(&mut locals, state, renderer);
+                        if let FlushResult::Completed(ref result_text) = flush {
+                            return Ok(SessionOutcome::Completed {
+                                result_text: result_text.clone(),
+                            });
+                        }
+                        let fork_cfg = locals.fork_config.as_ref();
+                        if let Some(LoopAction::Return(outcome)) =
+                            handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg)
+                                .await?
+                        {
+                            return Ok(outcome);
+                        }
+                        // Don't re-activate input — it was deactivated when the
+                        // user submitted the :N command. The user returns to
+                        // inactive state and can type a character to start new
+                        // input naturally (via Activated(c)).
+                    }
                 }
             }
             IoEvent::Terminal(_) => {}
@@ -118,6 +138,8 @@ pub async fn run_session<W: Write>(
 enum LoopAction {
     Continue,
     Return(SessionOutcome),
+    /// Open a message in the pager — deferred to `run_session` which has `io`.
+    ViewMessage(String),
 }
 
 /// What happened during event buffer flush that requires caller action.
@@ -228,23 +250,8 @@ async fn handle_session_key_event<W: Write>(
                 }
             }
         }
-        InputAction::ViewMessage(ref query) => {
-            view_message(renderer, query)?;
-            let flush = flush_event_buffer(locals, state, renderer);
-            if let FlushResult::Completed(ref result_text) = flush {
-                return Ok(LoopAction::Return(SessionOutcome::Completed {
-                    result_text: result_text.clone(),
-                }));
-            }
-            let fork_cfg = locals.fork_config.as_ref();
-            if let Some(action) =
-                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
-            {
-                return Ok(action);
-            }
-            // Don't re-activate input — it was deactivated when the user submitted
-            // the :N command. The user returns to inactive state and can type a
-            // character to start new input naturally (via Activated(c)).
+        InputAction::ViewMessage(query) => {
+            return Ok(LoopAction::ViewMessage(query));
         }
         InputAction::Interrupt => {
             runner.kill().await?;
@@ -515,7 +522,7 @@ async fn wait_for_text_input<W: Write>(
                         return Ok(Some(WaitResult::Interactive));
                     }
                     InputAction::ViewMessage(ref query) => {
-                        view_message(renderer, query)?;
+                        view_message(renderer, query, io)?;
                     }
                     InputAction::Cancel => {
                         renderer.show_prompt();
@@ -613,7 +620,10 @@ pub fn open_interactive_session(
 }
 
 /// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").
-pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) -> Result<()> {
+///
+/// Pauses the background terminal reader so the pager gets exclusive stdin
+/// access — same pattern as [`open_interactive_session`].
+pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str, io: &mut Io) -> Result<()> {
     use crate::display::renderer::format_message;
 
     let Some(mut content) = format_message(renderer.messages(), query) else {
@@ -629,6 +639,10 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) -> Result
         }
     }
 
+    // Pause the background terminal reader so the pager gets exclusive
+    // access to stdin — prevents keypress competition.
+    io.pause_term_reader();
+
     // Leave raw mode so the pager can handle keyboard input.
     // The pager manages its own alternate screen.
     terminal::disable_raw_mode().ok();
@@ -641,7 +655,11 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) -> Result
     {
         Ok(child) => child,
         Err(e) => {
-            // Re-enable raw mode before writing the error, since write_raw expects raw mode
+            // Discard buffered input, drain events, resume reader, and re-enable
+            // raw mode before writing the error.
+            unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
+            io.drain_term_events();
+            io.resume_term_reader();
             terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
             renderer.write_raw(&format!("Failed to open pager '{pager}': {e}\r\n"));
             return Ok(());
@@ -664,6 +682,12 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str) -> Result
     // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
     // discards buffered input bytes — no memory or resource safety concerns.
     unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
+
+    // Drain any residual events queued before the pause took effect,
+    // then resume the background reader.
+    io.drain_term_events();
+    io.resume_term_reader();
+
     terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
     Ok(())
 }
