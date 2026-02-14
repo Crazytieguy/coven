@@ -5,11 +5,14 @@ pub mod run;
 pub mod status;
 pub mod worker;
 
+use std::io::Write;
 use std::path::Path;
 
 use anyhow::Result;
 use crossterm::terminal;
 
+use crate::display::input::InputHandler;
+use crate::display::renderer::Renderer;
 use crate::vcr::VcrContext;
 
 /// Guard that disables terminal raw mode on drop.
@@ -38,6 +41,24 @@ impl Drop for RawModeGuard {
             terminal::disable_raw_mode().ok();
         }
     }
+}
+
+/// Set up the display renderer and input handler with common configuration.
+///
+/// Caller is responsible for acquiring raw mode (via [`RawModeGuard`]) before
+/// calling `renderer.render_help()`.
+pub(crate) fn setup_display<W: Write>(
+    writer: W,
+    term_width: Option<usize>,
+    show_thinking: bool,
+) -> (Renderer<W>, InputHandler) {
+    let mut renderer = Renderer::with_writer(writer);
+    if let Some(w) = term_width {
+        renderer.set_width(w);
+    }
+    renderer.set_show_thinking(show_thinking);
+    let input = InputHandler::new(2);
+    (renderer, input)
 }
 
 /// Resolve the working directory through VCR. Uses the configured directory

@@ -22,7 +22,7 @@ use crate::worktree::{self, SpawnOptions};
 
 use crate::session::event_loop::{self, SessionOutcome};
 
-use super::RawModeGuard;
+use super::{RawModeGuard, setup_display};
 
 /// Shared mutable context threaded through worker phases.
 struct PhaseContext<'a, W: Write> {
@@ -116,13 +116,8 @@ pub async fn worker<W: Write>(
         .await??;
 
     let raw = RawModeGuard::acquire(vcr.is_live())?;
-    let mut renderer = Renderer::with_writer(writer);
-    if let Some(w) = config.term_width {
-        renderer.set_width(w);
-    }
-    renderer.set_show_thinking(config.show_thinking);
+    let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     renderer.render_help();
-    let mut input = InputHandler::new(2);
 
     let wt_str = spawn_result.worktree_path.display().to_string();
 

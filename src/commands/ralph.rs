@@ -13,7 +13,7 @@ use crate::vcr::{Io, VcrContext};
 
 use crate::session::event_loop::{self, SessionOutcome};
 
-use super::RawModeGuard;
+use super::{RawModeGuard, setup_display};
 
 pub struct RalphConfig {
     pub prompt: String,
@@ -112,13 +112,8 @@ pub async fn ralph<W: Write>(
 ) -> Result<Vec<StoredMessage>> {
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
 
-    let mut renderer = Renderer::with_writer(writer);
-    if let Some(w) = config.term_width {
-        renderer.set_width(w);
-    }
-    renderer.set_show_thinking(config.show_thinking);
+    let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     renderer.render_help();
-    let mut input = InputHandler::new(2);
     let system_prompt = config.system_prompt();
     if config.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());

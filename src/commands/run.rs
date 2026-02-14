@@ -12,7 +12,7 @@ use crate::vcr::{Io, VcrContext};
 
 use crate::session::event_loop::{self, FollowUpAction, SessionOutcome};
 
-use super::RawModeGuard;
+use super::{RawModeGuard, setup_display};
 
 pub struct RunConfig {
     pub prompt: Option<String>,
@@ -31,12 +31,7 @@ pub async fn run<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
-    let mut renderer = Renderer::with_writer(writer);
-    if let Some(w) = config.term_width {
-        renderer.set_width(w);
-    }
-    renderer.set_show_thinking(config.show_thinking);
-    let mut input = InputHandler::new(2);
+    let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     let mut state = SessionState::default();
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
     renderer.render_help();

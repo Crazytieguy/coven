@@ -350,6 +350,44 @@ async fn handle_session_key_event<W: Write>(
     Ok(LoopAction::Continue)
 }
 
+/// Send a follow-up message: render indicator, suppress separator, send, set Running.
+async fn send_followup<W: Write>(
+    text: String,
+    renderer: &mut Renderer<W>,
+    runner: &mut SessionRunner,
+    state: &mut SessionState,
+    vcr: &VcrContext,
+) -> Result<()> {
+    renderer.render_followup_sent(&text);
+    state.suppress_next_separator = true;
+    vcr_send_message(runner, vcr, text).await?;
+    state.status = SessionStatus::Running;
+    Ok(())
+}
+
+/// Execute a fork: run children, send reintegration result, set Running.
+async fn execute_fork<W: Write>(
+    tasks: Vec<String>,
+    state: &mut SessionState,
+    renderer: &mut Renderer<W>,
+    runner: &mut SessionRunner,
+    vcr: &VcrContext,
+    fork_config: Option<&ForkConfig>,
+) -> Result<()> {
+    let session_id = state
+        .session_id
+        .clone()
+        .context("cannot fork: no session ID yet")?;
+    let Some(fork_cfg) = fork_config else {
+        unreachable!("fork detected without fork_config");
+    };
+    let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
+    vcr_send_message(runner, vcr, msg).await?;
+    state.suppress_next_separator = true;
+    state.status = SessionStatus::Running;
+    Ok(())
+}
+
 /// Process a single claude event. Returns Some(outcome) if the session should end.
 async fn process_claude_event<W: Write>(
     event: AppEvent,
@@ -364,23 +402,10 @@ async fn process_claude_event<W: Write>(
         AppEvent::Claude(inbound) => {
             match classify_claude_event(&inbound, locals, state, renderer, fork_config) {
                 ClaudeEventAction::Fork(tasks) => {
-                    let session_id = state
-                        .session_id
-                        .clone()
-                        .context("cannot fork: no session ID yet")?;
-                    let Some(fork_cfg) = fork_config else {
-                        unreachable!("fork_tasks set without fork_config");
-                    };
-                    let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-                    vcr_send_message(runner, vcr, msg).await?;
-                    state.suppress_next_separator = true;
-                    state.status = SessionStatus::Running;
+                    execute_fork(tasks, state, renderer, runner, vcr, fork_config).await?;
                 }
                 ClaudeEventAction::Followup(text) => {
-                    renderer.render_followup_sent(&text);
-                    state.suppress_next_separator = true;
-                    vcr_send_message(runner, vcr, text).await?;
-                    state.status = SessionStatus::Running;
+                    send_followup(text, renderer, runner, state, vcr).await?;
                 }
                 ClaudeEventAction::Completed(result_text) => {
                     return Ok(Some(SessionOutcome::Completed { result_text }));
@@ -454,25 +479,11 @@ async fn handle_flush_result<W: Write>(
     match flush {
         FlushResult::ProcessExited => Ok(Some(LoopAction::Return(SessionOutcome::ProcessExited))),
         FlushResult::Followup(text) => {
-            renderer.render_followup_sent(&text);
-            state.suppress_next_separator = true;
-            vcr_send_message(runner, vcr, text).await?;
-            state.status = SessionStatus::Running;
+            send_followup(text, renderer, runner, state, vcr).await?;
             Ok(None)
         }
         FlushResult::Fork(tasks) => {
-            let session_id = state
-                .session_id
-                .clone()
-                .context("cannot fork: no session ID yet")?;
-            // Safety: fork_tasks is only set when fork_config is Some
-            let Some(fork_cfg) = fork_config else {
-                unreachable!("Fork detected without fork_config");
-            };
-            let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-            vcr_send_message(runner, vcr, msg).await?;
-            state.suppress_next_separator = true;
-            state.status = SessionStatus::Running;
+            execute_fork(tasks, state, renderer, runner, vcr, fork_config).await?;
             Ok(None)
         }
         FlushResult::Completed(_) | FlushResult::Continue => Ok(None),
@@ -624,6 +635,21 @@ pub async fn spawn_session(
     .await
 }
 
+/// Restore terminal state after exclusive access (interactive session or pager).
+///
+/// Flushes buffered input from the kernel queue, drains any residual events
+/// queued before the pause took effect, resumes the background terminal reader,
+/// and re-enables raw mode.
+fn restore_terminal(io: &mut Io) -> Result<()> {
+    // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
+    // discards buffered input bytes — no memory or resource safety concerns.
+    unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
+    io.drain_term_events();
+    io.resume_term_reader();
+    terminal::enable_raw_mode().context("failed to re-enable raw mode")?;
+    Ok(())
+}
+
 /// Drop into the native Claude Code TUI to continue a session interactively.
 ///
 /// Temporarily exits raw mode, spawns `claude --resume <session_id>` as a
@@ -669,18 +695,7 @@ pub fn open_interactive_session(
         eprintln!("claude exited with code {code}");
     }
 
-    // Discard any keystrokes buffered while the interactive session was active.
-    // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
-    // discards buffered input bytes — no memory or resource safety concerns.
-    unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
-
-    // Drain any residual events queued in the channel before the pause took
-    // effect, then resume the background reader.
-    io.drain_term_events();
-    io.resume_term_reader();
-
-    terminal::enable_raw_mode()
-        .context("failed to re-enable raw mode after interactive session")?;
+    restore_terminal(io)?;
     print!("\r\n[returned to coven]\r\n");
 
     Ok(())
@@ -722,12 +737,7 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str, io: &mut 
     {
         Ok(child) => child,
         Err(e) => {
-            // Discard buffered input, drain events, resume reader, and re-enable
-            // raw mode before writing the error.
-            unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
-            io.drain_term_events();
-            io.resume_term_reader();
-            terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
+            restore_terminal(io)?;
             renderer.write_raw(&format!("Failed to open pager '{pager}': {e}\r\n"));
             return Ok(());
         }
@@ -744,17 +754,6 @@ pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str, io: &mut 
     child.stdin.take();
     child.wait().ok();
 
-    // Discard any keystrokes buffered in the kernel's terminal input queue
-    // while the pager was active — prevents stale keys from leaking into the prompt.
-    // SAFETY: tcflush on STDIN_FILENO with TCIFLUSH is a POSIX syscall that
-    // discards buffered input bytes — no memory or resource safety concerns.
-    unsafe { libc::tcflush(libc::STDIN_FILENO, libc::TCIFLUSH) };
-
-    // Drain any residual events queued before the pause took effect,
-    // then resume the background reader.
-    io.drain_term_events();
-    io.resume_term_reader();
-
-    terminal::enable_raw_mode().context("failed to re-enable raw mode after pager")?;
+    restore_terminal(io)?;
     Ok(())
 }
