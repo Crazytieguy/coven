@@ -1,5 +1,13 @@
 # Board
 
+## P1: Investigate spurious worker wake-ups
+
+I suspect there might be spurious worker wake ups not caused by git commits, please check.
+
+## P1: Release patch version
+
+I want to release a patch version, start working on it and wait for me when you need permission.
+
 ---
 
 ## Done
