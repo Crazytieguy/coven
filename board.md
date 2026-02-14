@@ -8,12 +8,9 @@ Should we: (A) remove from worker, keep in ralph; (B) keep in both, fix via prom
 
 ---
 
-## P2: Investigate prompt issues causing flaky orchestration recordings
-
-The `ambiguous_task` VCR recording is flaky — the main agent sometimes skips `land.sh` before transitioning and/or uses `<wait-for-user>` directly instead of transitioning to dispatch. The correct flow is: main adds questions to board → lands → transitions to dispatch → dispatch sleeps.
-
 ## Done
 
+- P2: Investigate prompt issues causing flaky orchestration recordings
 - P1: Audit codebase for error handling and edge case issues
 - P1: Audit codebase for error-prone duplication
 - P1: Audit codebase for race conditions and concurrency issues
