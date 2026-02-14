@@ -2,7 +2,12 @@
   "hooks": {
     "PostToolUse": [
       {
-        "command": "bash .github/hooks/check-comments.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.github/hooks/check-comments.sh"
+          }
+        ]
       }
     ]
   }
