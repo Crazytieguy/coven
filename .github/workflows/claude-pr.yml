@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: claude-pr-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -36,56 +36,59 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Check if already handled
+        id: check
+        run: |
+          last=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'sort_by(.updated_at) | last | .user.login')
+          echo "skip=$( [ "$last" = "claude[bot]" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
       - name: Checkout PR branch
+        if: steps.check.outputs.skip != 'true'
         run: gh pr checkout ${{ github.event.pull_request.number || github.event.issue.number }}
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Initialize comment tracking
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'if length > 0 then last.id else 0 end' > /tmp/claude-last-comment-id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+      - name: Load prompt
+        if: steps.check.outputs.skip != 'true'
+        id: prompt
+        run: |
+          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/pr-review.md)
+          echo "content<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$prompt" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        env:
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
+
       - name: Run Claude Code
+        if: steps.check.outputs.skip != 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
-          prompt: |
-            You are running autonomously via github action. You were triggered by
-            a review or comment on PR #${{ github.event.pull_request.number || github.event.issue.number }}
-            in ${{ github.repository }}.
-
-            ## Getting started
-
-            Read the PR with its reviews and comments:
-              gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,comments,reviews,labels
-
-            Read inline review comments (these are not included in gh pr view):
-              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments --jq '.[] | {path, line, original_line, side, body, user: .user.login, in_reply_to_id}'
-
-            Use git to understand what the PR changed (e.g. git diff, git log).
-
-            Read any linked issues referenced in the PR body (look for #N references):
-              gh issue view <number> --json title,body,comments,labels
-
-            Always post a new tracking comment (never reuse one from a previous run):
-              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --body "Starting work..."
-
-            Update this comment as you work using:
-              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --edit-last --body "<updated content>"
-
-            Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
-            Update after each significant step — reading the PR, making each change,
-            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
-
-            ## Your task
-
-            Address the review feedback. Read the review comments carefully, make the
-            requested changes, and push to the PR branch.
-
-            When done:
-              1. Push with: git push origin HEAD
-              2. Update your tracking comment with a summary of changes made.
+          prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh api repos/Crazytieguy/coven/pulls/*/comments *),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh api repos/${{ github.repository }}/pulls/*/comments *),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite

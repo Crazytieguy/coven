@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: claude-issue-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -31,42 +31,55 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Check if already handled
+        id: check
+        run: |
+          last=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'sort_by(.updated_at) | last | .user.login')
+          echo "skip=$( [ "$last" = "claude[bot]" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+
       - name: Create working branch
+        if: steps.check.outputs.skip != 'true'
         run: git checkout -b claude/issue-${{ github.event.issue.number }}
 
+      - name: Initialize comment tracking
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'if length > 0 then last.id else 0 end' > /tmp/claude-last-comment-id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+
+      - name: Load prompt
+        if: steps.check.outputs.skip != 'true'
+        id: prompt
+        run: |
+          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/issue.md)
+          echo "content<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$prompt" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+
       - name: Run Claude Code
+        if: steps.check.outputs.skip != 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
-          prompt: |
-            You are running autonomously via github action. You were triggered by an @claude mention on issue #${{ github.event.issue.number }} in ${{ github.repository }}.
-
-            ## Getting started
-
-            Read the full issue:
-              gh issue view ${{ github.event.issue.number }} --json title,body,comments,labels
-
-            Always post a new tracking comment (never reuse one from a previous run):
-              gh issue comment ${{ github.event.issue.number }} --body "Starting work..."
-
-            Update this comment as you work using:
-              gh issue comment ${{ github.event.issue.number }} --edit-last --body "<updated content>"
-
-            Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
-            Update after each significant step — reading the issue, making each change,
-            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
-
-            ## Choose one of two paths
-
-            **Path A — Ask questions:** If the issue is ambiguous, underspecified, or you hit blockers during implementation, update your tracking comment with your questions and stop. Do not guess or make assumptions about unclear requirements.
-
-            **Path B — Implement:** If the issue is clear, implement the changes on the current branch. When done:
-              1. Push with: git push origin HEAD
-              2. Create a PR: gh pr create --title "<title>" --body "<summary referencing #${{ github.event.issue.number }}>"
-              3. Update your tracking comment with a summary and link to the PR.
+          prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits

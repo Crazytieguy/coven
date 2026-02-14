@@ -160,6 +160,10 @@ To prevent Claude from pushing to `main` or other protected branches:
 | **`fetch-depth: 0`** (full checkout) | Shallow checkouts miss git history needed for understanding the codebase. |
 | **Opus 4.6 model** | Sonnet 4.5 (the default) is not desired. Specify explicitly via `--model claude-opus-4-6`. |
 | **Two equal paths in prompt** (ask questions vs implement) | Ambiguity should trigger questions, not guesses. Both outcomes are equally valid — the prompt emphasizes this rather than treating implementation as the default. |
+| **Prompts as files** (`.github/prompts/`) | Keeps workflow YAML clean. Prompts are long and iterated on frequently — separate files make diffs readable. Loaded via a workflow step with `sed` placeholder substitution for `{{NUMBER}}` and `{{REPOSITORY}}`. |
+| **PostToolUse hook for mid-session notifications** | A hook script checks for new issue comments after each tool call, injecting them into Claude's context. This lets humans send feedback to a running Claude session without restarting. See the Mid-Session Notifications section. |
+| **`cancel-in-progress: false`** with skip check | Instead of cancelling running jobs on new triggers, queued runs check if the previous run already handled the comment (by checking if the most recently updated comment is by `claude[bot]`). The hook delivers mid-session feedback, so restarts are rarely needed. |
+| **`settings` input for hooks** | The action's `settings` input merges into `~/.claude/settings.json` (user-level), which coexists with the project's `.claude/settings.json`. Hooks from all levels run — no conflicts. |
 
 ### Current Workflow Files
 
@@ -176,7 +180,7 @@ on:
 
 concurrency:
   group: claude-issue-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -199,47 +203,55 @@ jobs:
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2  # or your ecosystem's cache action
 
+      - name: Check if already handled
+        id: check
+        run: |
+          last=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'sort_by(.updated_at) | last | .user.login')
+          echo "skip=$( [ "$last" = "claude[bot]" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+
       - name: Create working branch
+        if: steps.check.outputs.skip != 'true'
         run: git checkout -b claude/issue-${{ github.event.issue.number }}
 
+      - name: Initialize comment tracking
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'if length > 0 then last.id else 0 end' > /tmp/claude-last-comment-id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+
+      - name: Load prompt
+        if: steps.check.outputs.skip != 'true'
+        id: prompt
+        run: |
+          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/issue.md)
+          echo "content<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$prompt" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+
       - name: Run Claude Code
+        if: steps.check.outputs.skip != 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
-          prompt: |
-            You are running autonomously via github action. You were triggered by
-            an @claude mention on issue #${{ github.event.issue.number }}
-            in ${{ github.repository }}.
-
-            ## Getting started
-
-            Read the full issue:
-              gh issue view ${{ github.event.issue.number }} --json title,body,comments,labels
-
-            Always post a new tracking comment (never reuse one from a previous run):
-              gh issue comment ${{ github.event.issue.number }} --body "Starting work..."
-
-            Update this comment as you work using:
-              gh issue comment ${{ github.event.issue.number }} --edit-last --body "<updated content>"
-
-            Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
-            Update after each significant step — reading the issue, making each change,
-            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
-
-            ## Choose one of two paths
-
-            **Path A — Ask questions:** If the issue is ambiguous, underspecified, or you
-            hit blockers during implementation, update your tracking comment with your
-            questions and stop. Do not guess or make assumptions about unclear requirements.
-
-            **Path B — Implement:** If the issue is clear, implement the changes on the
-            current branch. When done:
-              1. Push with: git push origin HEAD
-              2. Create a PR: gh pr create --title "<title>" --body "<summary referencing #N>"
-              3. Update your tracking comment with a summary and link to the PR.
+          prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
@@ -247,7 +259,13 @@ jobs:
             --disallowedTools TodoWrite
 ```
 
-**Key change from v1:** Added `!github.event.issue.pull_request` guard so PR comments don't trigger this workflow. PR comments are handled by the PR workflow instead.
+**Key changes from previous version:**
+- `cancel-in-progress: false` — queued runs wait instead of cancelling the running job.
+- **Skip check step** — queued runs check if Claude already handled the triggering comment (by checking the most recently updated comment author). If `claude[bot]`, the run exits early.
+- **Comment tracking initialization** — saves the current latest comment ID so the PostToolUse hook knows which comments are new.
+- **Prompt loaded from file** — `.github/prompts/issue.md` with `{{NUMBER}}`/`{{REPOSITORY}}` placeholders substituted via `sed`.
+- **`settings` input** — loads `.github/settings/claude-hooks.json` to configure the notification hook.
+- **Env vars for hook** — `ISSUE_NUMBER` is passed through to the hook script via environment inheritance. `GITHUB_REPOSITORY` is set automatically by GitHub Actions.
 
 #### PR Review Workflow (`claude-pr.yml`)
 
@@ -262,7 +280,7 @@ on:
 
 concurrency:
   group: claude-pr-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -290,54 +308,57 @@ jobs:
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2  # or your ecosystem's cache action
 
+      - name: Check if already handled
+        id: check
+        run: |
+          last=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'sort_by(.updated_at) | last | .user.login')
+          echo "skip=$( [ "$last" = "claude[bot]" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
       - name: Checkout PR branch
+        if: steps.check.outputs.skip != 'true'
         run: gh pr checkout ${{ github.event.pull_request.number || github.event.issue.number }}
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Initialize comment tracking
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq 'if length > 0 then last.id else 0 end' > /tmp/claude-last-comment-id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+      - name: Load prompt
+        if: steps.check.outputs.skip != 'true'
+        id: prompt
+        run: |
+          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/pr-review.md)
+          echo "content<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$prompt" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        env:
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
+
       - name: Run Claude Code
+        if: steps.check.outputs.skip != 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
-          prompt: |
-            You are running autonomously via github action. You were triggered by
-            a review or comment on PR #${{ github.event.pull_request.number || github.event.issue.number }}
-            in ${{ github.repository }}.
-
-            ## Getting started
-
-            Read the PR with its reviews and comments:
-              gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,comments,reviews,labels
-
-            Read inline review comments (these are not included in gh pr view):
-              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number || github.event.issue.number }}/comments --jq '.[] | {path, line, original_line, side, body, user: .user.login, in_reply_to_id}'
-
-            Use git to understand what the PR changed (e.g. git diff, git log).
-
-            Read any linked issues referenced in the PR body (look for #N references):
-              gh issue view <number> --json title,body,comments,labels
-
-            Always post a new tracking comment (never reuse one from a previous run):
-              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --body "Starting work..."
-
-            Update this comment as you work using:
-              gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --edit-last --body "<updated content>"
-
-            Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
-            Update after each significant step — reading the PR, making each change,
-            running tests, iterating on failures, pushing. The comment is the only way humans can see your progress.
-
-            ## Your task
-
-            Address the review feedback. Read the review comments carefully, make the
-            requested changes, and push to the PR branch.
-
-            When done:
-              1. Push with: git push origin HEAD
-              2. Update your tracking comment with a summary of changes made.
+          prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
@@ -355,7 +376,7 @@ jobs:
 | **`gh pr checkout` in workflow step** | The PR branch already exists. A workflow step handles checkout so Claude starts on the right branch without needing extra permissions. |
 | **No "ask questions" path** | PR reviews are concrete feedback. If a completely different approach is needed, the reviewer should close the PR and comment on the issue instead. |
 | **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
-| **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. `cancel-in-progress: true` ensures the latest trigger wins. |
+| **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. The skip check + notification hook handle deduplication. |
 | **Filter out approvals** | `review.state != 'approved'` prevents wasting a run when a reviewer approves without actionable feedback. |
 | **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/<owner>/<repo>/pulls/*/comments` only. |
 
@@ -366,6 +387,66 @@ Add a caching step between checkout and the Claude step to avoid redownloading/r
 ### Authentication
 
 Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed by MATS). The built-in `/install-github-app` command in Claude Code handles setup, creating a PR with the workflow file. Most fellows aren't hitting subscription limits, and subscriptions are more cost-effective than API usage.
+
+---
+
+## Mid-Session Notifications (Experimental)
+
+### Problem
+
+With `cancel-in-progress: true`, a new comment on an issue/PR while Claude is working cancels the running job and starts fresh. Claude loses all progress — compilation caches, context built up over the session, partially completed work.
+
+### Approach
+
+A Claude Code **PostToolUse hook** checks for new issue comments after each tool call and injects them into Claude's context via `additionalContext`. Combined with `cancel-in-progress: false` and a skip-check step, this lets humans send feedback to a running Claude session without restarting.
+
+### Components
+
+**File structure:**
+
+```
+.github/
+  hooks/
+    check-comments.sh    # PostToolUse hook script
+  settings/
+    claude-hooks.json     # Hook configuration (loaded via settings input)
+  prompts/
+    issue.md              # Issue workflow prompt template
+    pr-review.md          # PR review workflow prompt template
+  workflows/
+    claude-issue.yml
+    claude-pr.yml
+```
+
+**Hook script** (`.github/hooks/check-comments.sh`): Runs after each tool call. Rate-limited to one API call per 10 seconds (most invocations exit immediately). Checks `gh api repos/.../issues/.../comments` for comments newer than the last seen ID, filtering out `claude[bot]`'s own comments. New human comments are injected as `additionalContext`.
+
+**Hook configuration** (`.github/settings/claude-hooks.json`): Passed via the action's `settings` input, which merges into `~/.claude/settings.json` (user-level). This coexists with the project's `.claude/settings.json` — hooks from all levels run in parallel.
+
+**Skip check step**: Queued runs (triggered while Claude is already working) check if the most recently *updated* comment is by `claude[bot]`. If so, Claude already handled the triggering comment via the hook, and the queued run exits early. Uses `gh api` with `sort_by(.updated_at)` because `gh issue view --json comments` doesn't expose `updated_at` — and sorting by creation order would miss Claude's `--edit-last` tracking updates.
+
+**State initialization step**: Before Claude starts, saves the current latest comment ID to `/tmp/claude-last-comment-id`. Without this, the hook would inject all existing comments on Claude's first tool call.
+
+### How it works
+
+1. Human comments on issue → triggers workflow run A
+2. Run A starts, initializes comment tracking, launches Claude
+3. Human comments again → triggers run B, which queues behind A (no cancellation)
+4. Run A's PostToolUse hook fires, detects the new comment, injects it as `additionalContext`
+5. Claude incorporates the feedback, keeps working, updates its tracking comment via `--edit-last`
+6. Run A finishes
+7. Run B starts, checks most recently updated comment → `claude[bot]` → exits early
+
+### Caveats
+
+This is experimental and untested end-to-end. Known uncertainties:
+
+- **Hook output format**: We assume `{"hookSpecificOutput": {"additionalContext": "..."}}` on stdout with exit code 0, based on docs. If this doesn't work, plain text stdout may also be seen by the model (observed in other testing).
+- **Environment variable propagation**: The hook script needs `ISSUE_NUMBER` (set as an env var on the action step) and `GITHUB_REPOSITORY` (set automatically by GitHub Actions). These should propagate through Claude Code to the hook subprocess via standard inheritance, but this is unverified.
+- **`stat -c` (Linux only)**: The rate limit uses `stat -c %Y` which is GNU coreutils. Fine for Ubuntu runners, won't work on macOS.
+
+### Future direction
+
+The same PostToolUse hook could also post **outbound progress updates** — summarizing what tool Claude just used (e.g., "Reading `src/main.rs`...", "Running tests..."), providing a heartbeat when Claude has been quiet for a while. This would make the tracking comment more useful for humans monitoring long-running sessions.
 
 ---
 
@@ -390,15 +471,15 @@ Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed
 
 - **`app/claude` vs `claude[bot]`:** The `gh` CLI reports PR author as `app/claude`, but GitHub Actions event payloads use `claude[bot]`. The auto-trigger filter failed silently (job skipped) until this was corrected.
 - **Multiple reviews = multiple runs:** Each inline review comment submitted separately fires a `pull_request_review: submitted` event. Three reviews on the same PR spawned three concurrent runs, all racing to push to the same branch. **Fix:** Added `concurrency` groups keyed to the PR/issue number with `cancel-in-progress: true`.
-- **`cancel-in-progress: true`:** Chosen over queuing because new review feedback likely supersedes what Claude was already working on. The latest trigger should win.
+- **`cancel-in-progress`:** Initially set to `true` (latest trigger wins). Now changed to `false` with a skip-check step and PostToolUse notification hook — see the Mid-Session Notifications section.
 
 ---
 
 ## Open Questions & Future Work
 
-1. ~~**Dependency caching:**~~ **Resolved.** See the Dependency Caching section below.
+1. ~~**Dependency caching:**~~ **Resolved.** See the Dependency Caching section above.
 2. ~~**PR trigger support:**~~ **Resolved.** Added `claude-pr.yml` — triggers on `pull_request_review` (auto for Claude's PRs) and `@claude` mentions in PR comments.
-3. **Async notification instead of cancel-in-progress:** Currently, a new trigger on the same PR cancels the running job and starts fresh. An alternative: notify the running Claude session of the new feedback mid-stream (similar to steering) so it can incorporate it without restarting. The action doesn't support this natively.
+3. ~~**Async notification instead of cancel-in-progress:**~~ **Implemented (experimental).** A PostToolUse hook injects new issue comments into Claude's context mid-session. Combined with `cancel-in-progress: false` and a skip-check step. See the Mid-Session Notifications section. Untested end-to-end — the hook output format and env var propagation need verification.
 4. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.
 5. **Runpod interaction model:** How to give Claude access to remote GPU compute without risking data loss. Needs a safe abstraction (e.g., MCP tool for spinning up environments and running code, rather than raw SSH).
 6. **Long-running experiment completion:** When a remote job finishes after Claude's session has ended, how should results flow back? Current answer: human opens a new issue. Future: remote machine triggers `workflow_dispatch`.
