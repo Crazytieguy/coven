@@ -1,4 +1,4 @@
 # Brief
 
-Some vcr tests need to be re-recorded. Please do so, make sure snapshots look correct after, and iterate until everything looks correct.
-There should be a new vcr + snapshot test to check that the main agent consistently self-transitions for review
+Post compaction context loss: can maybe extract shared things and put them in system.md (like landing), but don't be too aggressive with it
+Transition parsing failure: Both proposals sound great. Implementing this should block on having the wait-for-user tag functional so that it can also be integrated. That could actually let us bump the retries to 3: the agent should explicitly output the wait for user tag
