@@ -161,9 +161,8 @@ To prevent Claude from pushing to `main` or other protected branches:
 | **Opus 4.6 model** | Sonnet 4.5 (the default) is not desired. Specify explicitly via `--model claude-opus-4-6`. |
 | **Two equal paths in prompt** (ask questions vs implement) | Ambiguity should trigger questions, not guesses. Both outcomes are equally valid — the prompt emphasizes this rather than treating implementation as the default. |
 | **Prompts as files** (`.github/prompts/`) | Keeps workflow YAML clean. Prompts are long and iterated on frequently — separate files make diffs readable. Loaded via a workflow step with `sed` placeholder substitution for `{{NUMBER}}` and `{{REPOSITORY}}`. |
-| **PostToolUse hook for mid-session notifications** | A hook script checks for new issue comments after each tool call, injecting them into Claude's context. This lets humans send feedback to a running Claude session without restarting. See the Mid-Session Notifications section. |
-| **`cancel-in-progress: false`** with skip check | Instead of cancelling running jobs on new triggers, queued runs check if the previous run already handled the comment (by checking if the most recently updated comment is by `claude[bot]`). The hook delivers mid-session feedback, so restarts are rarely needed. |
-| **`settings` input for hooks** | The action's `settings` input merges into `~/.claude/settings.json` (user-level), which coexists with the project's `.claude/settings.json`. Hooks from all levels run — no conflicts. |
+| **Wrapper script for tracking comment** | A bash script wraps `gh issue comment` to also check for new human comments and return them as stdout. This lets humans send feedback to a running Claude session. See the Mid-Session Notifications section. |
+| **`cancel-in-progress: false`** with skip check | Instead of cancelling running jobs on new triggers, queued runs check if the previous run already handled the comment (by checking if the most recently updated comment is by `claude[bot]`). The wrapper script delivers mid-session feedback, so restarts are rarely needed. |
 
 ### Current Workflow Files
 
@@ -248,24 +247,23 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh issue view:*),Bash(bash .github/hooks/update-comment.sh:*),Bash(gh pr create:*),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
 ```
 
-**Key changes from previous version:**
+**Key design points:**
 - `cancel-in-progress: false` — queued runs wait instead of cancelling the running job.
 - **Skip check step** — queued runs check if Claude already handled the triggering comment (by checking the most recently updated comment author). If `claude[bot]`, the run exits early.
-- **Comment tracking initialization** — saves the current latest comment ID so the PostToolUse hook knows which comments are new.
+- **Comment tracking initialization** — saves the current latest comment ID so the wrapper script knows which comments are new.
 - **Prompt loaded from file** — `.github/prompts/issue.md` with `{{NUMBER}}`/`{{REPOSITORY}}` placeholders substituted via `sed`.
-- **`settings` input** — loads `.github/settings/claude-hooks.json` to configure the notification hook.
-- **Env vars for hook** — `ISSUE_NUMBER` is passed through to the hook script via environment inheritance. `GITHUB_REPOSITORY` is set automatically by GitHub Actions.
+- **Wrapper script for comments** — `bash .github/hooks/update-comment.sh` replaces direct `gh issue comment` calls. It updates the tracking comment AND returns any new human comments. See the Mid-Session Notifications section.
+- **`ISSUE_NUMBER` env var** — passed through to the wrapper script via environment inheritance. `GITHUB_REPOSITORY`, `GITHUB_SERVER_URL`, and `GITHUB_RUN_ID` are set automatically by GitHub Actions.
 
 #### PR Review Workflow (`claude-pr.yml`)
 
@@ -355,14 +353,13 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh api repos/<owner>/<repo>/pulls/*/comments *),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh pr view:*),Bash(bash .github/hooks/update-comment.sh:*),Bash(gh issue view:*),Bash(gh api repos/<owner>/<repo>/pulls/*/comments *),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
 ```
 
@@ -390,7 +387,7 @@ Fellows use `claude_code_oauth_token` via their Claude subscriptions (reimbursed
 
 ---
 
-## Mid-Session Notifications (Experimental)
+## Mid-Session Notifications
 
 ### Problem
 
@@ -398,7 +395,9 @@ With `cancel-in-progress: true`, a new comment on an issue/PR while Claude is wo
 
 ### Approach
 
-A Claude Code **PostToolUse hook** checks for new issue comments after each tool call and injects them into Claude's context via `additionalContext`. Combined with `cancel-in-progress: false` and a skip-check step, this lets humans send feedback to a running Claude session without restarting.
+A **wrapper script** replaces direct `gh issue comment` calls. The script both updates Claude's tracking comment AND checks for new human comments, returning them as stdout so Claude sees them. Combined with `cancel-in-progress: false` and a skip-check step, this lets humans send feedback to a running Claude session without restarting.
+
+**Why not PostToolUse hooks?** The `claude-code-action` runs Claude via the SDK, which does not execute command-based hooks from `settings.json`. Hooks only work in CLI mode. The wrapper script approach works because it piggybacks on an action Claude already performs — updating its tracking comment.
 
 ### Components
 
@@ -407,9 +406,7 @@ A Claude Code **PostToolUse hook** checks for new issue comments after each tool
 ```
 .github/
   hooks/
-    check-comments.sh    # PostToolUse hook script
-  settings/
-    claude-hooks.json     # Hook configuration (loaded via settings input)
+    update-comment.sh     # Wrapper script: updates comment + checks for new ones
   prompts/
     issue.md              # Issue workflow prompt template
     pr-review.md          # PR review workflow prompt template
@@ -418,35 +415,39 @@ A Claude Code **PostToolUse hook** checks for new issue comments after each tool
     claude-pr.yml
 ```
 
-**Hook script** (`.github/hooks/check-comments.sh`): Runs after each tool call. Rate-limited to one API call per 10 seconds (most invocations exit immediately). Checks `gh api repos/.../issues/.../comments` for comments newer than the last seen ID, filtering out `claude[bot]`'s own comments. New human comments are injected as `additionalContext`.
+**Wrapper script** (`.github/hooks/update-comment.sh`): Takes a body string as its only argument. Posts a new comment on first call, edits it on subsequent calls. Prepends a link to the current GitHub Actions run. After updating, checks for new human comments since the last seen ID (filtering out `claude[bot]`'s own comments) and prints them to stdout.
 
-**Hook configuration** (`.github/settings/claude-hooks.json`): Passed via the action's `settings` input, which merges into `~/.claude/settings.json` (user-level). This coexists with the project's `.claude/settings.json` — hooks from all levels run in parallel.
+**Skip check step**: Queued runs (triggered while Claude is already working) check if the most recently *updated* comment is by `claude[bot]`. If so, Claude already handled the triggering comment via the wrapper script, and the queued run exits early. Uses `gh api` with `sort_by(.updated_at)` because `gh issue view --json comments` doesn't expose `updated_at` — and sorting by creation order would miss Claude's tracking comment updates.
 
-**Skip check step**: Queued runs (triggered while Claude is already working) check if the most recently *updated* comment is by `claude[bot]`. If so, Claude already handled the triggering comment via the hook, and the queued run exits early. Uses `gh api` with `sort_by(.updated_at)` because `gh issue view --json comments` doesn't expose `updated_at` — and sorting by creation order would miss Claude's `--edit-last` tracking updates.
-
-**State initialization step**: Before Claude starts, saves the current latest comment ID to `/tmp/claude-last-comment-id`. Without this, the hook would inject all existing comments on Claude's first tool call.
+**State initialization step**: Before Claude starts, saves the current latest comment ID to `/tmp/claude-last-comment-id`. Without this, the wrapper script would report all existing comments as new on Claude's first update.
 
 ### How it works
 
 1. Human comments on issue → triggers workflow run A
 2. Run A starts, initializes comment tracking, launches Claude
-3. Human comments again → triggers run B, which queues behind A (no cancellation)
-4. Run A's PostToolUse hook fires, detects the new comment, injects it as `additionalContext`
-5. Claude incorporates the feedback, keeps working, updates its tracking comment via `--edit-last`
-6. Run A finishes
-7. Run B starts, checks most recently updated comment → `claude[bot]` → exits early
+3. Claude calls the wrapper script to post/update its tracking comment
+4. The script updates the comment, checks for new human comments, returns them as stdout
+5. Claude reads the output, incorporates feedback, keeps working
+6. Human comments again → triggers run B, which queues behind A (no cancellation)
+7. Claude's next tracking update picks up the new comment via the wrapper script
+8. Run A finishes
+9. Run B starts, checks most recently updated comment → `claude[bot]` → exits early
+
+### Environment variables
+
+The wrapper script uses these env vars (all available in GitHub Actions):
+
+| Variable | Source | Purpose |
+|---|---|---|
+| `ISSUE_NUMBER` | Set on the action step's `env` block | Issue/PR number for comment API calls |
+| `GITHUB_REPOSITORY` | GitHub Actions default | `owner/repo` for API calls |
+| `GITHUB_SERVER_URL` | GitHub Actions default | For constructing the run link |
+| `GITHUB_RUN_ID` | GitHub Actions default | For constructing the run link |
 
 ### Caveats
 
-This is experimental and untested end-to-end. Known uncertainties:
-
-- **Hook output format**: We assume `{"hookSpecificOutput": {"additionalContext": "..."}}` on stdout with exit code 0, based on docs. If this doesn't work, plain text stdout may also be seen by the model (observed in other testing).
-- **Environment variable propagation**: The hook script needs `ISSUE_NUMBER` (set as an env var on the action step) and `GITHUB_REPOSITORY` (set automatically by GitHub Actions). These should propagate through Claude Code to the hook subprocess via standard inheritance, but this is unverified.
-- **`stat -c` (Linux only)**: The rate limit uses `stat -c %Y` which is GNU coreutils. Fine for Ubuntu runners, won't work on macOS.
-
-### Future direction
-
-The same PostToolUse hook could also post **outbound progress updates** — summarizing what tool Claude just used (e.g., "Reading `src/main.rs`...", "Running tests..."), providing a heartbeat when Claude has been quiet for a while. This would make the tracking comment more useful for humans monitoring long-running sessions.
+- **Feedback latency**: Comments are only picked up when Claude updates its tracking comment. If Claude goes a long time between updates, feedback is delayed. Prompt Claude to update frequently.
+- **Context window pressure**: Long sessions with many tool calls degrade quality as context compaction loses earlier reasoning. This is a general capability problem, not specific to this approach.
 
 ---
 
@@ -471,7 +472,7 @@ The same PostToolUse hook could also post **outbound progress updates** — summ
 
 - **`app/claude` vs `claude[bot]`:** The `gh` CLI reports PR author as `app/claude`, but GitHub Actions event payloads use `claude[bot]`. The auto-trigger filter failed silently (job skipped) until this was corrected.
 - **Multiple reviews = multiple runs:** Each inline review comment submitted separately fires a `pull_request_review: submitted` event. Three reviews on the same PR spawned three concurrent runs, all racing to push to the same branch. **Fix:** Added `concurrency` groups keyed to the PR/issue number with `cancel-in-progress: true`.
-- **`cancel-in-progress`:** Initially set to `true` (latest trigger wins). Now changed to `false` with a skip-check step and PostToolUse notification hook — see the Mid-Session Notifications section.
+- **`cancel-in-progress`:** Initially set to `true` (latest trigger wins). Now changed to `false` with a skip-check step and wrapper script for mid-session notifications — see the Mid-Session Notifications section.
 
 ---
 
@@ -479,7 +480,7 @@ The same PostToolUse hook could also post **outbound progress updates** — summ
 
 1. ~~**Dependency caching:**~~ **Resolved.** See the Dependency Caching section above.
 2. ~~**PR trigger support:**~~ **Resolved.** Added `claude-pr.yml` — triggers on `pull_request_review` (auto for Claude's PRs) and `@claude` mentions in PR comments.
-3. ~~**Async notification instead of cancel-in-progress:**~~ **Implemented (experimental).** A PostToolUse hook injects new issue comments into Claude's context mid-session. Combined with `cancel-in-progress: false` and a skip-check step. See the Mid-Session Notifications section. Untested end-to-end — the hook output format and env var propagation need verification.
+3. ~~**Async notification instead of cancel-in-progress:**~~ **Implemented.** A wrapper script around `gh issue comment` checks for new human comments and returns them as stdout. Combined with `cancel-in-progress: false` and a skip-check step. See the Mid-Session Notifications section.
 4. **Multi-invocation chaining:** How to support Claude handing off to a new Claude call with a different prompt. Fork vs. `workflow_dispatch` vs. shell loop.
 5. **Runpod interaction model:** How to give Claude access to remote GPU compute without risking data loss. Needs a safe abstraction (e.g., MCP tool for spinning up environments and running code, rather than raw SSH).
 6. **Long-running experiment completion:** When a remote job finishes after Claude's session has ended, how should results flow back? Current answer: human opens a new issue. Future: remote machine triggers `workflow_dispatch`.

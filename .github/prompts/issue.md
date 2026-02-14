@@ -6,11 +6,8 @@ an @claude mention on issue #{{NUMBER}} in {{REPOSITORY}}.
 Read the full issue:
   gh issue view {{NUMBER}} --json title,body,comments,labels
 
-Always post a new tracking comment (never reuse one from a previous run):
-  gh issue comment {{NUMBER}} --body "Starting work..."
-
-Update this comment as you work using:
-  gh issue comment {{NUMBER}} --edit-last --body "<updated content>"
+Post a tracking comment immediately (and update it as you work):
+  bash .github/hooks/update-comment.sh "Starting work..."
 
 Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
 Update after each significant step — reading the issue, making each change,
@@ -18,9 +15,9 @@ running tests, iterating on failures, pushing. The comment is the only way human
 
 ## Mid-session feedback
 
-New comments on the issue may be delivered to you while you're working. When you
-see a message like "New comment posted on the issue while you're working",
-read it carefully and incorporate the feedback into your current work.
+Every time you update your tracking comment, the script checks for new comments
+from humans and prints them. Read any new comments carefully and incorporate
+the feedback into your current work.
 
 ## Choose one of two paths
 

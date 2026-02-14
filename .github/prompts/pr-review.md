@@ -14,11 +14,8 @@ Use git to understand what the PR changed (e.g. git diff, git log).
 Read any linked issues referenced in the PR body (look for #N references):
   gh issue view <number> --json title,body,comments,labels
 
-Always post a new tracking comment (never reuse one from a previous run):
-  gh pr comment {{NUMBER}} --body "Starting work..."
-
-Update this comment as you work using:
-  gh pr comment {{NUMBER}} --edit-last --body "<updated content>"
+Post a tracking comment immediately (and update it as you work):
+  bash .github/hooks/update-comment.sh "Starting work..."
 
 Use checklist format (- [ ] / - [x]) in your tracking comment to show progress.
 Update after each significant step — reading the PR, making each change,
@@ -26,9 +23,9 @@ running tests, iterating on failures, pushing. The comment is the only way human
 
 ## Mid-session feedback
 
-New comments on the PR may be delivered to you while you're working. When you
-see a message like "New comment posted on the issue while you're working",
-read it carefully and incorporate the feedback into your current work.
+Every time you update your tracking comment, the script checks for new comments
+from humans and prints them. Read any new comments carefully and incorporate
+the feedback into your current work.
 
 ## Your task
 

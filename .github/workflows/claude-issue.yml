@@ -76,12 +76,11 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          settings: .github/settings/claude-hooks.json
           additional_permissions: |
             actions: read
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh issue view:*),Bash(bash .github/hooks/update-comment.sh:*),Bash(gh pr create:*),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
