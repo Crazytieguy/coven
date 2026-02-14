@@ -17,7 +17,3 @@ Model tried `git push` instead of `bash .coven/land.sh` after session compaction
 ## P1: Display compaction messages
 
 Show compaction messages compressed to a single line by default, viewable with `:N`. The previous worker found the format but crashed before landing.
-
-## P1: Add CLAUDE.md note about nested claude env var
-
-Running claude within claude requires removing an environment variable (VCR recording already does this). Document in CLAUDE.md for future reference.
