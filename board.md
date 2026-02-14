@@ -21,6 +21,10 @@ Enrich corrective prompt with available agents and bump auto-retries to 3. On fi
 - Agent should explicitly output wait-for-user tag on final failure
 - Was blocked on wait-for-user tag — now unblocked (implemented)
 
+## P1: Pager keystroke capture in :N mode
+
+Keystrokes in `:N` pager mode are captured by coven instead of the pager. Same root cause as Ctrl+O interactive sessions — apply same fix. Also investigate whether the first keystroke in Ctrl+O interactive mode fails to send (could be a Claude Code loading delay vs a coven issue).
+
 ## Done
 
 - P1: Add "Done" section to board
