@@ -23,11 +23,8 @@ Enrich corrective prompt with available agents and bump auto-retries to 3. On fi
 - Agent should explicitly output wait-for-user tag on final failure
 - Was blocked on wait-for-user tag — now unblocked (implemented)
 
-## P1: Re-record VCR tests and fix snapshots
-
-Some VCR tests need to be re-recorded. Re-record them, verify snapshots look correct, and iterate until everything passes.
-
 ## Done
 
 - P1: Add "Done" section to board
 - P1: Add main agent self-transition review test
+- P1: Re-record VCR tests and fix snapshots
