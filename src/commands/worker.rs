@@ -237,18 +237,8 @@ async fn worker_loop<W: Write>(
                 ctx.renderer
                     .write_raw("\r\nTransition: sleep \u{2014} waiting for new commits...\r\n");
                 ctx.io.clear_event_channel();
-                // Re-read HEAD after the chain — the chain may have landed work,
-                // advancing main past pre_chain_head.  Using the stale SHA would
-                // cause the first filesystem event to look like a new commit.
-                let post_chain_head = vcr_main_head_sha(ctx.vcr, wt_str.clone()).await?;
-                let wait = wait_for_new_commits(
-                    worktree_path,
-                    &post_chain_head,
-                    ctx.renderer,
-                    ctx.input,
-                    ctx.io,
-                    ctx.vcr,
-                );
+                let wait =
+                    wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
                 if matches!(wait.await?, WaitOutcome::Exited) {
                     return Ok(());
                 }
@@ -855,7 +845,6 @@ fn resolve_ref_paths(worktree_path: &Path) -> Option<RefPaths> {
 /// the user to exit.
 async fn wait_for_new_commits<W: Write>(
     worktree_path: &Path,
-    baseline_head: &str,
     renderer: &mut Renderer<W>,
     input: &mut InputHandler,
     io: &mut Io,
@@ -863,8 +852,8 @@ async fn wait_for_new_commits<W: Write>(
 ) -> Result<WaitOutcome> {
     let wt_str = worktree_path.display().to_string();
 
-    // Set up watcher before entering the select loop to avoid TOCTOU race:
-    // a commit between baseline_head capture and watcher setup would be missed.
+    // Set up watcher BEFORE reading baseline HEAD to avoid TOCTOU race:
+    // a commit between baseline capture and watcher setup would be missed.
     let ref_paths = vcr
         .call("resolve_ref_paths", wt_str.clone(), async |p: &String| {
             Ok(resolve_ref_paths(Path::new(p)))
@@ -872,6 +861,11 @@ async fn wait_for_new_commits<W: Write>(
         .await?;
     // _watcher must stay alive for the duration of the loop.
     let (_watcher, mut rx) = setup_ref_watcher(ref_paths)?;
+
+    // Read baseline after watcher setup: any commit after the watcher is
+    // active will fire a notification, and any commit before this read is
+    // already reflected in baseline_head.
+    let baseline_head = vcr_main_head_sha(vcr, wt_str.clone()).await?;
 
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
 
