@@ -18,15 +18,24 @@ Model tried `git push` instead of `bash .coven/land.sh` after session compaction
 - Which proposals to pursue (all three, or a subset)?
 - Any other failure modes observed beyond `git push` and transition confusion?
 
+## P1: Transition parsing failure behavior overview
+
+**Current behavior:** On parse failure, auto-retries once with a corrective prompt (resumes same session). If that also fails, blocks on user input loop. The corrective prompt shows the error and generic hardcoded examples but doesn't include the actual available agents/args from the system prompt.
+
+**Proposed changes:**
+
+1. **Enrich corrective prompt with available agents** — pass `&[AgentDef]` to `corrective_prompt()` so the retry includes the real agent names and args, not just `agent: main`. Low effort, likely big impact on retry success rate.
+
+2. **Add a second auto-retry before user input** — bump from 1 to 2 auto-retries. The first retry often fails for the same reason (model doesn't have enough context to self-correct); a second attempt with the enriched prompt would catch most cases before blocking on user input.
+
+**Questions:**
+- Do these two changes sound right, or do you want something different?
+
 ---
 
 ## P1: Add wait-for-user tag
 
 New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
-
-## P1: Transition parsing failure behavior overview
-
-Research current behavior when transition parsing fails (retries, error handling) and propose a couple of small possible changes (retry iterations, etc). Present findings on the board.
 
 ## P1: Main agent should ask more questions
 
