@@ -13,7 +13,7 @@ label = "main_head_sha"
 mode = "exit"
 
 [files]
-".claude/settings.json" = '{"permissions":{"allow":["Bash(git:*)","Bash(bash .coven/land.sh)","Bash(rm:*)"]}}'
+".claude/settings.json" = '{"permissions":{"allow":["Bash(ls:*)","Bash(cat:*)"]}}'
 "src/calc.py" = "def add(a, b):\n    return a + b\n"
 "brief.md" = """# Brief
 
