@@ -10,10 +10,6 @@ Recent bell fix overshot — should also ring when `wait-for-user` is outputted 
 
 The `wait-for-user` tag should also be supported by `ralph` if not already supported. Should share code with `worker`.
 
-## P1: Bell sound: ring when `wait-for-user` is outputted
-
-Recent fix overshot — bell should also ring when `wait-for-user` is outputted by ralph or worker (but no other states).
-
 ## Done
 
 - P1: Bell sound: only ring when waiting for user input in run mode
