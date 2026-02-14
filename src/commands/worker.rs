@@ -20,8 +20,9 @@ use crate::vcr::{Io, IoEvent, VcrContext};
 use crate::worker_state;
 use crate::worktree::{self, SpawnOptions};
 
+use crate::session::event_loop::{self, SessionOutcome};
+
 use super::RawModeGuard;
-use super::session_loop::{self, SessionOutcome};
 
 /// Shared mutable context threaded through worker phases.
 struct PhaseContext<'a, W: Write> {
@@ -417,7 +418,7 @@ async fn run_phase_with_wait<W: Write>(
                 let sid = session_id
                     .as_deref()
                     .context("no session ID for wait-for-user resume")?;
-                let Some(user_text) = session_loop::wait_for_interrupt_input(
+                let Some(user_text) = event_loop::wait_for_interrupt_input(
                     ctx.input,
                     ctx.renderer,
                     ctx.io,
@@ -557,7 +558,7 @@ async fn wait_for_transition_input<W: Write>(
             "\r\nTransition output could not be parsed: {last_err}\r\n"
         ));
 
-        let Some(text) = session_loop::wait_for_interrupt_input(
+        let Some(text) = event_loop::wait_for_interrupt_input(
             ctx.input,
             ctx.renderer,
             ctx.io,
@@ -725,11 +726,11 @@ async fn run_phase_session<W: Write>(
         working_dir: Some(working_dir.to_path_buf()),
     };
 
-    let mut runner = session_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
+    let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
     let mut state = SessionState::default();
 
     loop {
-        let outcome = session_loop::run_session(
+        let outcome = event_loop::run_session(
             &mut runner,
             &mut state,
             ctx.renderer,
@@ -757,7 +758,7 @@ async fn run_phase_session<W: Write>(
                 };
                 ctx.renderer.render_interrupted();
 
-                let Some(text) = session_loop::wait_for_interrupt_input(
+                let Some(text) = event_loop::wait_for_interrupt_input(
                     ctx.input,
                     ctx.renderer,
                     ctx.io,
@@ -771,7 +772,7 @@ async fn run_phase_session<W: Write>(
                     return Ok(PhaseOutcome::Exited);
                 };
                 let resume_config = session_config.resume_with(text, session_id.clone());
-                runner = session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+                runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
                 state = SessionState::default();
                 state.session_id = Some(session_id);
             }
@@ -888,7 +889,7 @@ async fn wait_for_new_commits<W: Write>(
                             return Ok(WaitOutcome::Exited);
                         }
                         InputAction::ViewMessage(ref query) => {
-                            session_loop::view_message(renderer, query, io)?;
+                            event_loop::view_message(renderer, query, io)?;
                         }
                         _ => {}
                     }

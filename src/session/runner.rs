@@ -178,34 +178,6 @@ impl SessionRunner {
         Ok(())
     }
 
-    /// Scan response text for `<tag>reason</tag>` and return the reason if found.
-    /// Note: the raw break tag is intentionally left visible in Claude's streamed output
-    /// so the user can see exactly what Claude emitted. The clean "Loop complete: reason"
-    /// line is added separately after the stats display (see ralph.rs).
-    pub fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
-        crate::protocol::parse::extract_tag_inner(text, tag).map(|s| s.trim().to_string())
-    }
-
-    /// Build the ralph system prompt for the given break tag.
-    pub fn ralph_system_prompt(break_tag: &str) -> String {
-        format!(
-            "You are running in a multi-iteration loop. Each iteration starts a fresh session \
-             but the filesystem persists. The loop is designed to run many iterations — each \
-             one you do a small piece of work, then end your response normally. The next \
-             iteration starts automatically.\n\n\
-             Only include `<{break_tag}>reason</{break_tag}>` to end the entire loop. This is \
-             rare — only do it when you have exhausted all available work and another iteration \
-             would accomplish nothing new.\n\n\
-             If you need user input before you can proceed (e.g. a necessary command was denied, \
-             or you need clarification on a requirement), output a `<wait-for-user>` tag:\n\n\
-             <wait-for-user>\n\
-             Reason the user needs to act\n\
-             </wait-for-user>\n\n\
-             The orchestrator will show your reason, wait for the user to respond, and resume \
-             your session with their input."
-        )
-    }
-
     fn spawn_reader(stdout: ChildStdout, event_tx: mpsc::UnboundedSender<AppEvent>) {
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);

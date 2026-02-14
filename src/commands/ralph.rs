@@ -6,12 +6,14 @@ use anyhow::Result;
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
 use crate::fork::{self, ForkConfig};
+use crate::protocol::parse::extract_tag_inner;
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
 
+use crate::session::event_loop::{self, SessionOutcome};
+
 use super::RawModeGuard;
-use super::session_loop::{self, SessionOutcome};
 
 pub struct RalphConfig {
     pub prompt: String,
@@ -33,7 +35,7 @@ impl RalphConfig {
              filesystem persists."
                 .to_string()
         } else {
-            SessionRunner::ralph_system_prompt(&self.break_tag)
+            ralph_system_prompt(&self.break_tag)
         };
         if self.fork {
             format!("{base}\n\n{}", fork::fork_system_prompt())
@@ -57,9 +59,34 @@ impl RalphConfig {
         if self.no_break {
             None
         } else {
-            SessionRunner::scan_break_tag(text, &self.break_tag)
+            scan_break_tag(text, &self.break_tag)
         }
     }
+}
+
+/// Scan response text for `<tag>reason</tag>` and return the reason if found.
+fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
+    extract_tag_inner(text, tag).map(|s| s.trim().to_string())
+}
+
+/// Build the ralph system prompt for the given break tag.
+fn ralph_system_prompt(break_tag: &str) -> String {
+    format!(
+        "You are running in a multi-iteration loop. Each iteration starts a fresh session \
+         but the filesystem persists. The loop is designed to run many iterations — each \
+         one you do a small piece of work, then end your response normally. The next \
+         iteration starts automatically.\n\n\
+         Only include `<{break_tag}>reason</{break_tag}>` to end the entire loop. This is \
+         rare — only do it when you have exhausted all available work and another iteration \
+         would accomplish nothing new.\n\n\
+         If you need user input before you can proceed (e.g. a necessary command was denied, \
+         or you need clarification on a requirement), output a `<wait-for-user>` tag:\n\n\
+         <wait-for-user>\n\
+         Reason the user needs to act\n\
+         </wait-for-user>\n\n\
+         The orchestrator will show your reason, wait for the user to respond, and resume \
+         your session with their input."
+    )
 }
 
 /// Mutable I/O handles shared across the ralph loop.
@@ -124,13 +151,12 @@ pub async fn ralph<W: Write>(
         ctx.renderer
             .write_raw(&format!("\r\n--- Iteration {} ---\r\n\r\n", iter.iteration));
 
-        let mut runner =
-            session_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
+        let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
         let mut state = SessionState::default();
         iter.iteration_cost = 0.0;
 
         loop {
-            let outcome = session_loop::run_session(
+            let outcome = event_loop::run_session(
                 &mut runner,
                 &mut state,
                 ctx.renderer,
@@ -248,7 +274,7 @@ async fn wait_input_and_resume<W: Write>(
     let Some(session_id) = state.session_id.take() else {
         return Ok(None);
     };
-    let Some(text) = session_loop::wait_for_interrupt_input(
+    let Some(text) = event_loop::wait_for_interrupt_input(
         ctx.input,
         ctx.renderer,
         ctx.io,
@@ -262,7 +288,7 @@ async fn wait_input_and_resume<W: Write>(
         return Ok(None);
     };
     let resume_config = session_config.resume_with(text, session_id.clone());
-    let runner = session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+    let runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
     let new_state = SessionState {
         session_id: Some(session_id),
         ..Default::default()
@@ -272,13 +298,13 @@ async fn wait_input_and_resume<W: Write>(
 
 #[cfg(test)]
 mod tests {
-    use crate::session::runner::SessionRunner;
+    use super::*;
 
     #[test]
     fn scan_break_tag_found() {
         let text = "I've completed the task. <break>All bugs are fixed.</break> Done.";
         assert_eq!(
-            SessionRunner::scan_break_tag(text, "break"),
+            scan_break_tag(text, "break"),
             Some("All bugs are fixed.".to_string())
         );
     }
@@ -287,7 +313,7 @@ mod tests {
     fn scan_break_tag_custom() {
         let text = "Done! <done>Everything works</done>";
         assert_eq!(
-            SessionRunner::scan_break_tag(text, "done"),
+            scan_break_tag(text, "done"),
             Some("Everything works".to_string())
         );
     }
@@ -295,12 +321,12 @@ mod tests {
     #[test]
     fn scan_break_tag_not_found() {
         let text = "Still working on the bugs.";
-        assert_eq!(SessionRunner::scan_break_tag(text, "break"), None);
+        assert_eq!(scan_break_tag(text, "break"), None);
     }
 
     #[test]
     fn scan_break_tag_partial() {
         let text = "Found <break> but no closing tag";
-        assert_eq!(SessionRunner::scan_break_tag(text, "break"), None);
+        assert_eq!(scan_break_tag(text, "break"), None);
     }
 }

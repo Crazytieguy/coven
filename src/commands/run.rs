@@ -10,8 +10,9 @@ use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, VcrContext};
 
+use crate::session::event_loop::{self, FollowUpAction, SessionOutcome};
+
 use super::RawModeGuard;
-use super::session_loop::{self, FollowUpAction, SessionOutcome};
 
 pub struct RunConfig {
     pub prompt: Option<String>,
@@ -67,7 +68,7 @@ pub async fn run<W: Write>(
         return Ok(vec![]);
     };
     loop {
-        let outcome = session_loop::run_session(
+        let outcome = event_loop::run_session(
             &mut runner,
             &mut state,
             &mut renderer,
@@ -80,7 +81,7 @@ pub async fn run<W: Write>(
 
         match outcome {
             SessionOutcome::Completed { .. } => {
-                match session_loop::wait_for_followup(
+                match event_loop::wait_for_followup(
                     &mut input,
                     &mut renderer,
                     &mut runner,
@@ -101,7 +102,7 @@ pub async fn run<W: Write>(
                     break;
                 };
                 renderer.render_interrupted();
-                let Some(text) = session_loop::wait_for_interrupt_input(
+                let Some(text) = event_loop::wait_for_interrupt_input(
                     &mut input,
                     &mut renderer,
                     io,
@@ -115,7 +116,7 @@ pub async fn run<W: Write>(
                     break;
                 };
                 let session_cfg = base_session_cfg.resume_with(text, session_id.clone());
-                runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
+                runner = event_loop::spawn_session(session_cfg, io, vcr).await?;
                 state = SessionState::default();
                 state.session_id = Some(session_id);
             }
@@ -143,8 +144,8 @@ async fn get_initial_runner<W: Write>(
         prompt.to_string()
     } else {
         // No session exists yet, so only Text is applicable.
-        let Some(session_loop::WaitResult::Text(text)) =
-            session_loop::wait_for_user_input(input, renderer, io, vcr).await?
+        let Some(event_loop::WaitResult::Text(text)) =
+            event_loop::wait_for_user_input(input, renderer, io, vcr).await?
         else {
             return Ok(None);
         };
@@ -155,7 +156,7 @@ async fn get_initial_runner<W: Write>(
         prompt: Some(text),
         ..base_session_cfg.clone()
     };
-    let runner = session_loop::spawn_session(session_cfg, io, vcr).await?;
+    let runner = event_loop::spawn_session(session_cfg, io, vcr).await?;
     state.status = SessionStatus::Running;
     Ok(Some(runner))
 }
