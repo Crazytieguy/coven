@@ -6,6 +6,7 @@ use crossterm::style::Print;
 use serde_json::Value;
 use unicode_width::UnicodeWidthChar;
 
+use super::term_width;
 use super::theme;
 use super::tool_format::{first_line, format_tool_detail, format_tool_view};
 use crate::protocol::types::StreamEvent;
@@ -129,6 +130,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     compacting: bool,
     /// Display configuration.
     config: RendererConfig,
+    /// Terminal width for line truncation.
+    width: usize,
     /// Writer for output.
     out: W,
 }
@@ -168,8 +171,13 @@ impl<W: Write> Renderer<W> {
             last_tool_indent: 0,
             compacting: false,
             config: RendererConfig::default(),
+            width: term_width(),
             out: writer,
         }
+    }
+
+    pub fn set_width(&mut self, width: usize) {
+        self.width = width;
     }
 
     pub fn set_show_thinking(&mut self, show: bool) {
@@ -447,7 +455,7 @@ impl<W: Write> Renderer<W> {
             self.tool_counter += 1;
             let n = self.tool_counter;
             task_numbers.push(n);
-            let label = truncate_line(&format!("[{n}] \u{2442} Fork  {task}"));
+            let label = truncate_to_width(&format!("[{n}] \u{2442} Fork  {task}"), self.width);
             queue!(
                 self.out,
                 Print(theme::fork_tool().apply(&label)),
@@ -488,7 +496,10 @@ impl<W: Write> Renderer<W> {
         // Indent: "  " + "[" + number_label + "] "
         self.last_tool_indent = 2 + 1 + number_label.len() + 2;
 
-        let label = truncate_line(&format!("  [{number_label}] {display_name}  {detail}"));
+        let label = truncate_to_width(
+            &format!("  [{number_label}] {display_name}  {detail}"),
+            self.width,
+        );
         queue!(self.out, Print(theme::fork_tool().apply(&label))).ok();
 
         let content = serde_json::to_string_pretty(input).unwrap_or_default();
@@ -627,9 +638,10 @@ impl<W: Write> Renderer<W> {
         // Indent width: prefix + "[" + number_label + "] "
         self.last_tool_indent = prefix.len() + 1 + number_label.len() + 2;
 
-        let label = truncate_line(&format!(
-            "{prefix}[{number_label}] ▶ {display_name}  {detail}"
-        ));
+        let label = truncate_to_width(
+            &format!("{prefix}[{number_label}] ▶ {display_name}  {detail}"),
+            self.width,
+        );
         let style = if is_child {
             theme::tool_name_dim()
         } else {
@@ -671,7 +683,7 @@ impl<W: Write> Renderer<W> {
             let brief = first_line(text);
             format!("{indent}✗ {brief}")
         };
-        let error_line = truncate_line(&error_line);
+        let error_line = truncate_to_width(&error_line, self.width);
         queue!(
             self.out,
             Print(theme::error().apply(&error_line)),
@@ -841,13 +853,6 @@ fn truncate_to_width(s: &str, max_width: usize) -> String {
     }
     result
 }
-
-/// Truncate a line to the current terminal width.
-fn truncate_line(line: &str) -> String {
-    truncate_to_width(line, term_width())
-}
-
-use super::term_width;
 
 /// Shorten MCP tool names from `mcp__<server-key>__<tool>` to a colon-separated form.
 ///

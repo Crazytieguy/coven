@@ -22,6 +22,8 @@ pub struct RalphConfig {
     pub fork: bool,
     pub extra_args: Vec<String>,
     pub working_dir: Option<PathBuf>,
+    /// Override terminal width for display truncation (used in tests).
+    pub term_width: Option<usize>,
 }
 
 impl RalphConfig {
@@ -51,6 +53,9 @@ pub async fn ralph<W: Write>(
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
 
     let mut renderer = Renderer::with_writer(writer);
+    if let Some(w) = config.term_width {
+        renderer.set_width(w);
+    }
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new(2);

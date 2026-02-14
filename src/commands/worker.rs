@@ -41,6 +41,8 @@ pub struct WorkerConfig {
     /// Override for the project root directory (used by test recording).
     pub working_dir: Option<PathBuf>,
     pub fork: bool,
+    /// Override terminal width for display truncation (used in tests).
+    pub term_width: Option<usize>,
 }
 
 /// Serializable args for VCR-recording `worktree::spawn`.
@@ -114,6 +116,9 @@ pub async fn worker<W: Write>(
 
     let raw = RawModeGuard::acquire(vcr.is_live())?;
     let mut renderer = Renderer::with_writer(writer);
+    if let Some(w) = config.term_width {
+        renderer.set_width(w);
+    }
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new(2);

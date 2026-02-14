@@ -19,6 +19,8 @@ pub struct RunConfig {
     pub show_thinking: bool,
     pub fork: bool,
     pub working_dir: Option<PathBuf>,
+    /// Override terminal width for display truncation (used in tests).
+    pub term_width: Option<usize>,
 }
 
 /// Run a single interactive session. Returns the stored messages for inspection.
@@ -29,6 +31,9 @@ pub async fn run<W: Write>(
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
     let mut renderer = Renderer::with_writer(writer);
+    if let Some(w) = config.term_width {
+        renderer.set_width(w);
+    }
     renderer.set_show_thinking(config.show_thinking);
     let mut input = InputHandler::new(2);
     let mut state = SessionState::default();
