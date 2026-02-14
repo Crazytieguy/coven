@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Bell sound: recent fix overshot, should also ring when `wait-for-user` is outputted by ralph or worker (but no other states)
+
+Bell sound: recent fix overshot, should also ring when `wait-for-user` is outputted by ralph or worker (but no other states).
+
 ## Done
 
 - P1: Bell sound: ring when `wait-for-user` is outputted (already works — both ralph and worker ring via `wait_for_interrupt_input`)
