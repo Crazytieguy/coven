@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Fix all lint warnings and test failures, including preexisting
-
-Fix all lint warnings and test failures, including preexisting.
-
 ## P1: Audit codebase for code smells
 
 Attempt to identify code smells in the codebase — e.g. overly long functions, unclear naming, poor abstractions, dead code, inconsistent patterns. If the fix is obvious do it, if unclear post a question.
@@ -32,6 +28,7 @@ Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pu
 
 ## Done
 
+- P1: Fix all lint warnings and test failures, including preexisting
 - P1: Audit codebase for architectural issues
 - P1: Verify spurious wakeup fix for race conditions and other wakeup sources
 - P1: Investigate spurious worker wake-ups
