@@ -24,6 +24,11 @@ pub enum InboundEvent {
 pub enum SystemEvent {
     #[serde(rename = "init")]
     Init(InitEvent),
+    #[serde(rename = "status")]
+    Status {
+        #[serde(default)]
+        status: Option<String>,
+    },
     #[serde(other)]
     Other,
 }

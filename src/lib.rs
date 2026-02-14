@@ -45,7 +45,10 @@ pub fn handle_inbound<W: Write>(
                 renderer.render_session_header(&init.session_id, &init.model);
             }
         }
-        InboundEvent::System(SystemEvent::Other) => {}
+        InboundEvent::System(SystemEvent::Status { status: Some(s) }) if s == "compacting" => {
+            renderer.render_compaction();
+        }
+        InboundEvent::System(SystemEvent::Status { .. } | SystemEvent::Other) => {}
         InboundEvent::StreamEvent(se) => {
             renderer.handle_stream_event(se);
         }
@@ -65,6 +68,8 @@ pub fn handle_inbound<W: Write>(
                 }
             } else if let Some(ref result) = u.tool_use_result {
                 renderer.render_tool_result(result, u.message.as_ref());
+            } else if renderer.is_compacting() {
+                renderer.set_compaction_content(u.message.as_ref());
             }
         }
         InboundEvent::Result(result) => {

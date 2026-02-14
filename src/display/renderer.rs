@@ -125,6 +125,8 @@ pub struct Renderer<W: Write = io::Stdout> {
     current_tool_use_id: Option<String>,
     /// Indent width for content under the last-rendered tool call.
     last_tool_indent: usize,
+    /// Whether the session is currently compacting.
+    compacting: bool,
     /// Display configuration.
     config: RendererConfig,
     /// Writer for output.
@@ -164,6 +166,7 @@ impl<W: Write> Renderer<W> {
             active_fork: None,
             current_tool_use_id: None,
             last_tool_indent: 0,
+            compacting: false,
             config: RendererConfig::default(),
             out: writer,
         }
@@ -236,6 +239,46 @@ impl<W: Write> Renderer<W> {
         )
         .ok();
         self.out.flush().ok();
+    }
+
+    // --- Compaction ---
+
+    /// Render a compaction indicator line: `[N] ⟳ Compacted`.
+    pub fn render_compaction(&mut self) {
+        self.finish_current_block();
+        self.compacting = true;
+        self.tool_counter += 1;
+        let n = self.tool_counter;
+        let label = format!("[{n}] \u{27f3} Compacted");
+        queue!(self.out, Print(theme::dim().apply(&label)), Print("\r\n"),).ok();
+        self.messages.push(StoredMessage {
+            label: format!("[{n}] \u{27f3} Compacted"),
+            content: String::new(),
+            result: None,
+        });
+        self.out.flush().ok();
+    }
+
+    pub fn is_compacting(&self) -> bool {
+        self.compacting
+    }
+
+    /// Attach the compacted context (from the synthetic user message) to the
+    /// most recent compaction message for `:N` viewing.
+    pub fn set_compaction_content(&mut self, message: Option<&Value>) {
+        self.compacting = false;
+        let text = message
+            .and_then(|m| m.get("content"))
+            .and_then(Value::as_array)
+            .and_then(|arr| {
+                arr.iter()
+                    .find(|item| item.get("type").and_then(Value::as_str) == Some("text"))
+                    .and_then(|item| item.get("text").and_then(Value::as_str))
+            })
+            .unwrap_or_default();
+        if let Some(msg) = self.messages.last_mut() {
+            msg.content = text.to_string();
+        }
     }
 
     // --- Stream events ---
