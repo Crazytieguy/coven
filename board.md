@@ -1,5 +1,7 @@
 # Board
 
+---
+
 ## P1: Improve post-compaction context loss
 
 Move shared critical rules (like landing via `land.sh`) to `system.md` so they survive compaction. Don't be too aggressive — keep agent-specific workflow in agent prompts.
@@ -7,11 +9,7 @@ Move shared critical rules (like landing via `land.sh`) to `system.md` so they s
 **Decisions:**
 - Pursue proposal 1 (move critical rules to system.md) conservatively
 - Don't be too aggressive with extraction — only truly shared invariants
-
-**Questions:**
-- Any other failure modes observed beyond `git push` and transition confusion?
-
----
+- No other failure modes observed beyond `git push` and transition confusion
 
 ## P1: Transition parsing failure behavior
 
