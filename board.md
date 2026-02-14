@@ -4,7 +4,7 @@
 
 ## P1: Bell sound: only ring when waiting for user input in run mode
 
-`coven worker` and `coven ralph` should not play a bell every time Claude finishes a turn. Bell should only play when specifically waiting for user input: the only mode that does this at the end of a turn is `run`. Going idle doesn't need a bell/notification either. (Ideally a system notification rather than a sound, but the easier fix is restricting when bells play.)
+`coven worker` and `coven ralph` should not play a bell every time Claude finishes a turn. Bell should only play when specifically waiting for user input: the only mode that does this at the end of a turn is `run`. Going idle doesn't need a bell/notification either.
 
 **Findings:** 3 bell sites:
 1. `session_loop.rs:440` — every time Claude finishes a turn (follow-up prompt)
