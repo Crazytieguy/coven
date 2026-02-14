@@ -1,0 +1,2 @@
+[alias]
+record-vcr = "run --features dev-tools --bin record-vcr --"

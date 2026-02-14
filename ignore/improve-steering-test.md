@@ -66,7 +66,7 @@ Fewer characters means fewer event loop iterations between trigger fire and `sen
 1. Edit `tests/cases/session/steering/steering.toml`:
    - Change `trigger` to `'{"Ok": {"Claude": {"Claude": {"type": "user"}}}}'`
    - Change `content` to `"count lines instead"`
-2. Re-record: `cargo run --bin record-vcr steering` (1-minute timeout)
+2. Re-record: `cargo record-vcr steering` (1-minute timeout)
 3. Run `cargo test` — check snapshot diff
 4. Verify: the snapshot should show the model switching from summaries to line counting after the steering message appears
 5. If it works: `cargo insta accept`, then `cargo test` + `cargo clippy` to confirm clean
