@@ -42,3 +42,9 @@ Ready to implement.
 ```
 dispatch → main (implement × N) → main (review & land) → dispatch → sleep
 ```
+
+## Rules
+
+- **Land before transitioning.** Never transition to dispatch without landing first. The worktree must not be ahead of main.
+- **Land via `bash .coven/land.sh`** — never `git push`. The script rebases onto main and fast-forwards.
+- **Delete `scratch.md` on every land.** It must not exist when transitioning to dispatch.
