@@ -6,23 +6,9 @@
 
 The `wait-for-user` tag should also be supported by `ralph` if not already supported. Should share code with `worker`.
 
-## P1: Bell sound: only ring when waiting for user input in run mode
-
-`coven worker` and `coven ralph` should not play a bell every time Claude finishes a turn. Bell should only play when specifically waiting for user input: the only mode that does this at the end of a turn is `run`. Going idle doesn't need a bell/notification either.
-
-**Findings:** 3 bell sites:
-1. `session_loop.rs:440` — every time Claude finishes a turn (follow-up prompt)
-2. `session_loop.rs:482` — after Ctrl+C interrupt, waiting for resume
-3. `worker.rs:874` — worker goes idle/sleeping
-
-(`renderer.rs:823` is an OSC terminator, not a bell.)
-
-**Decisions:**
-- Bell #1 (follow-up prompt): only play in `run` mode, not in `worker` or `ralph`
-- Bell #2 (Ctrl+C interrupt): keep — user is waiting for input in `run`
-- Bell #3 (worker idle): remove
-
 ## Done
+
+- P1: Bell sound: only ring when waiting for user input in run mode
 
 - P1: Main agent should be more willing to ask clarifying questions
 - P1: Transition YAML parsing fails on colons in values
