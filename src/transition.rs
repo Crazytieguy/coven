@@ -17,7 +17,7 @@ fn yaml_scalar_to_string(v: &Value) -> Option<String> {
     }
 }
 
-/// A transition declared by an agent via the `<next>` tag.
+/// A transition declared by an agent via the `<next>` or `<wait-for-user>` tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transition {
     /// Hand off to the named agent with the given arguments.
@@ -27,13 +27,22 @@ pub enum Transition {
     },
     /// No work available — sleep until new commits appear on main.
     Sleep,
+    /// Agent is blocked on user input (e.g. permission prompt, clarification).
+    WaitForUser { reason: String },
 }
 
 /// Parse a transition from an agent's text output.
 ///
-/// Looks for `<next>...</next>` containing YAML. The rest of the
+/// Checks for `<wait-for-user>` first, then `<next>`. The rest of the
 /// output is reasoning/status visible to the human and is ignored here.
 pub fn parse_transition(text: &str) -> Result<Transition> {
+    // Check for wait-for-user before next — agent is blocked on user input.
+    if let Some(reason) = crate::protocol::parse::extract_tag_inner(text, "wait-for-user") {
+        return Ok(Transition::WaitForUser {
+            reason: reason.trim().to_string(),
+        });
+    }
+
     let yaml_str = extract_tag_content(text, "next")?;
 
     let value: Value =
@@ -94,6 +103,17 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("## Sleep (no actionable work)\n\n");
     out.push_str("<next>\nsleep: true\n</next>\n\n");
 
+    out.push_str("## Wait for user input\n\n");
+    out.push_str(
+        "If you need user input before you can proceed (e.g. a necessary command was denied,\n\
+         or you need clarification on a requirement), output a `<wait-for-user>` tag:\n\n",
+    );
+    out.push_str("<wait-for-user>\nReason the user needs to act\n</wait-for-user>\n\n");
+    out.push_str(
+        "The orchestrator will show your reason, wait for the user to respond, and resume\n\
+         your session with their input. After resuming, finish your work and output a `<next>` tag.\n\n",
+    );
+
     out.push_str("## Available Agents\n\n");
 
     if agents.is_empty() {
@@ -149,7 +169,9 @@ pub fn corrective_prompt(parse_err: &anyhow::Error) -> String {
          For example:\n\n\
          <next>\nagent: main\ntask: Example issue title\n</next>\n\n\
          Or to sleep:\n\n\
-         <next>\nsleep: true\n</next>"
+         <next>\nsleep: true\n</next>\n\n\
+         Or if you need user input:\n\n\
+         <wait-for-user>\nReason the user needs to act\n</wait-for-user>"
     )
 }
 
@@ -368,5 +390,52 @@ issue: issues/fix-scroll-bug.md
         assert!(prompt.contains("# Transition Protocol"));
         assert!(prompt.contains("<next>"));
         assert!(prompt.contains("</next>"));
+    }
+
+    #[test]
+    fn parse_wait_for_user() {
+        let text = "I need permission to run this command.\n\n<wait-for-user>\nThe `git push` command was denied. Please grant permission or push manually.\n</wait-for-user>";
+        let transition = parse_transition(text).unwrap();
+        assert_eq!(
+            transition,
+            Transition::WaitForUser {
+                reason:
+                    "The `git push` command was denied. Please grant permission or push manually."
+                        .into(),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_wait_for_user_trims_whitespace() {
+        let text = "<wait-for-user>  need clarification  </wait-for-user>";
+        let transition = parse_transition(text).unwrap();
+        assert_eq!(
+            transition,
+            Transition::WaitForUser {
+                reason: "need clarification".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_wait_for_user_takes_precedence_over_next() {
+        // If both tags are present, wait-for-user wins (checked first).
+        let text = "<wait-for-user>blocked</wait-for-user>\n<next>\nagent: plan\n</next>";
+        let transition = parse_transition(text).unwrap();
+        assert_eq!(
+            transition,
+            Transition::WaitForUser {
+                reason: "blocked".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn system_prompt_documents_wait_for_user() {
+        let agents = vec![make_agent("plan", "Plans work", vec![])];
+        let prompt = format_transition_system_prompt(&agents);
+        assert!(prompt.contains("<wait-for-user>"));
+        assert!(prompt.contains("</wait-for-user>"));
     }
 }

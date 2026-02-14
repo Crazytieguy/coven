@@ -333,38 +333,16 @@ async fn run_agent_chain<W: Write>(
         ctx.renderer
             .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
 
-        let PhaseOutcome::Completed {
-            result_text,
-            cost,
-            session_id,
-        } = run_phase_session(
+        let parsed_transition = run_phase_with_wait(
             &agent_prompt,
             worktree_path,
             &merged_args,
-            None,
-            Some(&system_prompt),
-            ctx,
-        )
-        .await?
-        else {
-            return Ok(ChainResult::Exited);
-        };
-
-        *total_cost += cost;
-        ctx.renderer
-            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-
-        let Some(parsed_transition) = parse_transition_with_retry(
-            &result_text,
-            session_id.as_deref(),
-            worktree_path,
-            &merged_args,
-            Some(&system_prompt),
+            &system_prompt,
             ctx,
             total_cost,
         )
-        .await?
-        else {
+        .await?;
+        let Some(parsed_transition) = parsed_transition else {
             return Ok(ChainResult::Exited);
         };
 
@@ -380,6 +358,87 @@ async fn run_agent_chain<W: Write>(
                 vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;
                 return Ok(ChainResult::Sleep);
             }
+            Transition::WaitForUser { .. } => unreachable!(),
+        }
+    }
+}
+
+/// Run a phase session, looping on `WaitForUser` transitions.
+///
+/// If the agent outputs `<wait-for-user>`, we wait for user input, resume the
+/// session, and repeat until we get a `Next` or `Sleep` transition.
+/// Returns `None` if the user exited.
+async fn run_phase_with_wait<W: Write>(
+    initial_prompt: &str,
+    worktree_path: &Path,
+    extra_args: &[String],
+    system_prompt: &str,
+    ctx: &mut PhaseContext<'_, W>,
+    total_cost: &mut f64,
+) -> Result<Option<Transition>> {
+    let mut phase_prompt = initial_prompt.to_string();
+    let mut phase_resume: Option<String> = None;
+
+    loop {
+        let PhaseOutcome::Completed {
+            result_text,
+            cost,
+            session_id,
+        } = run_phase_session(
+            &phase_prompt,
+            worktree_path,
+            extra_args,
+            phase_resume.as_deref(),
+            Some(system_prompt),
+            ctx,
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        *total_cost += cost;
+        ctx.renderer
+            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+
+        let Some(transition) = parse_transition_with_retry(
+            &result_text,
+            session_id.as_deref(),
+            worktree_path,
+            extra_args,
+            Some(system_prompt),
+            ctx,
+            total_cost,
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        match transition {
+            Transition::WaitForUser { reason } => {
+                ctx.renderer
+                    .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
+                let sid = session_id
+                    .as_deref()
+                    .context("no session ID for wait-for-user resume")?;
+                let Some(user_text) = session_loop::wait_for_interrupt_input(
+                    ctx.input,
+                    ctx.renderer,
+                    ctx.io,
+                    ctx.vcr,
+                    sid,
+                    Some(worktree_path),
+                    extra_args,
+                )
+                .await?
+                else {
+                    return Ok(None);
+                };
+                phase_prompt = user_text;
+                phase_resume = session_id;
+            }
+            other => return Ok(Some(other)),
         }
     }
 }
