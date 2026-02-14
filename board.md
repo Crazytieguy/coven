@@ -1,14 +1,16 @@
 # Board
 
+## P2: Reconsider wait-for-user abstraction
+
+In worker, `<wait-for-user>` competes with the board flow (add questions → land → dispatch → sleep) and confuses the model. In ralph, it's the only mechanism for pausing while preserving session context.
+
+Should we: (A) remove from worker, keep in ralph; (B) keep in both, fix via prompts; or (C) something else?
+
 ---
 
 ## P2: Investigate prompt issues causing flaky orchestration recordings
 
 The `ambiguous_task` VCR recording is flaky — the main agent sometimes skips `land.sh` before transitioning and/or uses `<wait-for-user>` directly instead of transitioning to dispatch. The correct flow is: main adds questions to board → lands → transitions to dispatch → dispatch sleeps.
-
-## P2: Reconsider wait-for-user abstraction
-
-Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pulling its weight, or adding complexity and confusing the model?
 
 ## Done
 
