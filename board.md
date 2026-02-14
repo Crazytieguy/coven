@@ -15,8 +15,6 @@ Which variation of the pre-implementation checkpoint? Pick one:
 - Approaches 1, 2, and 4 not selected
 - Agent should propose a few concrete variations of approach 3 for the user to choose from
 
----
-
 ## P1: Investigate bell sound behavior
 
 Investigate when exactly coven plays a bell sound. The user is getting a lot of them and not sure they're always helpful.
@@ -31,6 +29,8 @@ Investigate when exactly coven plays a bell sound. The user is getting a lot of 
 **Questions:**
 - Which of these bells are useful vs annoying? Should any be removed?
 - Should there be a `--no-bell` flag, or should we just change the defaults?
+
+---
 
 ## Done
 
