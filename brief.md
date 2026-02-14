@@ -1,4 +1,3 @@
 # Brief
 
-I suspect there might be spurious worker wake ups not caused by git commits, please check.
-I want to release a patch version, start working on it and wait for me when you need permission
+Make sure the spurious wake up fix doesn't cause a race condition. Also check if there might be other spurious wakeups: For instance I think maybe workers are woken up when another worktree is removed
