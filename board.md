@@ -2,19 +2,9 @@
 
 ---
 
-## P2: Reconsider wait-for-user abstraction
-
-In worker, `<wait-for-user>` competes with the board flow (add questions → land → dispatch → sleep) and confuses the model. In ralph, it's the only mechanism for pausing while preserving session context.
-
-**Decisions:**
-- Keep `<wait-for-user>` in ralph, remove from worker
-- Implement via prompt changes (not code changes)
-- Clarify in ralph prompts how `<wait-for-user>` differs from `<break>`
-
-**Task:** Propose prompt changes. Clarify the behavior difference between `<wait-for-user>` and `<break>` in ralph.
-
 ## Done
 
+- P2: Reconsider wait-for-user abstraction
 - P2: Investigate prompt issues causing flaky orchestration recordings
 - P1: Audit codebase for error handling and edge case issues
 - P1: Audit codebase for error-prone duplication
