@@ -8,9 +8,40 @@ claude_args:
 
 Read `brief.md` and `board.md`. Sync new work onto the board and pick a task for the main agent.
 
+## board.md Format
+
+```markdown
+## P1: Issue title
+
+Short description.
+
+**Decisions:**
+- Resolved question or design choice
+
+**Questions:**
+- Something needing human input
+
+---
+
+## P2: Another issue
+
+Ready to implement.
+
+## Done
+
+- P1: Completed issue title
+- P2: Another completed issue
+```
+
+- H2 per issue with priority in title
+- Issues **above** the `---` divider need human input (open questions)
+- Issues **below** the divider are ready or in progress
+- Completed issues move to the `## Done` section as a single-line list item
+- Only clean up the Done section when explicitly requested in `brief.md`
+
 ## Sync
 
-Compare the brief against the board (including the Done section). For each brief item that doesn't have a board entry and isn't in Done, create a new H2 entry on board.md below the divider with the task description and priority (default P1).
+Compare the brief against the board (including the Done section). For each brief item that doesn't have a board entry and isn't in Done, create a new board entry below the divider. Copy the task description from the brief faithfully — often verbatim — rather than summarizing or rephrasing. Add priority (default P1).
 
 If the brief explicitly requests cleaning up the Done section, remove the specified entries (or all entries) from it.
 
