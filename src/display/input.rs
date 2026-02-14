@@ -335,15 +335,20 @@ impl InputHandler {
         }
     }
 
-    fn handle_inactive_key(&mut self, event: &KeyEvent, out: &mut impl Write) -> InputAction {
+    fn handle_inactive_key(&mut self, event: &KeyEvent, _out: &mut impl Write) -> InputAction {
         let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
         match event.code {
             KeyCode::Char('c') if ctrl => InputAction::Interrupt,
             KeyCode::Char('d') if ctrl => InputAction::EndSession,
             KeyCode::Char('o') if ctrl => InputAction::Interactive,
             KeyCode::Char(c) => {
+                // Activate and buffer the character, but don't redraw yet.
+                // The caller will call begin_input_line() to set up a fresh
+                // line before redrawing.
                 self.activate();
-                self.insert_char(c, out);
+                let byte_pos = self.cursor_byte_pos();
+                self.buffer.insert(byte_pos, c);
+                self.cursor += 1;
                 InputAction::Activated(c)
             }
             _ => InputAction::None,
