@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Test snapshots fail when run in wider terminal
+
+Tests may fail when run in a real terminal because the display width is wider than in the non-interactive shell where Claude records snapshots. Investigate whether test code goes through display width logic and propose a fix.
+
 ## P1: Refine post-compaction context: system.md scope and dispatch faithfulness
 
 The recent post-compaction context loss fix was too aggressive. Two changes needed:
