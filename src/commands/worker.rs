@@ -427,6 +427,7 @@ async fn run_phase_with_wait<W: Write>(
                 let sid = session_id
                     .as_deref()
                     .context("no session ID for wait-for-user resume")?;
+                ctx.io.clear_event_channel();
                 let Some(user_text) = session_loop::wait_for_interrupt_input(
                     ctx.input,
                     ctx.renderer,
@@ -567,6 +568,7 @@ async fn wait_for_transition_input<W: Write>(
             "\r\nTransition output could not be parsed: {last_err}\r\n"
         ));
 
+        ctx.io.clear_event_channel();
         let Some(text) = session_loop::wait_for_interrupt_input(
             ctx.input,
             ctx.renderer,
