@@ -6,6 +6,15 @@
 
 I want to release a patch version, start working on it and wait for me when you need permission.
 
+## P2: Investigate prompt issues causing flaky orchestration recordings
+
+The `ambiguous_task` VCR recording is flaky — the main agent sometimes skips `land.sh` before transitioning and/or uses `<wait-for-user>` directly instead of transitioning to dispatch. The correct flow is: main adds questions to board → lands → transitions to dispatch → dispatch sleeps.
+
+## P2: Reconsider wait-for-user abstraction
+
+Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pulling its weight, or adding complexity and confusing the model?
+
+
 ## Done
 
 - P1: Investigate spurious worker wake-ups
