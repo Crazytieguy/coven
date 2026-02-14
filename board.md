@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Improve dispatch stale content cleanup
-
-The "Clean up stale content from board entries" section in the dispatch agent prompt is too aggressive. Fix by removing/simplifying the instructions rather than adding more.
-
 ## P1: Prefer waiting for user input over exiting
 
 Compaction session crashed because the agent asked a question and coven exited. Either the retry limit for tag parsing failure was reached, or something else. Coven should always prefer to wait for user input rather than exiting.
