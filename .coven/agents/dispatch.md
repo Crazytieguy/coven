@@ -14,8 +14,6 @@ Compare the brief against the board and `git log --oneline -20`. For each brief 
 
 If the brief contains answers to open questions on the board, incorporate them into the entry's **Decisions** section and remove the answered questions. If all questions are answered, move the entry below the divider.
 
-Clean up stale content from board entries: remove old design explorations, resolved alternatives, lengthy pro/con lists, and code examples that are no longer needed. An entry below the divider should have a short description plus its **Decisions** section — nothing more.
-
 Commit any board changes and run `bash .coven/land.sh`.
 
 ## Pick a Task
