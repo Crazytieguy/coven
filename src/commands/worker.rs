@@ -412,7 +412,8 @@ fn format_args_display(args: &HashMap<String, String>) -> String {
     parts.join(" ")
 }
 
-/// Parse transition from agent output, retrying once if parsing fails.
+/// Parse transition from agent output, retrying once automatically then
+/// waiting for user input if both attempts fail.
 async fn parse_transition_with_retry<W: Write>(
     result_text: &str,
     session_id: Option<&str>,
@@ -422,41 +423,120 @@ async fn parse_transition_with_retry<W: Write>(
     ctx: &mut PhaseContext<'_, W>,
     total_cost: &mut f64,
 ) -> Result<Option<Transition>> {
-    match transition::parse_transition(result_text) {
+    let parse_err = match transition::parse_transition(result_text) {
+        Ok(t) => return Ok(Some(t)),
+        Err(e) => e,
+    };
+    let Some(sid) = session_id else {
+        return Err(parse_err).context("failed to parse transition");
+    };
+
+    ctx.renderer.write_raw(&format!(
+        "\r\nTransition output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
+    ));
+
+    // Auto-retry once with corrective prompt
+    let retry_prompt = transition::corrective_prompt(&parse_err);
+
+    let PhaseOutcome::Completed {
+        result_text: retry_text,
+        cost: retry_cost,
+        session_id: retry_sid,
+    } = run_phase_session(
+        &retry_prompt,
+        worktree_path,
+        extra_args,
+        Some(sid),
+        system_prompt,
+        ctx,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+
+    *total_cost += retry_cost;
+
+    match transition::parse_transition(&retry_text) {
         Ok(t) => Ok(Some(t)),
-        Err(parse_err) => {
-            let Some(sid) = session_id else {
-                return Err(parse_err).context("failed to parse transition");
-            };
-
-            ctx.renderer.write_raw(&format!(
-                "\r\nTransition output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
-            ));
-
-            let retry_prompt = transition::corrective_prompt(&parse_err);
-
-            let PhaseOutcome::Completed {
-                result_text: retry_text,
-                cost: retry_cost,
-                ..
-            } = run_phase_session(
-                &retry_prompt,
+        Err(retry_err) => {
+            // Both automatic attempts failed — wait for user input instead
+            // of crashing. The user can talk to the agent to fix the situation.
+            let current_sid = retry_sid.unwrap_or_else(|| sid.to_string());
+            wait_for_transition_input(
+                &retry_err,
+                current_sid,
                 worktree_path,
                 extra_args,
-                Some(sid),
                 system_prompt,
                 ctx,
+                total_cost,
             )
-            .await?
-            else {
-                return Ok(None);
-            };
+            .await
+        }
+    }
+}
 
-            *total_cost += retry_cost;
+/// When automatic transition parsing fails, wait for user input and retry.
+///
+/// Loops until the agent produces a valid `<next>` tag or the user exits.
+async fn wait_for_transition_input<W: Write>(
+    initial_err: &anyhow::Error,
+    mut session_id: String,
+    worktree_path: &Path,
+    extra_args: &[String],
+    system_prompt: Option<&str>,
+    ctx: &mut PhaseContext<'_, W>,
+    total_cost: &mut f64,
+) -> Result<Option<Transition>> {
+    let mut last_err = format!("{initial_err}");
 
-            let t = transition::parse_transition(&retry_text)
-                .context("failed to parse transition after retry")?;
-            Ok(Some(t))
+    loop {
+        ctx.renderer.write_raw(&format!(
+            "\r\nTransition output could not be parsed: {last_err}\r\n"
+        ));
+
+        let Some(text) = session_loop::wait_for_interrupt_input(
+            ctx.input,
+            ctx.renderer,
+            ctx.io,
+            ctx.vcr,
+            &session_id,
+            Some(worktree_path),
+            extra_args,
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        let PhaseOutcome::Completed {
+            result_text,
+            cost,
+            session_id: new_sid,
+        } = run_phase_session(
+            &text,
+            worktree_path,
+            extra_args,
+            Some(&session_id),
+            system_prompt,
+            ctx,
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        *total_cost += cost;
+        if let Some(id) = new_sid {
+            session_id = id;
+        }
+
+        match transition::parse_transition(&result_text) {
+            Ok(t) => return Ok(Some(t)),
+            Err(e) => {
+                last_err = format!("{e}");
+            }
         }
     }
 }
