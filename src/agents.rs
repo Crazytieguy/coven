@@ -26,6 +26,9 @@ pub struct AgentFrontmatter {
     /// Extra arguments to pass to the `claude` CLI when running this agent.
     #[serde(default)]
     pub claude_args: Vec<String>,
+    /// Optional Handlebars template for the terminal title.
+    /// Rendered with the same args map used for the prompt.
+    pub title: Option<String>,
 }
 
 /// A fully loaded agent definition.
@@ -111,6 +114,23 @@ pub fn load_agents(dir: &Path) -> Result<Vec<AgentDef>> {
 }
 
 impl AgentDef {
+    /// Render the title template with the given arguments, if one is configured.
+    ///
+    /// Returns `None` if no title template is set.
+    pub fn render_title(&self, args: &HashMap<String, String>) -> Result<Option<String>> {
+        let Some(template) = &self.frontmatter.title else {
+            return Ok(None);
+        };
+
+        let mut hbs = handlebars::Handlebars::new();
+        hbs.set_strict_mode(false);
+        hbs.register_escape_fn(handlebars::no_escape);
+        let rendered = hbs
+            .render_template(template, args)
+            .context("failed to render title template")?;
+        Ok(Some(rendered))
+    }
+
     /// Render the prompt template with the given arguments.
     ///
     /// Validates that all required args are present, then uses Handlebars
@@ -319,5 +339,35 @@ Do the thing."#;
         let args_empty = HashMap::new();
         let rendered = agent.render(&args_empty).unwrap();
         assert!(!rendered.contains("Verbose mode enabled"));
+    }
+
+    #[test]
+    fn render_title_with_template() {
+        let input = "---\ndescription: \"Worker\"\ntitle: \"{{task}}\"\nargs:\n  - name: task\n    description: \"The task\"\n    required: true\n---\n\nDo {{task}}.";
+        let (fm, body) = parse_agent_file(input).unwrap();
+        assert_eq!(fm.title.as_deref(), Some("{{task}}"));
+        let agent = AgentDef {
+            name: "main".into(),
+            frontmatter: fm,
+            prompt_template: body,
+        };
+        let mut args = HashMap::new();
+        args.insert("task".into(), "Fix the bug".into());
+        let title = agent.render_title(&args).unwrap();
+        assert_eq!(title.as_deref(), Some("Fix the bug"));
+    }
+
+    #[test]
+    fn render_title_none_when_absent() {
+        let input = "---\ndescription: \"Simple\"\n---\n\nDo the thing.";
+        let (fm, body) = parse_agent_file(input).unwrap();
+        assert!(fm.title.is_none());
+        let agent = AgentDef {
+            name: "test".into(),
+            frontmatter: fm,
+            prompt_template: body,
+        };
+        let title = agent.render_title(&HashMap::new()).unwrap();
+        assert!(title.is_none());
     }
 }

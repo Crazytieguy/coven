@@ -293,6 +293,7 @@ issue: issues/fix-scroll-bug.md
                 args,
                 max_concurrency: None,
                 claude_args: Vec::new(),
+                title: None,
             },
             prompt_template: String::new(),
         }

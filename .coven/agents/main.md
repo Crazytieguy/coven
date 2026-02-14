@@ -1,5 +1,6 @@
 ---
 description: "Implements, reviews, and lands work for a board issue"
+title: "{{task}}"
 args:
   - name: task
     description: "Board entry title"

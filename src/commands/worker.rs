@@ -321,13 +321,14 @@ async fn run_agent_chain<W: Write>(
             ctx.fork_config,
         );
 
-        let args_display = format_args_display(&agent_args);
         ctx.renderer
             .write_raw(&format!("\r\n=== Agent: {agent_name} ===\r\n\r\n"));
-        let title_suffix = if args_display.is_empty() {
-            agent_name.clone()
-        } else {
-            format!("{agent_name} {args_display}")
+        let title_suffix = match agent_def.render_title(&agent_args)? {
+            Some(t) => format!("{agent_name}: {t}"),
+            None => match format_args_display(&agent_args) {
+                d if d.is_empty() => agent_name.clone(),
+                d => format!("{agent_name} {d}"),
+            },
         };
         ctx.renderer
             .set_title(&format!("cv {title_suffix} \u{2014} {branch}"));
