@@ -232,7 +232,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         id: prompt
         run: |
-          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/issue.md)
+          prompt=$(sed "s|{{NUMBER}}|$NUMBER|g; s|{{REPOSITORY}}|$REPO|g" .github/prompts/issue.md)
           echo "content<<EOF" >> "$GITHUB_OUTPUT"
           echo "$prompt" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -339,7 +339,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         id: prompt
         run: |
-          prompt=$(sed "s/{{NUMBER}}/$NUMBER/g; s/{{REPOSITORY}}/$REPO/g" .github/prompts/pr-review.md)
+          prompt=$(sed "s|{{NUMBER}}|$NUMBER|g; s|{{REPOSITORY}}|$REPO|g" .github/prompts/pr-review.md)
           echo "content<<EOF" >> "$GITHUB_OUTPUT"
           echo "$prompt" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
