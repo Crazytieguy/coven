@@ -2,16 +2,6 @@
 
 ---
 
-## P1: Transition parsing failure behavior
-
-Enrich corrective prompt with available agents and bump auto-retries to 3. On final failure, agent should explicitly output wait-for-user tag before blocking on user input.
-
-**Decisions:**
-- Both proposals approved: enrich corrective prompt with real agent defs, and increase auto-retries
-- Bump retries to 3 (up from proposed 2)
-- Agent should explicitly output wait-for-user tag on final failure
-- Was blocked on wait-for-user tag — now unblocked (implemented)
-
 ## P1: Refine post-compaction context: system.md scope and dispatch faithfulness
 
 The recent post-compaction context loss fix was too aggressive. Two changes needed:
@@ -20,6 +10,7 @@ The recent post-compaction context loss fix was too aggressive. Two changes need
 
 ## Done
 
+- P1: Transition parsing failure behavior
 - P1: Add "Done" section to board
 - P1: Add main agent self-transition review test
 - P1: Re-record VCR tests and fix snapshots
