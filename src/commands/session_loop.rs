@@ -479,6 +479,7 @@ pub async fn wait_for_interrupt_input<W: Write>(
     working_dir: Option<&Path>,
     extra_args: &[String],
 ) -> Result<Option<String>> {
+    io.clear_event_channel();
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
     loop {
         match wait_for_text_input(input, renderer, io, vcr).await? {

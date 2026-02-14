@@ -201,7 +201,6 @@ async fn handle_session_outcome<W: Write>(
                 ctx.renderer.write_raw("\x07");
                 ctx.renderer
                     .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
-                ctx.io.clear_event_channel();
                 let Some((runner, new_state)) =
                     wait_input_and_resume(state, session_config, config, ctx).await?
                 else {
@@ -223,7 +222,6 @@ async fn handle_session_outcome<W: Write>(
             Ok(LoopAction::NextIteration)
         }
         SessionOutcome::Interrupted => {
-            ctx.io.clear_event_channel();
             iter.iteration_cost += state.total_cost_usd;
             ctx.renderer.render_interrupted();
             let Some((runner, new_state)) =

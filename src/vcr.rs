@@ -423,8 +423,9 @@ impl Io {
     /// replace it with an idle channel that blocks on `recv()` without
     /// returning `None`.
     ///
-    /// Call this after killing a runner and before `wait_for_user_input`
-    /// to prevent a stale `ProcessExit` from immediately ending the wait.
+    /// Prevents a stale `ProcessExit` from immediately ending a wait.
+    /// Called automatically by `wait_for_interrupt_input`; also used
+    /// directly in `wait_for_new_commits` and at startup.
     pub fn clear_event_channel(&mut self) {
         let (tx, rx) = mpsc::unbounded_channel();
         self.event_rx = rx;
