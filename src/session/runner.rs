@@ -195,7 +195,14 @@ impl SessionRunner {
              iteration starts automatically.\n\n\
              Only include `<{break_tag}>reason</{break_tag}>` to end the entire loop. This is \
              rare — only do it when you have exhausted all available work and another iteration \
-             would accomplish nothing new."
+             would accomplish nothing new.\n\n\
+             If you need user input before you can proceed (e.g. a necessary command was denied, \
+             or you need clarification on a requirement), output a `<wait-for-user>` tag:\n\n\
+             <wait-for-user>\n\
+             Reason the user needs to act\n\
+             </wait-for-user>\n\n\
+             The orchestrator will show your reason, wait for the user to respond, and resume \
+             your session with their input."
         )
     }
 

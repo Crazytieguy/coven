@@ -3,4 +3,4 @@ prompt = "Check TODO.md for unchecked tasks. If any exist, do the next one and m
 break_tag = "break"
 
 [files]
-"TODO.md" = "# Tasks\n- [ ] Create a hello.py that prints 'hi'\n- [ ] Create a README.md with the project name\n"
+"TODO.md" = "# Tasks\n- [ ] Create a hello.py that prints 'hi'\n- [ ] Create a README.md with the title 'My Project'\n"

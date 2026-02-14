@@ -41,6 +41,40 @@ impl RalphConfig {
             base
         }
     }
+
+    fn session_config(&self, system_prompt: &str) -> SessionConfig {
+        SessionConfig {
+            prompt: Some(self.prompt.clone()),
+            extra_args: self.extra_args.clone(),
+            append_system_prompt: Some(system_prompt.to_string()),
+            working_dir: self.working_dir.clone(),
+            ..Default::default()
+        }
+    }
+
+    /// Check for `<break>` tag (respects `--no-break`).
+    fn scan_break(&self, text: &str) -> Option<String> {
+        if self.no_break {
+            None
+        } else {
+            SessionRunner::scan_break_tag(text, &self.break_tag)
+        }
+    }
+}
+
+/// Mutable I/O handles shared across the ralph loop.
+struct Ctx<'a, W: Write> {
+    input: &'a mut InputHandler,
+    renderer: &'a mut Renderer<W>,
+    io: &'a mut Io,
+    vcr: &'a VcrContext,
+}
+
+/// Per-loop cost and iteration tracking.
+struct IterState {
+    iteration: u32,
+    iteration_cost: f64,
+    total_cost: f64,
 }
 
 /// Run ralph loop mode.
@@ -59,104 +93,181 @@ pub async fn ralph<W: Write>(
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new(2);
-    let mut total_cost = 0.0;
-    let mut iteration = 0;
     let system_prompt = config.system_prompt();
     if config.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());
     }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
+    let session_config = config.session_config(&system_prompt);
+
+    let mut ctx = Ctx {
+        input: &mut input,
+        renderer: &mut renderer,
+        io,
+        vcr,
+    };
+    let mut iter = IterState {
+        iteration: 0,
+        iteration_cost: 0.0,
+        total_cost: 0.0,
+    };
 
     'outer: loop {
-        iteration += 1;
-        if config.iterations > 0 && iteration > config.iterations {
-            renderer.write_raw(&format!(
+        iter.iteration += 1;
+        if config.iterations > 0 && iter.iteration > config.iterations {
+            ctx.renderer.write_raw(&format!(
                 "\r\nReached iteration limit ({})\r\n",
                 config.iterations
             ));
             break;
         }
+        ctx.renderer
+            .write_raw(&format!("\r\n--- Iteration {} ---\r\n\r\n", iter.iteration));
 
-        // Iteration header
-        renderer.write_raw(&format!("\r\n--- Iteration {iteration} ---\r\n\r\n"));
-
-        let session_config = SessionConfig {
-            prompt: Some(config.prompt.clone()),
-            extra_args: config.extra_args.clone(),
-            append_system_prompt: Some(system_prompt.clone()),
-            working_dir: config.working_dir.clone(),
-            ..Default::default()
-        };
-
-        let mut runner = session_loop::spawn_session(session_config.clone(), io, vcr).await?;
+        let mut runner =
+            session_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
         let mut state = SessionState::default();
-        let mut iteration_cost = 0.0;
+        iter.iteration_cost = 0.0;
 
         loop {
             let outcome = session_loop::run_session(
                 &mut runner,
                 &mut state,
-                &mut renderer,
-                &mut input,
-                io,
-                vcr,
+                ctx.renderer,
+                ctx.input,
+                ctx.io,
+                ctx.vcr,
                 fork_config.as_ref(),
             )
             .await?;
             runner.close_input();
             let _ = runner.wait().await;
 
-            match outcome {
-                SessionOutcome::Completed { result_text } => {
-                    iteration_cost += state.total_cost_usd;
-                    total_cost += iteration_cost;
-                    renderer.write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
-
-                    if !config.no_break
-                        && let Some(reason) =
-                            SessionRunner::scan_break_tag(&result_text, &config.break_tag)
-                    {
-                        let s = if iteration == 1 { "" } else { "s" };
-                        renderer.write_raw(&format!(
-                            "\r\nLoop complete ({iteration} iteration{s}): {reason}\r\n"
-                        ));
-                        break 'outer;
-                    }
-
-                    break; // next iteration
+            match handle_session_outcome(
+                outcome,
+                &mut state,
+                &mut iter,
+                &session_config,
+                &config,
+                &mut ctx,
+            )
+            .await?
+            {
+                LoopAction::NextIteration => break,
+                LoopAction::Resume(new_runner, new_state) => {
+                    runner = *new_runner;
+                    state = new_state;
                 }
-                SessionOutcome::Interrupted => {
-                    io.clear_event_channel();
-                    let Some(session_id) = state.session_id.take() else {
-                        break 'outer;
-                    };
-                    iteration_cost += state.total_cost_usd;
-                    renderer.render_interrupted();
-
-                    let Some(text) = session_loop::wait_for_interrupt_input(
-                        &mut input,
-                        &mut renderer,
-                        io,
-                        vcr,
-                        &session_id,
-                        config.working_dir.as_deref(),
-                        &config.extra_args,
-                    )
-                    .await?
-                    else {
-                        break 'outer;
-                    };
-                    let resume_config = session_config.resume_with(text, session_id.clone());
-                    runner = session_loop::spawn_session(resume_config, io, vcr).await?;
-                    state = SessionState::default();
-                    state.session_id = Some(session_id);
-                }
-                SessionOutcome::ProcessExited => break 'outer,
+                LoopAction::Exit => break 'outer,
             }
         }
     }
 
     Ok(renderer.into_messages())
+}
+
+/// What to do after handling a session outcome.
+enum LoopAction {
+    /// Start the next iteration of the ralph loop.
+    NextIteration,
+    /// Continue the inner session loop (session was resumed).
+    Resume(Box<SessionRunner>, SessionState),
+    /// Exit the ralph loop entirely.
+    Exit,
+}
+
+/// Process a session outcome: handle completion (wait-for-user, break tag),
+/// interrupts, and process exits.
+async fn handle_session_outcome<W: Write>(
+    outcome: SessionOutcome,
+    state: &mut SessionState,
+    iter: &mut IterState,
+    session_config: &SessionConfig,
+    config: &RalphConfig,
+    ctx: &mut Ctx<'_, W>,
+) -> Result<LoopAction> {
+    match outcome {
+        SessionOutcome::Completed { result_text } => {
+            iter.iteration_cost += state.total_cost_usd;
+            iter.total_cost += iter.iteration_cost;
+            ctx.renderer
+                .write_raw(&format!("  Total cost: ${:.2}\r\n", iter.total_cost));
+
+            // Check for wait-for-user before break tag (user input takes precedence).
+            if let Some(reason) =
+                crate::protocol::parse::extract_tag_inner(&result_text, "wait-for-user")
+            {
+                let reason = reason.trim();
+                ctx.renderer
+                    .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
+                let Some((runner, new_state)) =
+                    wait_input_and_resume(state, session_config, config, ctx).await?
+                else {
+                    return Ok(LoopAction::Exit);
+                };
+                iter.iteration_cost = 0.0;
+                return Ok(LoopAction::Resume(Box::new(runner), new_state));
+            }
+
+            if let Some(reason) = config.scan_break(&result_text) {
+                let s = if iter.iteration == 1 { "" } else { "s" };
+                ctx.renderer.write_raw(&format!(
+                    "\r\nLoop complete ({} iteration{s}): {reason}\r\n",
+                    iter.iteration
+                ));
+                return Ok(LoopAction::Exit);
+            }
+
+            Ok(LoopAction::NextIteration)
+        }
+        SessionOutcome::Interrupted => {
+            ctx.io.clear_event_channel();
+            iter.iteration_cost += state.total_cost_usd;
+            ctx.renderer.render_interrupted();
+            let Some((runner, new_state)) =
+                wait_input_and_resume(state, session_config, config, ctx).await?
+            else {
+                return Ok(LoopAction::Exit);
+            };
+            Ok(LoopAction::Resume(Box::new(runner), new_state))
+        }
+        SessionOutcome::ProcessExited => Ok(LoopAction::Exit),
+    }
+}
+
+/// Wait for user input and spawn a resumed session.
+///
+/// Takes the `session_id` from `state`; returns `None` if no session ID is
+/// available or the user exited without providing input.
+async fn wait_input_and_resume<W: Write>(
+    state: &mut SessionState,
+    session_config: &SessionConfig,
+    config: &RalphConfig,
+    ctx: &mut Ctx<'_, W>,
+) -> Result<Option<(SessionRunner, SessionState)>> {
+    let Some(session_id) = state.session_id.take() else {
+        return Ok(None);
+    };
+    let Some(text) = session_loop::wait_for_interrupt_input(
+        ctx.input,
+        ctx.renderer,
+        ctx.io,
+        ctx.vcr,
+        &session_id,
+        config.working_dir.as_deref(),
+        &config.extra_args,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+    let resume_config = session_config.resume_with(text, session_id.clone());
+    let runner = session_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+    let new_state = SessionState {
+        session_id: Some(session_id),
+        ..Default::default()
+    };
+    Ok(Some((runner, new_state)))
 }
 
 #[cfg(test)]
