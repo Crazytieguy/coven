@@ -25,7 +25,6 @@ First session *focuses on* understanding and planning, asks if questions arise, 
 - Approach 3 chosen: pre-implementation checkpoint — prompt the agent to always spend its first session reading the task and listing questions before writing any code, a "plan then ask" phase built into the prompt structure
 - Approaches 1, 2, and 4 not selected
 - Variation A (soft first-session checkpoint) chosen: first session focuses on understanding and planning, asks if questions arise, but may start coding if everything is clear
-
 ## Done
 
 - P1: Transition YAML parsing fails on colons in values
