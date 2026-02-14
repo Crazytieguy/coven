@@ -37,6 +37,14 @@ Model tried `git push` instead of `bash .coven/land.sh` after session compaction
 
 New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
 
+## P1: Re-record VCR tests and fix snapshots
+
+Some VCR tests need to be re-recorded. Re-record them, verify snapshots look correct, and iterate until everything passes.
+
+## P1: Add main agent self-transition review test
+
+Create a new VCR + snapshot test that checks the main agent consistently self-transitions for review (i.e. transitions to itself with a review step rather than going straight to landing).
+
 ## Done
 
 - P1: Add "Done" section to board
