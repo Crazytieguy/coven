@@ -9,6 +9,7 @@ The main agent should be even more willing to ask clarifying questions instead o
 **Decisions:**
 - Approach 3 chosen: pre-implementation checkpoint — prompt the agent to always spend its first session reading the task and listing questions before writing any code, a "plan then ask" phase built into the prompt structure
 - Approaches 1, 2, and 4 not selected
+- Agent should propose a few concrete variations of approach 3 for the user to choose from
 
 ## P1: Investigate bell sound behavior
 
