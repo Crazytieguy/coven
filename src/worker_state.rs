@@ -175,15 +175,19 @@ fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {
     // opens with O_TRUNC (zeroing the file) before writing, so a concurrent
     // reader could see an empty or partial file, fail to parse, and delete it.
     let tmp_path = path.with_extension("json.tmp");
-    fs::write(&tmp_path, json)
+    fs::write(&tmp_path, &json)
         .with_context(|| format!("failed to write {}", tmp_path.display()))?;
-    fs::rename(&tmp_path, &path).with_context(|| {
-        format!(
-            "failed to rename {} to {}",
-            tmp_path.display(),
-            path.display()
-        )
-    })?;
+    if let Err(e) = fs::rename(&tmp_path, &path) {
+        // Clean up the temp file so it doesn't accumulate as garbage.
+        let _ = fs::remove_file(&tmp_path);
+        return Err(e).with_context(|| {
+            format!(
+                "failed to rename {} to {}",
+                tmp_path.display(),
+                path.display()
+            )
+        });
+    }
     Ok(())
 }
 

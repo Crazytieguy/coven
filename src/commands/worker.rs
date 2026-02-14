@@ -348,7 +348,9 @@ async fn run_agent_chain<W: Write>(
                 vcr_update_worker_state(ctx.vcr, &wt_str, branch, None, &HashMap::new()).await?;
                 return Ok(ChainResult::Sleep);
             }
-            Transition::WaitForUser { .. } => unreachable!(),
+            Transition::WaitForUser { .. } => {
+                bail!("unexpected WaitForUser transition in agent chain")
+            }
         }
     }
 }

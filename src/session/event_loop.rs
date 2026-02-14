@@ -379,7 +379,7 @@ async fn execute_fork<W: Write>(
         .clone()
         .context("cannot fork: no session ID yet")?;
     let Some(fork_cfg) = fork_config else {
-        unreachable!("fork detected without fork_config");
+        bail!("fork detected but fork_config is None");
     };
     let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
     vcr_send_message(runner, vcr, msg).await?;
