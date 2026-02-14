@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Audit codebase for error handling and edge case issues
-
-Attempt to identify error handling and edge case issues in the codebase — e.g. swallowed errors, panics in non-panic contexts, missing validation at boundaries, unhandled None/Err cases. If the fix is obvious do it, if unclear post a question.
-
 ## P2: Investigate prompt issues causing flaky orchestration recordings
 
 The `ambiguous_task` VCR recording is flaky — the main agent sometimes skips `land.sh` before transitioning and/or uses `<wait-for-user>` directly instead of transitioning to dispatch. The correct flow is: main adds questions to board → lands → transitions to dispatch → dispatch sleeps.
@@ -16,6 +12,7 @@ Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pu
 
 ## Done
 
+- P1: Audit codebase for error handling and edge case issues
 - P1: Audit codebase for error-prone duplication
 - P1: Audit codebase for race conditions and concurrency issues
 - P1: Audit codebase for code smells
