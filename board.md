@@ -1,8 +1,10 @@
 # Board
 
-## P1: Investigate bell sound behavior
+---
 
-Investigate when exactly coven plays a bell sound. The user is getting a lot of them and not sure they're always helpful.
+## P1: Bell sound: only ring when waiting for user input in run mode
+
+`coven worker` and `coven ralph` should not play a bell every time Claude finishes a turn. Bell should only play when specifically waiting for user input: the only mode that does this at the end of a turn is `run`. Going idle doesn't need a bell/notification either. (Ideally a system notification rather than a sound, but the easier fix is restricting when bells play.)
 
 **Findings:** 3 bell sites:
 1. `session_loop.rs:440` — every time Claude finishes a turn (follow-up prompt)
@@ -11,11 +13,10 @@ Investigate when exactly coven plays a bell sound. The user is getting a lot of 
 
 (`renderer.rs:823` is an OSC terminator, not a bell.)
 
-**Questions:**
-- Which of these bells are useful vs annoying? Should any be removed?
-- Should there be a `--no-bell` flag, or should we just change the defaults?
-
----
+**Decisions:**
+- Bell #1 (follow-up prompt): only play in `run` mode, not in `worker` or `ralph`
+- Bell #2 (Ctrl+C interrupt): keep — user is waiting for input in `run`
+- Bell #3 (worker idle): remove
 
 ## Done
 
