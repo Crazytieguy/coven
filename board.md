@@ -21,6 +21,17 @@ Which variation of the pre-implementation checkpoint? Pick one:
 
 Investigate when exactly coven plays a bell sound. The user is getting a lot of them and not sure they're always helpful.
 
+**Findings:** 3 bell sites:
+1. `session_loop.rs:440` — every time Claude finishes a turn (follow-up prompt)
+2. `session_loop.rs:482` — after Ctrl+C interrupt, waiting for resume
+3. `worker.rs:874` — worker goes idle/sleeping
+
+(`renderer.rs:823` is an OSC terminator, not a bell.)
+
+**Questions:**
+- Which of these bells are useful vs annoying? Should any be removed?
+- Should there be a `--no-bell` flag, or should we just change the defaults?
+
 ## Done
 
 - P1: Transition YAML parsing fails on colons in values
