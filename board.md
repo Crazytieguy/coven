@@ -33,10 +33,6 @@ Model tried `git push` instead of `bash .coven/land.sh` after session compaction
 
 ---
 
-## P1: Add wait-for-user tag
-
-New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
-
 ## P1: Re-record VCR tests and fix snapshots
 
 Some VCR tests need to be re-recorded. Re-record them, verify snapshots look correct, and iterate until everything passes.
