@@ -37,6 +37,6 @@ Model tried `git push` instead of `bash .coven/land.sh` after session compaction
 
 New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
 
-## P1: Add "Done" section to board
+## Done
 
-Change board format so completed issues move to a "Done" section (single line per item) instead of being removed entirely. Only clean up the Done section via explicit request from brief.md. Update dispatch and system prompts accordingly.
+- P1: Add "Done" section to board
