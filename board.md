@@ -10,6 +10,3 @@ New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.
 
 Model tried `git push` instead of `bash .coven/land.sh` after session compaction. Also confused about interactive/non-interactive transitions. Propose possible improvements.
 
-## P1: Display compaction messages
-
-Show compaction messages compressed to a single line by default, viewable with `:N`. The previous worker found the format but crashed before landing.
