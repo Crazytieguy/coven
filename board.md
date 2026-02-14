@@ -44,7 +44,6 @@ Some VCR tests need to be re-recorded. Re-record them, verify snapshots look cor
 ## P1: Add main agent self-transition review test
 
 Create a new VCR + snapshot test that checks the main agent consistently self-transitions for review (i.e. transitions to itself with a review step rather than going straight to landing).
-
 ## Done
 
 - P1: Add "Done" section to board
