@@ -1,14 +1,10 @@
 # Board
 
-## P1: Bell sound: ring when `wait-for-user` is outputted
-
-Recent bell fix overshot — should also ring when `wait-for-user` is outputted by ralph or worker (but no other states).
-
-**Question:** The worker's WaitForUser handler already calls `wait_for_interrupt_input` (session_loop.rs:482), which rings the bell (`\x07`). So the bell already rings when `wait-for-user` is outputted by the worker. Is there additional work needed, or can this be closed for the worker case? (Ralph wait-for-user depends on the separate board issue.)
-
 ---
 
 ## Done
+
+- P1: Bell sound: ring when `wait-for-user` is outputted (already works — both ralph and worker ring via `wait_for_interrupt_input`)
 
 - P1: Bell sound: only ring when waiting for user input in run mode
 - P1: Support `wait-for-user` tag in `ralph`
