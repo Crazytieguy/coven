@@ -20,67 +20,51 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: clear-falcon-37 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/clear-falcon-37)
+Worker started: steady-stream-26 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/steady-stream-26)
 
 === Agent: dispatch ===
 
-Session 316da891-2e97-49bc-90e1-770cf00136e3 (claude-haiku-4-5-20251001)
+Session 6895d08c-3f0e-4dc0-ada6-62e9cac2b1ef (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll read the brief and board files to understand the current state of work.
+I'll read the brief and board to understand the current state of work.
 
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-Let me check the recent git history to see if this work has already been started:
+I'll sync the brief item to the board and then pick a task.
 
-[5] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
+[5] ▶ Edit  (+10)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [6] Thinking...
-Now I'll sync the brief to the board. The brief item "Add a caching layer to the application" is not on the board and hasn't been recently worked on, so I need to add it:
-
-[7] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-Now I'll commit the board changes:
-
-[9] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
+[9] ▶ Bash  bash .coven/land.sh
 [10] Thinking...
-Now I'll run the land script:
+## Sync Summary
 
-[11] ▶ Bash  bash .coven/land.sh
-[12] Thinking...
-Let me check the current board state:
+✅ **Synced brief to board:**
+- Created new P1 entry: "Add a caching layer to the application"
+- Added open questions about caching strategy and what data to cache
+- Committed and landed to main
 
-[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[14] Thinking...
-## Analysis
+## Pick a Task
 
-**Sync Summary:**
-- Added 1 new board entry from brief: "P1: Add a caching layer to the application"
-- Committed and landed the changes
+**Status:** No actionable work available.
 
-**Current Board State:**
-- 1 P1 issue with open questions (above divider)
-- 0 ready tasks (below divider)
+The only task on the board (P1: Add caching layer) has open questions and is above the divider. It needs clarification from you on:
+- **Caching strategy**: In-memory, Redis, HTTP caching, or something else?
+- **What to cache**: API responses, database queries, computed results, or a combination?
 
-**Reasoning:**
-The caching layer task is not actionable yet—it has open questions about the implementation approach (caching type and scope). According to the throttling rules, P1 tasks can be picked if 6 or fewer issues are waiting for answers (we have 1), but this particular task needs clarification before work can begin.
+Once these are answered, I can move the issue below the divider and start implementation.
 
-<wait-for-user>
-The brief mentions adding a caching layer for performance concerns, but doesn't specify implementation details. I need clarification on:
-1. What type of caching should be used? (in-memory, Redis, file-based, etc.)
-2. Which parts of the application should be cached?
-
-Once you provide these details, I can move the task to ready status and begin implementation.
-</wait-for-user>
+<next>
+sleep: true
+</next>
 
 
-Done  $0.04 · 26.3s · 8 turns  (:N to view)
-  Total cost: $0.04
+Done  $0.03 · 18.7s · 6 turns  (:N to view)
+  Total cost: $0.03
 
-Waiting for user: The brief mentions adding a caching layer for performance concerns, but doesn't specify implementation details. I need clarification on:
-1. What type of caching should be used? (in-memory, Redis, file-based, etc.)
-2. Which parts of the application should be cached?
-
-Once you provide these details, I can move the task to ready status and begin implementation.
-> 
+Transition: sleep — waiting for new commits...
+
 Removing worktree...
