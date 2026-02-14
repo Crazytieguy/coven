@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Fix all lint warnings and test failures, including preexisting
+
+Fix all lint warnings and test failures, including preexisting.
+
 ## P1: Audit codebase for code smells
 
 Attempt to identify code smells in the codebase — e.g. overly long functions, unclear naming, poor abstractions, dead code, inconsistent patterns. If the fix is obvious do it, if unclear post a question.
