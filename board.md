@@ -66,8 +66,10 @@ Hardcode a convention: if the agent has a `task` arg, use its value as the title
 - Con: Breaks if agents use different arg names for the primary label
 - Con: Doesn't help dispatch or custom agents
 
+**Decisions:**
+- Use approach A (title template in agent frontmatter)
+
 **Questions:**
-- Which approach (or combination) to pursue? A seems like the best bang-for-buck; B could be added later if mid-session updates prove valuable
 - Should the branch name stay in the title? It's useful with multiple workers but takes space
 
 ---
