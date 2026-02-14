@@ -1,12 +1,15 @@
 # Board
 
+---
+
 ## P2: Reconsider wait-for-user abstraction
 
 In worker, `<wait-for-user>` competes with the board flow (add questions → land → dispatch → sleep) and confuses the model. In ralph, it's the only mechanism for pausing while preserving session context.
 
-Should we: (A) remove from worker, keep in ralph; (B) keep in both, fix via prompts; or (C) something else?
-
----
+**Decisions:**
+- Keep `<wait-for-user>` in ralph, remove from worker
+- Implement via prompt changes (not code changes)
+- Clarify in ralph prompts how `<wait-for-user>` differs from `<break>`
 
 ## Done
 
