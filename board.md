@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Prefer waiting for user input over exiting
-
-Compaction session crashed because the agent asked a question and coven exited. Either the retry limit for tag parsing failure was reached, or something else. Coven should always prefer to wait for user input rather than exiting.
-
 ## P1: Add wait-for-user tag
 
 New `<wait-for-user>` tag for agents to signal they're blocked on user input (e.g. needing permission for a necessary command).
