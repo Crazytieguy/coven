@@ -28,9 +28,10 @@ Don't publish or release without asking.
 
 1. Bump version in `Cargo.toml` (patch version unless told otherwise)
 2. Update README.md if needed
-3. `cargo publish --allow-dirty`
-4. `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
-5. GitHub Actions builds binaries and updates Homebrew tap automatically
+3. Commit the version bump (and README if changed)
+4. `cargo publish`
+5. `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
+6. GitHub Actions builds binaries and updates Homebrew tap automatically
 
 ## Bash Operations
 
