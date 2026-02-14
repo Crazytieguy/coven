@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Audit codebase for code smells
-
-Attempt to identify code smells in the codebase — e.g. overly long functions, unclear naming, poor abstractions, dead code, inconsistent patterns. If the fix is obvious do it, if unclear post a question.
-
 ## P1: Audit codebase for error-prone duplication
 
 Attempt to identify error-prone duplication in the codebase — e.g. repeated logic that could drift out of sync, copy-pasted patterns that should be shared, duplicated constants or config. If the fix is obvious do it, if unclear post a question.
@@ -28,6 +24,7 @@ Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pu
 
 ## Done
 
+- P1: Audit codebase for code smells
 - P1: Fix all lint warnings and test failures, including preexisting
 - P1: Audit codebase for architectural issues
 - P1: Verify spurious wakeup fix for race conditions and other wakeup sources
