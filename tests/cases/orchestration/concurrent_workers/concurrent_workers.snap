@@ -5,193 +5,281 @@ expression: result.display
 --- init ---
 Created:
   .coven/agents/dispatch.md
-  .coven/agents/plan.md
-  .coven/agents/implement.md
-  .coven/agents/land.md
-  .coven/workflow.md
+  .coven/agents/main.md
+  .coven/system.md
+  .coven/config.toml
   .coven/land.sh
-  review/
+  board.md
+  .gitignore (added scratch.md)
 Skipped (already exist):
-  issues/
+  brief.md
 
-Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with workflow reference.
+Add tasks to brief.md and commit. Run `coven worker` to start.
+Workers will post questions to board.md — answer in brief.md.
 
 --- worker_a ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: crisp-bear-99 (/tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/crisp-bear-99)
+Worker started: calm-maple-23 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/calm-maple-23)
 
 === Agent: dispatch ===
 
-Session a2fcdf73-dcba-47ee-bfdf-a04ebcea6f6c (claude-haiku-4-5-20251001)
+Session 29d9872d-d32f-462e-9f78-fad9efc88228 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll check the current state of issues and the worktree to decide what work to pick up.
+I'll read both files to understand the current state and sync any new work.
 
-[2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[3] ▶ Bash  git status --short && git log --oneline main..HEAD 2>/dev/null | ...
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-I found two approved P1 issues ready for implementation:
-1. `issues/add-contributing.md` - Create CONTRIBUTING.md
-2. `issues/fix-typo.md` - Fix README typo
+[5] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
+[6] Thinking...
+Now I'll sync the work to the board:
 
-The worktree is clean with no uncommitted changes. Both issues are in `approved` state and ready for implementation. I'll route to the implement agent to start with the first issue.
+[7] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[8] Thinking...
+[9] ▶ Bash  git add board.md && git commit -m "Sync new work to board"
+[10] Thinking...
+[11] ▶ Bash  bash .coven/land.sh
+[12] Thinking...
+## Status
+
+**Sync complete**: Added 2 new P1 tasks to the board from the brief.
+
+**Board state**: 
+- 0 issues with open questions above the divider
+- 2 P1 issues below the divider (ready to implement)
+
+**Task selection**: Picking "Fix typo in README.md" as it's the simplest task to start with.
 
 <next>
-agent: implement
-issue: issues/add-contributing.md
+agent: main
+task: Fix typo in README.md
 </next>
 
 
-Done  $0.02 · 8.7s · 3 turns  (:N to view)
-  Total cost: $0.02
+Done  $0.03 · 18.9s · 7 turns  (:N to view)
+  Total cost: $0.03
 
-Transition: implement issue=issues/add-contributing.md
+Transition: main task=Fix typo in README.md
 
-=== Agent: implement ===
+=== Agent: main ===
 
-Session 5ebd2a31-b3e7-4976-b374-a18b0a7ffe6c (claude-haiku-4-5-20251001)
+Session 1b19dfd6-b5fc-44c5-8059-eba4894cde60 (claude-haiku-4-5-20251001)
 
-[5] Thinking...
-I'll help you implement the plan in the issue. Let me start by reading the issue file.
-
-[6] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-co...
-[7] Thinking...
-Now let me check if CONTRIBUTING.md already exists:
-
-[8] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-co...
-    ✗ Error: File does not exist.
-[9] Thinking...
-Let me check the project structure to understand what we're working with:
-
-[10] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-c...
-     ✗ Error: EISDIR: illegal operation on a directory, read
-[11] Thinking...
-[12] ▶ Glob  *
 [13] Thinking...
-[14] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-c...
-[15] Thinking...
-Now I'll create a CONTRIBUTING.md file with a clear "how to contribute" section:
+I'll start by reading the board and scratch files to understand the task context.
 
-[16] ▶ Write  (27 lines)  /tmp/coven-vcr-concurrent_workers-worker_a-worktree...
-[17] Thinking...
-Perfect! I've created the CONTRIBUTING.md file. Now let me verify it exists and then commit the changes:
+[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[16] Thinking...
+Now let me read the README.md file to find and fix the typo.
 
-[18] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-c...
-[19] Thinking...
-Excellent! The CONTRIBUTING.md file is created. Now I'll delete the issue file and commit the changes:
+[17] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[18] Thinking...
+Found the typo! "Helo" should be "Hello". Let me fix it.
 
-[20] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vc...
-[21] Thinking...
-[22] ▶ Bash  git add issues/add-contributing.md && git commit -m "$(cat <<'EOF'
-[23] Thinking...
-Perfect! I've successfully implemented the plan:
+[19] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[20] Thinking...
+Now let me commit this fix.
 
-✅ **Created CONTRIBUTING.md** - Added a comprehensive guide with:
-  - How to Contribute section with step-by-step instructions
-  - Guidelines for contributors
-  - Getting Started guide
+[21] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[22] Thinking...
+Now let me create scratch.md to record my progress.
 
-✅ **Deleted the issue file** - Removed `issues/add-contributing.md`
-
-✅ **Committed the changes** - Created a clear commit message documenting the changes
-
-The implementation is complete and ready for landing. Handing off to the land agent.
-
-<next>
-agent: land
-issue: /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/crisp-bear-99/issues/add-contributing.md
-</next>
-
-
-Done  $0.04 · 26.2s · 10 turns  (:N to view)
-  Total cost: $0.06
-
-Transition: land issue=/tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/crisp-bear-99/issues/add-contributing.md
-
-=== Agent: land ===
-
-Session 9fb0c25a-b581-41b1-b172-f86210fceb7a (claude-haiku-4-5-20251001)
-
+[23] ▶ Write  (10 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
 [24] Thinking...
-I'll help you land the changes on main. Let me start by reviewing the commits and diff on this branch.
+Let me verify the change with a quick review of the diff:
 
-[25] ▶ Bash  git log --oneline main..HEAD
-[26] ▶ Bash  git diff main...HEAD
-     ✗ Error: Exit code 128
-     ✗ Sibling tool call errored
-[27] Thinking...
-Let me check the current git state and available branches:
+[25] ▶ Bash  git diff main...HEAD
+[26] Thinking...
+Perfect! The fix is correct. Now let me remove this issue from the board and land the changes.
 
-[28] ▶ Bash  git branch -a
-[29] ▶ Bash  git log --oneline -10
+[27] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[28] Thinking...
+Now let me commit the board update:
+
+[29] ▶ Bash  git add board.md && git commit -m "Remove completed issue: Fix t...
 [30] Thinking...
-[31] ▶ Bash  git log --oneline master..HEAD
-[32] ▶ Bash  git diff master...HEAD
-[33] Thinking...
-Perfect! I can see there's one commit to land:
-- **eab0bc1**: Create CONTRIBUTING.md
+Now let me run the land script to merge these changes:
 
-The changes show:
-- A new `CONTRIBUTING.md` file with contribution guidelines
-- The tracking issue file `issues/add-contributing.md` has been deleted
+[31] ▶ Bash  bash .coven/land.sh
+[32] Thinking...
+Perfect! Now let me clean up by deleting scratch.md:
 
-This looks good. Now let me run the landing script to rebase and fast-forward the changes onto master:
+[33] ▶ Bash  rm scratch.md
+[34] Thinking...
+✅ Issue complete! I've successfully:
 
-[34] ▶ Bash  bash .coven/land.sh
-[35] Thinking...
-Excellent! The landing was successful. The changes have been rebased and fast-forwarded onto master:
-
-✓ 1 commit landed successfully
-✓ CONTRIBUTING.md created with contribution guidelines
-✓ Tracking issue removed
-
-The branch is now fully landed on master. Handing off to the dispatch agent to pick up the next task.
+1. Fixed the typo in README.md: changed "Helo" to "Hello"
+2. Committed the fix
+3. Removed the completed issue from board.md
+4. Landed all changes to main
+5. Cleaned up scratch.md
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.03 · 15.1s · 8 turns  (:N to view)
-  Total cost: $0.09
+Done  $0.05 · 29.2s · 12 turns  (:N to view)
+  Total cost: $0.08
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 05f9ab7b-1627-4e71-aeb5-cc1bccc0cbbb (claude-haiku-4-5-20251001)
+Session 75b2fbeb-abdf-4531-9e72-010a2ae66fe5 (claude-haiku-4-5-20251001)
 
-[36] Thinking...
-I'll check the current issues and worktree state to determine what work should be picked up next.
+[35] Thinking...
+I'll read the brief and board, sync new work, and pick a task.
 
-[37] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vc...
-[38] Thinking...
-[39] ▶ Bash  git status
+[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[37] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[38] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[39] Thinking...
+**Sync Analysis:**
+
+The brief and board are in sync:
+- ✅ "Fix typo in README.md" was completed (commits 1c085d2, dc0dd01)
+- ✅ "Create CONTRIBUTING.md" is already on the board as P1
+
+No new items to add. The board accurately reflects completed work.
+
+**Throttling Check:**
+- No open questions (0 above divider)
+- One actionable P1 task below divider
+- Can proceed
+
+**Task Selection:**
+
+Picking **P1: Create CONTRIBUTING.md** — it's the only ready task and is straightforward.
+
+<next>
+agent: main
+task: Create CONTRIBUTING.md
+</next>
+
+
+Done  $0.02 · 12.1s · 4 turns  (:N to view)
+  Total cost: $0.10
+
+Transition: main task=Create CONTRIBUTING.md
+
+=== Agent: main ===
+
+Session 317fa83a-1471-458e-988f-12b07ce928d6 (claude-haiku-4-5-20251001)
+
 [40] Thinking...
-[41] ▶ Bash  git log --oneline main..HEAD
-     ✗ Error: Exit code 128
-[42] Thinking...
-[43] ▶ Bash  git branch -a && echo "---" && git log --oneline -5
-[44] Thinking...
-[45] ▶ Bash  git log --oneline master..crisp-bear-99
-[46] Thinking...
-## Analysis
+I'll start by reading the board and any existing scratch notes to understand the current state of this issue.
 
-**Worktree state:** Clean, on branch `crisp-bear-99`, not ahead of master
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[42] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[43] Thinking...
+Let me check the current repository structure to understand the project context before creating the CONTRIBUTING.md file.
 
-**Available issues:**
-- `issues/fix-typo.md` (P1, `approved`) — Ready to implement
+[44] ▶ Bash  ls -la /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[45] Thinking...
+Let me check the README and brief to understand the project better.
 
-**Decision:** The only available issue is already being worked on by the `clear-raven-19` worker (currently running land). Following the dispatch preference "Don't assign work another worker is already doing," there is no new work to pick up.
+[46] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[47] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[48] Thinking...
+Now I'll create a CONTRIBUTING.md file with a brief "how to contribute" section.
+
+[49] ▶ Write  (20 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[50] Thinking...
+Now let me commit this change.
+
+[51] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[52] Thinking...
+Let me create a scratch.md file to track progress.
+
+[53] ▶ Write  (10 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[54] Thinking...
+I've successfully created the CONTRIBUTING.md file with a brief "how to contribute" section. The implementation is complete and committed. Now I'll transition to a review session to verify the work meets the acceptance criteria.
+
+<next>
+agent: main
+task: Create CONTRIBUTING.md
+</next>
+
+
+Done  $0.03 · 27.8s · 9 turns  (:N to view)
+  Total cost: $0.13
+
+Transition: main task=Create CONTRIBUTING.md
+
+=== Agent: main ===
+
+Session 6cea6b0d-0ec9-45ea-9439-5242c5a03f2b (claude-haiku-4-5-20251001)
+
+[55] Thinking...
+[56] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[57] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[58] Thinking...
+[59] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[60] Thinking...
+[61] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[62] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[63] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[64] Thinking...
+Perfect! The review passes. The CONTRIBUTING.md file has been successfully created with a brief "how to contribute" section that includes:
+- **Getting Started**: Fork, clone, branch, make changes, submit PR
+- **Guidelines**: Best practices for contributors
+
+Now I'll complete the landing process.
+
+[65] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[66] Thinking...
+[67] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[68] Thinking...
+[69] ▶ Bash  bash .coven/land.sh
+[70] Thinking...
+[71] ▶ Bash  rm scratch.md
+[72] ▶ Bash  git status
+[73] Thinking...
+Done! The CONTRIBUTING.md issue has been successfully reviewed, landed to main, and removed from the board. The implementation is complete with a welcoming contribution guide that covers getting started and guidelines for contributors.
+
+<next>
+agent: dispatch
+</next>
+
+
+Done  $0.04 · 26.5s · 12 turns  (:N to view)
+  Total cost: $0.17
+
+Transition: dispatch 
+
+=== Agent: dispatch ===
+
+Session 59aa600d-c394-4a97-9f93-619b629b4e3d (claude-haiku-4-5-20251001)
+
+[74] Thinking...
+[75] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[76] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[77] Thinking...
+**Sync Status:**
+
+Both brief items have been recently completed:
+- ✅ Fix typo in README.md (`1c085d2`)
+- ✅ Create CONTRIBUTING.md (`5568fb9`)
+
+The board is clean with no pending work.
+
+**Pick a Task:**
+
+There are no actionable items below the divider. All brief items have been completed. Since there's nothing to do, I'll sleep.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.03 · 17.3s · 6 turns  (:N to view)
-  Total cost: $0.12
+Done  $0.02 · 9.2s · 3 turns  (:N to view)
+  Total cost: $0.19
 
 Transition: sleep — waiting for new commits...
 
@@ -200,133 +288,252 @@ Removing worktree...
 --- worker_b ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: clear-raven-19 (/tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/clear-raven-19)
+Worker started: eager-oak-16 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/eager-oak-16)
 
 === Agent: dispatch ===
 
-Session 9491661d-fb3d-40e4-98fa-f127b6c7cd72 (claude-haiku-4-5-20251001)
+Session dc6ed320-f256-49e0-8945-959281da1a03 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll check the current state of issues and the worktree to determine the best next task.
+I'll read the brief and board to understand what work needs to be done.
 
-[2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[3] ▶ Bash  git status
-[4] ▶ Bash  git log --oneline -5
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[4] ▶ Bash  git log --oneline -20
 [5] Thinking...
-**Current Status:**
-- Worktree is clean, not ahead of main
-- Two approved issues ready for implementation
-- `crisp-bear-99` is already working on `add-contributing.md`
+Now I'll sync the brief items to the board. Both items are straightforward tasks with no blockers:
 
-**Routing Decision:**
-I'll implement `fix-typo.md` (P1, approved). This avoids conflicts with the other worker while keeping this worker productive on high-priority work.
+[6] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[7] Thinking...
+Now I'll commit the board changes:
+
+[8] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
+[9] Thinking...
+[10] ▶ Bash  bash .coven/land.sh
+[11] Thinking...
+## Reasoning
+
+**Board status:**
+- 0 open questions above the divider (no throttling)
+- 2 P1 items below the divider (ready to implement)
+
+**Pick:** "Fix typo in README.md" - it's the first item, straightforward text-only change, no blockers.
 
 <next>
-agent: implement
-issue: issues/fix-typo.md
+agent: main
+task: Fix typo in README.md
 </next>
 
 
-Done  $0.02 · 8.8s · 4 turns  (:N to view)
-  Total cost: $0.02
+Done  $0.03 · 19.7s · 7 turns  (:N to view)
+  Total cost: $0.03
 
-Transition: implement issue=issues/fix-typo.md
+Transition: main task=Fix typo in README.md
 
-=== Agent: implement ===
+=== Agent: main ===
 
-Session 84f132ac-f342-447a-9452-6118fcb7703d (claude-haiku-4-5-20251001)
+Session fede8134-5a96-4d63-a0ff-bde90cb1794f (claude-haiku-4-5-20251001)
 
-[6] Thinking...
-[7] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-co...
-[8] Thinking...
-[9] ▶ Read  /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-co...
-[10] Thinking...
-Now I'll fix the typo:
-
-[11] ▶ Edit  /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-c...
 [12] Thinking...
-[13] ▶ Bash  rm /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vc...
-[14] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vc...
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
 [15] Thinking...
-Implementation complete! I've fixed the typo in README.md by changing "Helo" to "Hello", deleted the issue file, and committed the changes.
+[16] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[17] Thinking...
+[18] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[19] Thinking...
+Now let me create scratch.md to record the progress and commit the change:
 
-<next>
-agent: land
-issue: issues/fix-typo.md
-</next>
-
-
-Done  $0.02 · 11.2s · 6 turns  (:N to view)
-  Total cost: $0.04
-
-Transition: land issue=issues/fix-typo.md
-
-=== Agent: land ===
-
-Session b8872988-6458-4a7f-92a8-dbee41f28ca8 (claude-haiku-4-5-20251001)
-
-[16] Thinking...
-I'll review the current branch's changes and land them on main. Let me start by examining what commits we have to land.
-
-[17] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vc...
-[18] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vc...
-[19] ▶ Bash  cd /tmp/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vc...
-     ✗ Error: Exit code 128
-     ✗ Sibling tool call errored
-     ✗ Sibling tool call errored
-[20] Thinking...
-Let me check the available branches:
-
-[21] ▶ Bash  git branch -a
+[20] ▶ Write  (5 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[21] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [22] Thinking...
-[23] ▶ Bash  git log --oneline master..HEAD
-[24] ▶ Bash  git status
-[25] Thinking...
-[26] ▶ Bash  git diff master...HEAD
-[27] Thinking...
-The diff looks good - it fixes the typo in README.md. I see there's a deleted issue file that needs to be committed first. Let me commit that:
+[23] ▶ Bash  git diff main...HEAD
+[24] Thinking...
+[25] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[26] Thinking...
+[27] ▶ Bash  git add board.md && git commit -m "Remove completed issue from b...
+[28] Thinking...
+[29] ▶ Bash  bash .coven/land.sh
+[30] Thinking...
+[31] ▶ Bash  rm scratch.md
+[32] Thinking...
+[33] ▶ Bash  git status
+[34] Thinking...
+## Complete ✓
 
-[28] ▶ Bash  git add issues/fix-typo.md && git commit -m "Remove completed is...
-[29] Thinking...
-Now let me run the landing script to rebase and fast-forward master:
+I've successfully completed the typo fix:
 
-[30] ▶ Bash  bash .coven/land.sh
-[31] Thinking...
-Excellent! The changes have been successfully landed on master. The landing script rebased 2 commits:
-1. The typo fix in README.md (changing "Helo" to "Hello")
-2. The removal of the completed issue file
+- **Fixed**: "Helo" → "Hello" in README.md
+- **Committed**: Both the fix and board cleanup
+- **Landed**: Changes merged to main via `.coven/land.sh`
+- **Cleaned up**: Removed scratch.md
 
-Both commits are now fast-forwarded to master.
+The worktree is now clean and ready for the next task.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.04 · 21.6s · 10 turns  (:N to view)
-  Total cost: $0.07
+Done  $0.05 · 30.4s · 13 turns  (:N to view)
+  Total cost: $0.08
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 692c62db-5e03-477f-9e3b-6d984ef2eb85 (claude-haiku-4-5-20251001)
+Session 2dc542a8-6076-497e-985a-b48cac24b6a6 (claude-haiku-4-5-20251001)
 
-[32] Thinking...
-I'll check the issues and worktree state to determine the next task.
-
-[33] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[34] ▶ Bash  git status
 [35] Thinking...
-No issues found in `issues/` or `review/` directories, and the worktree is clean with no commits ahead of main. With nothing to plan or implement, the worker should sleep.
+[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[37] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[38] Thinking...
+## Analysis
+
+**Sync check:**
+- ✅ Brief item "Fix typo in README.md" was completed (commits 1c085d2 + dc0dd01 show it's done and removed)
+- ✅ Brief item "Create CONTRIBUTING.md" is on the board as P1
+- ✅ Board is already in sync with brief
+
+**No open questions** above the divider. Board has 1 actionable P1 task ready.
+
+## Pick Task
+
+**Selected:** P1: Create CONTRIBUTING.md
+
+This is the only task ready to implement, no blockers, picking it for main agent.
+
+<next>
+agent: main
+task: Create CONTRIBUTING.md
+</next>
+
+
+Done  $0.02 · 10.0s · 3 turns  (:N to view)
+  Total cost: $0.10
+
+Transition: main task=Create CONTRIBUTING.md
+
+=== Agent: main ===
+
+Session 29c12b08-bf07-4b51-a362-b174f6a516a4 (claude-haiku-4-5-20251001)
+
+[39] Thinking...
+I'll start by reading the board and scratch files to understand the current state of the "Create CONTRIBUTING.md" issue.
+
+[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[42] Thinking...
+[43] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[44] Thinking...
+Let me check if CONTRIBUTING.md already exists and look at the project structure:
+
+[45] ▶ Glob  CONTRIBUTING.md
+[46] ▶ Bash  ls -la
+[47] Thinking...
+Perfect. CONTRIBUTING.md doesn't exist yet. Let me create it with a brief "how to contribute" section:
+
+[48] ▶ Write  (23 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[49] Thinking...
+Now let me commit this change:
+
+[50] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[51] Thinking...
+Now let me update scratch.md with progress:
+
+[52] ▶ Write  (10 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[53] Thinking...
+Let me review the work by checking the diff:
+
+[54] ▶ Bash  git diff main...HEAD
+[55] Thinking...
+Perfect! The review passes. The CONTRIBUTING.md file has been created with a clear, brief "how to contribute" section that includes getting started steps, guidelines, and a Q&A section. This meets the acceptance criteria.
+
+Now let me complete the landing process by removing the issue from board.md:
+
+[56] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[57] Thinking...
+[58] ▶ Bash  git add board.md && git commit -m "Remove completed issue: Creat...
+[59] Thinking...
+[60] ▶ Bash  bash .coven/land.sh
+     ✗ Error: Exit code 1
+[61] Thinking...
+Let me check what's causing the conflict:
+
+[62] ▶ Bash  git status
+[63] ▶ Bash  git log main --oneline | head -10
+[64] Thinking...
+It looks like another worker already completed this task on main. Let me abort this rebase and check what's on main:
+
+[65] ▶ Bash  git rebase --abort
+[66] Thinking...
+[67] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[68] ▶ Bash  git show main:CONTRIBUTING.md
+[69] Thinking...
+[70] ▶ Bash  git show main:board.md
+[71] Thinking...
+The task has already been completed by another concurrent worker and landed on main. Let me reset and transition to dispatch:
+
+[72] ▶ Bash  git reset --hard main
+     ✗ Error: This command requires approval
+[73] Thinking...
+[74] ▶ Bash  git status
+[75] Thinking...
+[76] ▶ Bash  git log --oneline -5
+[77] Thinking...
+Since the task was already completed by another concurrent worker and landed on main, I'll clean up and transition to dispatch:
+
+[78] ▶ Bash  rm scratch.md
+[79] Thinking...
+<next>
+agent: dispatch
+</next>
+
+
+Done  $0.09 · 66.2s · 23 turns  (:N to view)
+  Total cost: $0.19
+
+Transition: dispatch 
+
+=== Agent: dispatch ===
+
+Session 67d81594-ac8d-47d0-9c90-c383ab5c1076 (claude-haiku-4-5-20251001)
+
+[80] Thinking...
+[81] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[82] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[83] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[84] Thinking...
+## Analysis
+
+**Brief vs. Board:**
+Both items in brief.md have been recently completed:
+- ✅ Fix typo in README.md (commit 1c085d2)
+- ✅ Create CONTRIBUTING.md (commit 14a3c77)
+
+Both have been removed from the board per the commits "Remove completed issue" (0874f6d, dc0dd01).
+
+**Board Status:**
+- Empty (no entries above or below divider)
+- No open questions
+- No actionable work
+
+**Throttling Check:**
+Not applicable—no issues waiting for answers.
+
+## Reasoning
+
+All tasks from the brief have been completed and properly cleaned up. The board is empty, meaning there's no actionable work to pick. The next dispatch cycle should check for new work to add to the brief.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.01 · 5.9s · 3 turns  (:N to view)
-  Total cost: $0.09
+Done  $0.02 · 9.6s · 4 turns  (:N to view)
+  Total cost: $0.20
 
 Transition: sleep — waiting for new commits...
 

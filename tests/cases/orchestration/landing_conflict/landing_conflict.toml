@@ -26,25 +26,8 @@ mode = "exit"
 [files]
 ".claude/settings.json" = '{"permissions":{"allow":["Bash(ls:*)","Bash(cat:*)"]}}'
 "README.md" = "# My Project\n\nA sample project for testing.\n"
-"issues/update-title-v2.md" = """---
-priority: P1
-state: approved
----
+"brief.md" = """# Brief
 
-# Update README title to v2
-
-## Plan
-
-Change the first line of README.md from "# My Project" to "# My Project v2". Commit with message "Update project title to v2".
-"""
-"issues/rename-project.md" = """---
-priority: P1
-state: approved
----
-
-# Rename project in README
-
-## Plan
-
-Change the first line of README.md from "# My Project" to "# Sample App". Commit with message "Rename project in README".
+- Add a project description to README.md right after the title line. Something like "A modern toolkit for building great software."
+- Add a status badge line to README.md right after the title line: "![Status](https://img.shields.io/badge/status-active-green)"
 """

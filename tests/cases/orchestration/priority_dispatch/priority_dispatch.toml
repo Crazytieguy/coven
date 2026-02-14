@@ -16,25 +16,8 @@ mode = "exit"
 ".claude/settings.json" = '{"permissions":{"allow":["Bash(ls:*)","Bash(cat:*)"]}}'
 "README.md" = "# My Project\n\nA sample project.\n"
 "src/main.py" = "print(\"hello\")\n"
-"issues/fix-readme.md" = """---
-priority: P0
-state: approved
----
+"brief.md" = """# Brief
 
-# Fix README description
-
-## Plan
-
-Change "A sample project." to "A sample project for demonstration." in README.md.
-"""
-"issues/improve-main.md" = """---
-priority: P1
-state: approved
----
-
-# Improve main.py
-
-## Plan
-
-Wrap the print statement in src/main.py in a `if __name__ == "__main__":` guard.
+- P0: Fix README description — change "A sample project." to "A sample project for demonstration." in README.md.
+- P1: Improve main.py — wrap the print statement in src/main.py in a `if __name__ == "__main__":` guard.
 """

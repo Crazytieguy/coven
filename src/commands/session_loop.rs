@@ -581,6 +581,7 @@ pub fn open_interactive_session(
     let mut cmd = StdCommand::new("claude");
     cmd.args(["--resume", session_id]);
     cmd.args(filtered_args);
+    cmd.env_remove("CLAUDECODE");
     if let Some(dir) = working_dir {
         cmd.current_dir(dir);
     }

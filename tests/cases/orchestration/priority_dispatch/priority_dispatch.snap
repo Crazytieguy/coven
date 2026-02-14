@@ -5,289 +5,252 @@ expression: result.display
 --- init ---
 Created:
   .coven/agents/dispatch.md
-  .coven/agents/plan.md
-  .coven/agents/implement.md
-  .coven/agents/land.md
-  .coven/workflow.md
+  .coven/agents/main.md
+  .coven/system.md
+  .coven/config.toml
   .coven/land.sh
-  review/
+  board.md
+  .gitignore (added scratch.md)
 Skipped (already exist):
-  issues/
+  brief.md
 
-Add a reference to .coven/workflow.md in CLAUDE.md? [Y/n] Created CLAUDE.md with workflow reference.
+Add tasks to brief.md and commit. Run `coven worker` to start.
+Workers will post questions to board.md — answer in brief.md.
 
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: fresh-bear-52 (/tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/fresh-bear-52)
+Worker started: eager-oak-92 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/eager-oak-92)
 
 === Agent: dispatch ===
 
-Session fc082c53-eb78-44d9-ada1-49969951fbf5 (claude-haiku-4-5-20251001)
+Session b88cb3c6-ef52-4a88-801c-9b456449538d (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[3] Thinking...
-[4] ▶ Bash  git status --porcelain && git log --oneline main..HEAD 2>/dev/nul...
-[5] Thinking...
-## Analysis
-
-**Worktree state:** Clean, no commits ahead of main.
-
-**Available issues:**
-- `issues/fix-readme.md` — P0, approved
-- `issues/improve-main.md` — P1, approved
-
-Both issues are in the `approved` state, meaning they're ready for implementation. Since there are no `new`, `changes-requested`, or `needs-replan` issues to plan, and no `review` items needing human attention, the best use of this worker is to start implementing. I'll pick the highest priority issue first.
-
-<next>
-agent: implement
-issue: issues/fix-readme.md
-</next>
-
-
-Done  $0.02 · 10.2s · 3 turns  (:N to view)
-  Total cost: $0.02
-
-Transition: implement issue=issues/fix-readme.md
-
-=== Agent: implement ===
-
-Session 1e38bd94-9cd9-49e4-a709-3c27899bec48 (claude-haiku-4-5-20251001)
-
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[4] Thinking...
+[5] ▶ Bash  git log --oneline -20
 [6] Thinking...
-I'll help you implement the plan in the issue. Let me start by reading the issue file.
+Now I'll sync the brief items onto the board:
 
-[7] ▶ Read  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-prior...
+[7] ▶ Edit  (+10)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [8] Thinking...
-Now let me read the README.md file to see what needs to be changed.
-
-[9] ▶ Read  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-prior...
+[9] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
 [10] Thinking...
-I'll make the requested change to the README.md file.
+## Summary
 
-[11] ▶ Edit  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-prio...
-[12] Thinking...
-Now let me check if there are any tests or linter scripts to run.
+**Synced:** Added both brief items to the board (P0 and P1 tasks).
 
-[13] ▶ Glob  {package.json,Makefile,*.sh,pytest.ini,pyproject.toml}
-[14] Thinking...
-[15] ▶ Bash  ls -la /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-v...
-[16] Thinking...
-Now I'll delete the issue file and commit the changes.
+**Picking:** P0 task — "Fix README description" has highest priority and is ready to implement.
 
-[17] ▶ Bash  rm /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[18] Thinking...
-Now let me commit the changes.
-
-[19] ▶ Bash  cd /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[20] Thinking...
-[21] ▶ Bash  cd /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[22] Thinking...
-Perfect! The changes have been implemented and committed. The issue has been deleted, and I've successfully updated the README.md with the requested description change. Now I'll hand off to the land agent to audit and land the changes on main.
+**Reasoning:** No open questions above the divider, so no throttling needed. P0 items always get picked.
 
 <next>
-agent: land
-issue: issues/fix-readme.md
+agent: main
+task: Fix README description
 </next>
 
 
-Done  $0.04 · 24.0s · 9 turns  (:N to view)
-  Total cost: $0.06
+Done  $0.03 · 17.0s · 6 turns  (:N to view)
+  Total cost: $0.03
 
-Transition: land issue=issues/fix-readme.md
+Transition: main task=Fix README description
 
-=== Agent: land ===
+=== Agent: main ===
 
-Session 4940e901-8f00-4e7c-9d1e-0b2bb45cf805 (claude-haiku-4-5-20251001)
+Session c1676bdd-476c-4e49-8836-7d6c429e33bc (claude-haiku-4-5-20251001)
 
-[23] Thinking...
-I'll review the changes on this branch and land them on main. Let me start by examining what commits need to be landed.
+[11] Thinking...
+I'll start by reading the board and any existing scratch file to understand what needs to be done.
 
-[24] ▶ Bash  git log --oneline main..HEAD
-[25] ▶ Bash  git diff main...HEAD
-     ✗ Error: Exit code 128
+[12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
      ✗ Sibling tool call errored
-[26] Thinking...
-Let me check the current git status and branches:
+[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] Thinking...
+Now let me read the README.md to see the current state:
 
-[27] ▶ Bash  git branch -a && git status
-[28] Thinking...
-I see the main branch is `master`, not `main`. Let me check the commits and diff:
+[16] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[17] Thinking...
+Perfect! I can see the README has "A sample project." that needs to be changed. Let me update it:
 
-[29] ▶ Bash  git log --oneline master..HEAD
-[30] ▶ Bash  git diff master...HEAD
+[18] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[19] Thinking...
+Now let me commit this change:
+
+[20] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[21] Thinking...
+Now let me create scratch.md to record the progress:
+
+[22] ▶ Write  (9 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[23] Thinking...
+The implementation is complete. Let me now do a review by checking the diff:
+
+[24] ▶ Bash  git diff main...HEAD
+[25] Thinking...
+Let me check the current state of board.md:
+
+[26] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[27] Thinking...
+Review looks good! The change is exactly as specified. Now I need to complete the landing steps. Let me remove the P0 entry from board.md:
+
+[28] ▶ Edit  (-6)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[29] Thinking...
+Now commit the board update:
+
+[30] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
 [31] Thinking...
-Perfect! There's one commit to land that:
-- Updates the README description 
-- Deletes the completed issue file
-
-The changes look good and match the expected implementation. Now let me run the landing script:
+Now run the land script:
 
 [32] ▶ Bash  bash .coven/land.sh
 [33] Thinking...
-Excellent! The changes have been successfully landed on master. The commit "Fix README description" is now part of the main branch, with the README updated and the completed issue file removed.
+Perfect! Now delete scratch.md:
 
-<next>
-agent: dispatch
-</next>
-
-
-Done  $0.03 · 13.3s · 7 turns  (:N to view)
-  Total cost: $0.08
-
-Transition: dispatch 
-
-=== Agent: dispatch ===
-
-Session 64f28678-c26c-4f37-98f3-e9cae452aba5 (claude-haiku-4-5-20251001)
-
-[34] Thinking...
-I'll check the current state of issues and the worktree to determine what this worker should do next.
-
-[35] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[36] ▶ Bash  git status --short
-[37] ▶ Bash  git log --oneline -5 main..HEAD
-     ✗ Error: Exit code 128
-[38] Thinking...
-[39] ▶ Bash  git log --oneline -10
-[40] ▶ Bash  git branch -a
-[41] Thinking...
-[42] ▶ Bash  git log --oneline master..HEAD
-[43] Thinking...
+[34] ▶ Bash  rm scratch.md
+[35] Thinking...
 ## Summary
 
-**Issues found:**
-- `improve-main.md` (P1, approved) — ready to implement
+I've successfully completed the "Fix README description" task:
 
-**Worktree state:**
-- Clean (no uncommitted changes)
-- Not ahead of master
+1. **Updated README.md** - Changed "A sample project." to "A sample project for demonstration."
+2. **Committed and reviewed** - The change is correct and minimal
+3. **Landed to main** - The changes have been merged to main via the land script
+4. **Cleaned up** - Removed board entry and scratch.md
 
-**Routing decision:**
-The `improve-main.md` issue is in `approved` state, so it's ready for implementation. I'll route to the implement agent.
-
-<next>
-agent: implement
-issue: issues/improve-main.md
-</next>
-
-
-Done  $0.02 · 12.1s · 7 turns  (:N to view)
-  Total cost: $0.10
-
-Transition: implement issue=issues/improve-main.md
-
-=== Agent: implement ===
-
-Session 978f0832-ec4f-4a7d-835d-d3e6dad3dad6 (claude-haiku-4-5-20251001)
-
-[44] Thinking...
-I'll start by reading the issue file to understand the plan.
-
-[45] ▶ Read  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-prio...
-[46] Thinking...
-[47] ▶ Read  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-prio...
-[48] Thinking...
-Now I'll update the main.py file to wrap the print statement in a `if __name__ == "__main__":` guard.
-
-[49] ▶ Edit  (+1)  /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vc...
-[50] Thinking...
-[51] ▶ Glob  **/test*.py
-[52] ▶ Glob  **/*test.py
-[53] ▶ Glob  pyproject.toml
-[54] ▶ Glob  setup.py
-[55] Thinking...
-[56] ▶ Bash  cd /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[57] Thinking...
-Now I'll delete the issue file and commit the changes.
-
-[58] ▶ Bash  rm /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[59] ▶ Bash  cd /tmp/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-p...
-[60] Thinking...
-Perfect! I've successfully implemented the plan:
-
-1. ✅ Wrapped the print statement in `src/main.py` with a `if __name__ == "__main__":` guard
-2. ✅ No tests or linter configurations to run in this project
-3. ✅ Deleted the issue file
-4. ✅ Committed the changes with a descriptive message
-
-<next>
-agent: land
-issue: issues/improve-main.md
-</next>
-
-
-Done  $0.03 · 18.9s · 11 turns  (:N to view)
-  Total cost: $0.13
-
-Transition: land issue=issues/improve-main.md
-
-=== Agent: land ===
-
-Session 43b896f2-f231-495c-951b-13ee9dcb835f (claude-haiku-4-5-20251001)
-
-[61] Thinking...
-I'll review the changes on the current branch and land them on main.
-
-[62] ▶ Bash  git log --oneline main..HEAD
-[63] ▶ Bash  git diff main...HEAD
-     ✗ Error: Exit code 128
-     ✗ Sibling tool call errored
-[64] Thinking...
-[65] ▶ Bash  git branch -a
-[66] ▶ Bash  git log --oneline -10
-[67] Thinking...
-[68] ▶ Bash  git log --oneline master..HEAD
-[69] ▶ Bash  git diff master...HEAD
-[70] Thinking...
-Good! I can see one commit to land: "Wrap print statement in if __name__ == "__main__" guard". The changes are:
-- Modified `src/main.py` to wrap the print statement in an `if __name__ == "__main__":` guard
-- Deleted the corresponding issue file after completion
-
-The changes look good. Now let me run the landing script to rebase and fast-forward onto master.
-
-[71] ▶ Bash  bash .coven/land.sh
-[72] Thinking...
-Perfect! The changes have been successfully landed on master. The commit has been fast-forwarded and the issue has been completed.
+The issue is now complete and ready for the next task.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.03 · 12.6s · 8 turns  (:N to view)
-  Total cost: $0.16
+Done  $0.06 · 37.1s · 14 turns  (:N to view)
+  Total cost: $0.09
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 803b987c-9708-4fd2-a53d-dbeb1702c174 (claude-haiku-4-5-20251001)
+Session 1896abd2-78e0-421a-8848-f22b905cbf16 (claude-haiku-4-5-20251001)
 
-[73] Thinking...
-I'll check the current issues to determine what work needs to be done.
+[36] Thinking...
+I'll read the brief and board to understand the current work state.
 
-[74] ▶ Bash  head -7 issues/*.md review/*.md 2>/dev/null || true
-[75] Thinking...
-Let me check the worktree state to see if there's any pending work:
+[37] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[38] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[39] Thinking...
+Looking at the state:
 
-[76] ▶ Bash  git status
-[77] Thinking...
-**Reasoning:**
+**Sync Analysis:**
+- Brief P0 "Fix README description" — Already completed (commits: 01a6842, ca2b95a). No board entry needed.
+- Brief P1 "Improve main.py" — Already on board below the divider, ready to implement.
 
-- **Issues check**: No issues found in `issues/` or `review/` directories
-- **Worktree state**: Clean, no uncommitted changes or divergence from main
-- **Available work**: Nothing to plan, implement, or land
+**Board Status:**
+- No open questions (divider is at top)
+- P1 entry ready for implementation
+- Clean sync between brief and board
 
-Since there are no issues to work on and the worktree is clean, I'll transition to sleep and wait for new work.
+**Task Selection:**
+Picking **P1: Improve main.py** — it's the only actionable task ready to implement, and there are no blocking questions above the divider.
+
+<next>
+agent: main
+task: P1: Improve main.py
+</next>
+
+
+Done  $0.02 · 11.6s · 3 turns  (:N to view)
+  Total cost: $0.10
+
+Transition output could not be parsed: failed to parse transition YAML
+Retrying...
+
+Session 1896abd2-78e0-421a-8848-f22b905cbf16 (claude-haiku-4-5-20251001)
+
+[40] Thinking...
+<next>
+agent: main
+task: "P1: Improve main.py"
+</next>
+
+
+Done  $0.01 · 3.2s · 1 turn  (:N to view)
+
+Transition: main task=P1: Improve main.py
+
+=== Agent: main ===
+
+Session 952e4f60-ec3e-4f04-831e-3afd4003e884 (claude-haiku-4-5-20251001)
+
+[41] Thinking...
+[42] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[43] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+     ✗ Sibling tool call errored
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] Thinking...
+[46] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[47] Thinking...
+Now I'll wrap the print statement in the main guard:
+
+[48] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[49] Thinking...
+[50] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[51] Thinking...
+Now I'll commit the change:
+
+[52] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[53] Thinking...
+[54] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[55] Thinking...
+[56] ▶ Bash  git add board.md && git commit -m "Complete P1: Improve main.py
+[57] Thinking...
+[58] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[59] Thinking...
+[60] ▶ Bash  rm -f scratch.md && git status
+[61] Thinking...
+<next>
+agent: dispatch
+</next>
+
+
+Done  $0.04 · 26.2s · 12 turns  (:N to view)
+  Total cost: $0.15
+
+Transition: dispatch 
+
+=== Agent: dispatch ===
+
+Session 5ee9109d-00b9-4ae8-a8e8-c026a6023fc1 (claude-haiku-4-5-20251001)
+
+[62] Thinking...
+I'll read the brief and board to sync work and pick the next task.
+
+[63] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[64] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[65] Thinking...
+Looking at the brief and board:
+
+**Brief items:**
+- P0: Fix README description
+- P1: Improve main.py
+
+**Recent commits (from git log):**
+- 7a09309: Complete P1: Improve main.py
+- ca2b95a: Complete P0: Fix README description
+
+Both brief items have already been completed recently. The board is empty with no open questions or pending work.
+
+**Reasoning:** All work from the brief is done. No open questions above the divider. Nothing to sync. No actionable tasks to pick.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.01 · 7.1s · 3 turns  (:N to view)
+Done  $0.01 · 9.4s · 3 turns  (:N to view)
   Total cost: $0.17
 
 Transition: sleep — waiting for new commits...

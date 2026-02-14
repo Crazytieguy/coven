@@ -32,12 +32,7 @@ if __name__ == "__main__":
 def test_process():
     assert process("hello") == "HELLO"
 """
-"issues/improve-error-handling.md" = """---
-priority: P1
-state: new
----
+"brief.md" = """# Brief
 
-# Improve error handling
-
-The error handling in the project needs improvement. Users sometimes see unhelpful error messages when things go wrong.
+- Add a caching layer to the application. Performance is becoming a concern.
 """

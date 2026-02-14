@@ -66,6 +66,10 @@ impl SessionRunner {
             cmd.current_dir(dir);
         }
 
+        // Coven launches independent `-p` mode sessions, not nested interactive
+        // ones. Remove CLAUDECODE so the CLI doesn't reject the invocation.
+        cmd.env_remove("CLAUDECODE");
+
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());

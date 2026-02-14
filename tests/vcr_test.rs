@@ -396,7 +396,6 @@ vcr_test!(orchestration / init_fresh);
 vcr_test!(orchestration / status_no_workers);
 vcr_test!(orchestration / gc_no_orphans);
 multi_vcr_test!(orchestration / concurrent_workers);
-multi_vcr_test!(orchestration / plan_ambiguous_issue);
+multi_vcr_test!(orchestration / ambiguous_task);
 multi_vcr_test!(orchestration / priority_dispatch);
-multi_vcr_test!(orchestration / needs_replan);
 multi_vcr_test!(orchestration / landing_conflict);

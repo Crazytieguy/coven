@@ -17,27 +17,8 @@ concurrent_group = "workers"
 ".claude/settings.json" = '{"permissions":{"allow":["Bash(ls:*)","Bash(cat:*)"]}}'
 "README.md" = "Helo, world!\n"
 "src/main.py" = "print(\"hello\")\n"
-"issues/fix-typo.md" = """
----
-priority: P1
-state: approved
----
+"brief.md" = """# Brief
 
-# Fix README typo
-
-## Plan
-
-Change "Helo" to "Hello" in README.md. No tests or linter needed — text-only change.
-"""
-"issues/add-contributing.md" = """
----
-priority: P1
-state: approved
----
-
-# Create CONTRIBUTING.md
-
-## Plan
-
-Create a CONTRIBUTING.md file with a brief "how to contribute" section. No tests or linter needed.
+- Fix the typo in README.md: change "Helo" to "Hello". Text-only change, no tests needed.
+- Create a CONTRIBUTING.md file with a brief "how to contribute" section. No tests needed.
 """
