@@ -1,9 +1,3 @@
 # Brief
 
-Add tasks here — one per line or section. Workers pick them up automatically.
-
-When workers have questions, they'll appear on `board.md` above the divider.
-Write your answers here (just reference the issue by name) and commit.
-
-You can also add general directives ("prefer X over Y", "don't touch module Z").
-Workers read this file but never edit it.
+I think coven currently isn't correctly handling compaction. Need to test with a long session (can have haiku read files over and over or something, having it output something each time) to trigger auto-compaction. Investigate and add an issue with details of the behavior, don't implement a fix yet
