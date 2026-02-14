@@ -171,7 +171,19 @@ pub fn format_workers<S: Borrow<WorkerState>>(states: &[S], style: StatusStyle) 
 fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {
     let path = state_file_path(repo_path, &state.branch)?;
     let json = serde_json::to_string(state).context("failed to serialize worker state")?;
-    fs::write(&path, json).with_context(|| format!("failed to write {}", path.display()))?;
+    // Atomic write: write to a temp file then rename. A direct fs::write
+    // opens with O_TRUNC (zeroing the file) before writing, so a concurrent
+    // reader could see an empty or partial file, fail to parse, and delete it.
+    let tmp_path = path.with_extension("json.tmp");
+    fs::write(&tmp_path, json)
+        .with_context(|| format!("failed to write {}", tmp_path.display()))?;
+    fs::rename(&tmp_path, &path).with_context(|| {
+        format!(
+            "failed to rename {} to {}",
+            tmp_path.display(),
+            path.display()
+        )
+    })?;
     Ok(())
 }
 
