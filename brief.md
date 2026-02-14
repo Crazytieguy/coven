@@ -1,3 +1,3 @@
 # Brief
 
-The wait-for-user tag should also be supported by `ralph` if not already supported. Should share code with `worker`
+Bell sound: recent fix overshot, should also ring when `wait-for-user` us outputted by ralph or worker (but no other states)
