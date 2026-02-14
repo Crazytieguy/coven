@@ -20,36 +20,33 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: keen-lion-31 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/keen-lion-31)
+Worker started: cosmic-tiger-33 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/cosmic-tiger-33)
 
 === Agent: dispatch ===
 
-Session cc5ed4ab-b959-42eb-9ae4-0eb7707d2426 (claude-haiku-4-5-20251001)
+Session 21f7d064-62c1-4124-b639-cc53e43923f8 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-I'll read the brief and board files to understand the current state of work.
-
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-Now I'll sync the work from the brief onto the board and pick a task.
-
-**Sync Summary:**
-- Both brief items (P0 and P1) are new and need board entries
-- No open questions, so both entries go below the divider as ready to implement
-
-**Updated board.md:**
+I'll now sync the brief items to the board. Both tasks are straightforward with no questions, so they go below the divider as ready-to-implement.
 
 [5] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
 [6] Thinking...
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-**Task Selection:**
-- 2 items synced to board (P0 and P1)
-- No open questions, all work is ready to implement
-- P0 takes priority: "Fix README description"
+## Sync Complete
 
-Transitioning to main agent for implementation.
+I've synced both brief items to the board:
+- **P0: Fix README description** — straightforward text replacement
+- **P1: Improve main.py** — add `if __name__ == "__main__":` guard
+
+No open questions. Both tasks are ready to implement.
+
+## Pick Task
+
+**Picking P0: Fix README description** — highest priority, no blockers.
 
 <next>
 agent: main
@@ -57,187 +54,166 @@ task: Fix README description
 </next>
 
 
-Done  $0.02 · 9.8s · 5 turns  (:N to view)
+Done  $0.02 · 13.6s · 5 turns  (:N to view)
   Total cost: $0.02
 
 Transition: main task=Fix README description
 
 === Agent: main ===
 
-Session ad6fc370-f866-4564-a197-1290f5e3e9de (claude-haiku-4-5-20251001)
+Session 88e9fcf1-49e3-4bcf-8e7d-c1ccc74d4166 (claude-haiku-4-5-20251001)
 
 [9] Thinking...
-I'll start by reading the board to understand the issue, and check for any existing scratch notes.
-
 [10] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [11] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
 [12] Thinking...
-Good, I have the context. This is a straightforward task: change "A sample project." to "A sample project for demonstration." in README.md. Let me find and read the README file.
-
-[13] ▶ Glob  README.md
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [14] Thinking...
-[15] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [16] Thinking...
-Now I'll make the text replacement:
-
-[17] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[17] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [18] Thinking...
-[19] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[19] ▶ Write  (16 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
 [20] Thinking...
-Perfect! Now let me create a scratch.md file to record completion, then move the issue to Done and land the changes.
-
-[21] ▶ Write  (10 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
+[21] ▶ Bash  git diff main...HEAD
 [22] Thinking...
-Now I'll update the board to move the completed issue to Done:
+**Review:** The change looks correct. The README.md now reads "A sample project for demonstration." instead of "A sample project." This matches the acceptance criteria. Let me finalize by moving the issue to Done and landing the changes.
 
-[23] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[23] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [24] Thinking...
-[25] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[25] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
 [26] Thinking...
-[27] ▶ Edit  (+4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[27] ▶ Bash  bash .coven/land.sh
 [28] Thinking...
-[29] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
+[29] ▶ Bash  rm /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [30] Thinking...
-[31] ▶ Bash  bash .coven/land.sh
-[32] Thinking...
-[33] ▶ Bash  rm scratch.md
-[34] Thinking...
-Perfect! The task is complete. I've:
-1. Updated README.md with the new description
-2. Committed the change
-3. Updated the board to mark the issue as Done
-4. Landed the changes to main
-5. Cleaned up scratch.md
-
-Now transitioning to dispatch for the next task.
+✅ **Issue complete:** Fixed README description from "A sample project." to "A sample project for demonstration." Changes have been landed to main.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.06 · 37.2s · 14 turns  (:N to view)
+Done  $0.05 · 37.2s · 12 turns  (:N to view)
   Total cost: $0.08
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 79792d65-aed0-470e-8752-6e9c20025dab (claude-haiku-4-5-20251001)
+Session 2b11f094-665e-4ffe-b234-dc1393a900d5 (claude-haiku-4-5-20251001)
+
+[31] Thinking...
+[32] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[33] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[34] Thinking...
+**Sync Summary:**
+
+Comparing brief.md against board.md:
+- ✅ P0 "Fix README description" — already in Done section (completed)
+- ✅ P1 "Improve main.py" — already on board below divider (ready)
+
+Both brief items are accounted for. No new board entries needed. No answers to incorporate. No cleanup requested.
+
+**Task Selection:**
+
+No open questions. One actionable item below the divider:
+- **P1: Improve main.py** — ready to implement
+
+Selecting this as the highest priority actionable work.
+
+<next>
+agent: main
+task: P1: Improve main.py
+</next>
+
+
+Done  $0.02 · 9.4s · 3 turns  (:N to view)
+  Total cost: $0.09
+
+Transition: main task=P1: Improve main.py
+
+=== Agent: main ===
+
+Session c847a641-ad71-4f60-b9c9-5a84b36e1d48 (claude-haiku-4-5-20251001)
 
 [35] Thinking...
 [36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [37] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[38] Thinking...
-**Sync complete:** All brief items are on the board. The P0 task (Fix README description) is already in Done. No new items to add.
-
-**Throttling:** 0 open questions. P1 is actionable.
-
-**Task selection:** Picking **P1: Improve main.py** — it's the only ready task on the board and a valid priority to execute.
-
-<next>
-agent: main
-task: Improve main.py
-</next>
-
-
-Done  $0.02 · 6.5s · 3 turns  (:N to view)
-  Total cost: $0.10
-
-Transition: main task=Improve main.py
-
-=== Agent: main ===
-
-Session a9836fa0-a486-4a68-a01c-b1912d72cf8c (claude-haiku-4-5-20251001)
-
-[39] Thinking...
-I'll start by reading the board and any previous session notes.
-
-[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
-[42] Thinking...
-Now let me read the current main.py to understand what needs to be changed.
+     ✗ Sibling tool call errored
+[38] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[39] Thinking...
+[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[41] Thinking...
+Perfect! I can see the task clearly. The file `src/main.py` has a bare `print("hello")` statement that needs to be wrapped in a `if __name__ == "__main__":` guard. Let me make that change:
 
-[43] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[44] Thinking...
-Now I'll wrap the print statement in the `if __name__ == "__main__":` guard.
+[42] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[43] Thinking...
+Now let me verify the change:
 
-[45] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[46] Thinking...
-Now I'll commit this change.
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] Thinking...
+Great! Now I'll commit this change and then move the issue to Done. First, let me stage and commit:
 
-[47] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[48] Thinking...
-Now I'll create a scratch note documenting the work and next steps.
+[46] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[47] Thinking...
+Now let me update the board to move this task to Done:
 
-[49] ▶ Write  (12 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
-[50] Thinking...
-Let me review the changes and verify they meet the acceptance criteria.
+[48] ▶ Edit  (-3)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[49] Thinking...
+[50] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
+[51] Thinking...
+Now let me land the changes:
 
-[51] ▶ Bash  git diff main...HEAD
-[52] Thinking...
-Perfect! The change looks good. Now I'll move the issue to Done and land the changes.
+[52] ▶ Bash  bash .coven/land.sh
+[53] Thinking...
+Perfect! The task is complete. I've successfully:
 
-[53] ▶ Edit  (-3)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[54] Thinking...
-Now I'll commit the board update and land the changes.
-
-[55] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[56] Thinking...
-Now I'll land the changes using the land script.
-
-[57] ▶ Bash  bash .coven/land.sh
-[58] Thinking...
-Now I'll delete scratch.md and transition to dispatch.
-
-[59] ▶ Bash  rm scratch.md
-[60] Thinking...
-Done! I've successfully completed the "Improve main.py" task:
-
-✅ Wrapped the print statement in `if __name__ == "__main__":` guard
-✅ Committed the changes
-✅ Moved the issue to Done in board.md
-✅ Landed the changes to main
-✅ Cleaned up scratch.md
+1. Wrapped the `print("hello")` statement in `src/main.py` with an `if __name__ == "__main__":` guard
+2. Moved the task to Done in the board
+3. Landed all changes to main
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.05 · 27.7s · 12 turns  (:N to view)
-  Total cost: $0.15
+Done  $0.04 · 28.4s · 11 turns  (:N to view)
+  Total cost: $0.13
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 50dafe54-5dd1-4dce-bd01-6eafe10f7b5b (claude-haiku-4-5-20251001)
+Session 92152644-2a47-4f70-94da-a70cecec6c07 (claude-haiku-4-5-20251001)
 
-[61] Thinking...
-[62] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[63] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[64] Thinking...
+[54] Thinking...
+I'll read the brief and board to understand the current state.
+
+[55] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[56] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[57] Thinking...
 **Sync Status:**
 
-I've reviewed both files:
-- **brief.md** contains 2 items: P0 (Fix README description) and P1 (Improve main.py)
-- **board.md** shows both items are already in the Done section
-- No new work to sync, no open questions
+Both brief items are already completed and in the Done section:
+- P0: Fix README description ✓
+- P1: Improve main.py ✓
 
-**Pick a Task:**
+No new work to sync.
 
-All brief items have been completed and moved to Done. There are no actionable tasks below the divider and no open questions above it.
+**Task Selection:**
+
+There are no actionable items below the divider. All work has been completed.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 7.3s · 3 turns  (:N to view)
-  Total cost: $0.16
+Done  $0.01 · 8.1s · 3 turns  (:N to view)
+  Total cost: $0.15
 
 Transition: sleep — waiting for new commits...
 
