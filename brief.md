@@ -1,3 +1,4 @@
 # Brief
 
-Bell sound: recent fix overshot, should also ring when `wait-for-user` us outputted by ralph or worker (but no other states)
+I suspect there might be spurious worker wake ups not caused by git commits, please check.
+I want to release a patch version, start working on it and wait for me when you need permission
