@@ -1,3 +1,9 @@
 # Brief
 
-Issue: when in :N pager, some keystrokes are captured by coven instead of the pager. We had the same exact issue with the Ctrl+O interactive sessions, so probably the same solution should work. That said I've also noticed that my first keystroke when entering Ctrl+O interactive mode tends to not send. This could just be a claude code thing (hasn't fully loaded yet), but worth a check
+Sometimes when I start typing, my first typed letter ends up on one line, and then the input line jumps to the next line. (Happens during streaming). Looks like this (typed "te"):
+
+```
+[504] ▶ Bash  cargo fmt --check 2>&1 && cargo clippy 2>&1 | tail -5 (timeout: 120000ms)
+> t
+> te
+```
