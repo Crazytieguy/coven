@@ -25,7 +25,7 @@ If more implementation work remains, self-transition to continue.
 When implementation is complete, self-transition for a **review session**: review the full diff (`git diff main...HEAD`), verify acceptance criteria, and fix anything that needs it.
 
 When review passes:
-1. Remove the entry from `board.md` and commit
+1. Move the entry to the `## Done` section of `board.md` (single line: `- P1: Issue title`) and commit
 2. Run `bash .coven/land.sh` — if conflicts, resolve and run again
 3. Delete `scratch.md`
 4. Transition to dispatch

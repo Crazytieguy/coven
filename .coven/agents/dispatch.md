@@ -10,7 +10,9 @@ Read `brief.md` and `board.md`. Sync new work onto the board and pick a task for
 
 ## Sync
 
-Compare the brief against the board and `git log --oneline -20`. For each brief item that doesn't have a board entry and wasn't recently completed, create a new H2 entry on board.md below the divider with the task description and priority (default P1).
+Compare the brief against the board (including the Done section). For each brief item that doesn't have a board entry and isn't in Done, create a new H2 entry on board.md below the divider with the task description and priority (default P1).
+
+If the brief explicitly requests cleaning up the Done section, remove the specified entries (or all entries) from it.
 
 If the brief contains answers to open questions on the board, incorporate them into the entry's **Decisions** section and remove the answered questions. If all questions are answered, move the entry below the divider.
 

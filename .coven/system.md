@@ -24,12 +24,18 @@ Short description.
 ## P2: Another issue
 
 Ready to implement.
+
+## Done
+
+- P1: Completed issue title
+- P2: Another completed issue
 ```
 
 - H2 per issue with priority in title
 - Issues **above** the `---` divider need human input (open questions)
 - Issues **below** the divider are ready or in progress
-- Completed issues are removed entirely
+- Completed issues move to the `## Done` section as a single-line list item
+- Only clean up the Done section when explicitly requested in `brief.md`
 
 ## Lifecycle
 
