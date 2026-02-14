@@ -97,7 +97,6 @@ pub async fn run<W: Write>(
             SessionOutcome::Interrupted => {
                 runner.close_input();
                 let _ = runner.wait().await;
-                io.clear_event_channel();
                 let Some(session_id) = state.session_id.take() else {
                     break;
                 };
