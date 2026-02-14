@@ -603,7 +603,6 @@ async fn wait_for_transition_input<W: Write>(
     }
 }
 
-/// VCR-wrapped `main_head_sha`.
 /// Load `.coven/system.md` if it exists, empty string otherwise.
 async fn vcr_load_system_doc(vcr: &VcrContext, wt_str: &str) -> Result<String> {
     vcr.call(

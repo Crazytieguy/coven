@@ -260,7 +260,7 @@ impl<W: Write> Renderer<W> {
         let label = format!("[{n}] \u{27f3} Compacted");
         queue!(self.out, Print(theme::dim().apply(&label)), Print("\r\n"),).ok();
         self.messages.push(StoredMessage {
-            label: format!("[{n}] \u{27f3} Compacted"),
+            label,
             content: String::new(),
             result: None,
         });

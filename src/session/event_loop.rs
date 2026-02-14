@@ -182,7 +182,6 @@ fn handle_inbound<W: Write>(
         InboundEvent::System(SystemEvent::Init(init)) => {
             let same_session = state.session_id.as_deref() == Some(&init.session_id);
             state.session_id = Some(init.session_id.clone());
-            state.model = Some(init.model.clone());
             state.status = SessionStatus::Running;
             if same_session {
                 if state.suppress_next_separator {
@@ -224,8 +223,6 @@ fn handle_inbound<W: Write>(
         }
         InboundEvent::Result(result) => {
             state.total_cost_usd = result.total_cost_usd;
-            state.num_turns = result.num_turns;
-            state.duration_ms = result.duration_ms;
             state.status = SessionStatus::WaitingForInput;
             if !has_pending_followups {
                 renderer.render_result(
