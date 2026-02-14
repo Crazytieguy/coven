@@ -95,6 +95,8 @@ fn discover_cases(cases_dir: &Path) -> Result<Vec<CaseEntry>> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    const MAX_CONCURRENT: usize = 8;
+
     let args: Vec<String> = std::env::args().collect();
     let cases_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/cases");
 
@@ -140,7 +142,6 @@ async fn main() -> Result<()> {
     // Record cases concurrently using LocalSet (VcrContext is !Send due to RefCell).
     // Tasks interleave at await points — the real parallelism is I/O-bound (Claude API calls).
     // Cap concurrency at 8 to avoid overwhelming the API.
-    const MAX_CONCURRENT: usize = 8;
     let local = LocalSet::new();
     let errors = local
         .run_until(async {
@@ -149,9 +150,12 @@ async fn main() -> Result<()> {
             for case in cases {
                 let sem = semaphore.clone();
                 handles.push(tokio::task::spawn_local(async move {
-                    let _permit = sem.acquire().await.unwrap();
                     let name = case.name.clone();
-                    let result = record_case(&case.case_dir, &case.name).await;
+                    let result = async {
+                        let _permit = sem.acquire().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+                        record_case(&case.case_dir, &case.name).await
+                    }
+                    .await;
                     (name, result)
                 }));
             }
