@@ -1,24 +1,18 @@
 # Board
 
+---
+
 ## P1: Main agent should be more willing to ask clarifying questions
 
-The main agent should be even more willing to ask clarifying questions instead of implementing. Propose several approaches to prompt changes, including at least one where the question flow becomes more first-class.
+The main agent should be even more willing to ask clarifying questions instead of implementing. Propose concrete variations of approach 3 (pre-implementation checkpoint) for the user to choose from.
 
-**Approaches:**
+**Decisions:**
+- Approach 3 chosen: pre-implementation checkpoint — prompt the agent to always spend its first session reading the task and listing questions before writing any code, a "plan then ask" phase built into the prompt structure
+- Approaches 1, 2, and 4 not selected
 
-1. **Prompt-only: strengthen existing language** — Move the Questions section earlier in main.md, add concrete trigger examples (e.g. "if you'd write 'I went with X' in a scratch note, ask first"), frame asking as the default for anything ambiguous.
+## P1: Investigate bell sound behavior
 
-2. **Lean into `<wait-for-user>` for questions** — Change the question flow to use `<wait-for-user>` directly instead of the board round-trip. Agent asks inline, gets an answer, continues working. Record decisions on the board after the fact. Much lower friction than land→dispatch→brief→dispatch→main.
-
-3. **Pre-implementation checkpoint** — Prompt the agent to always spend its first session reading the task and listing questions before writing any code. A "plan then ask" phase built into the prompt structure.
-
-4. **New `<ask>` tag (first-class)** — A dedicated transition tag for questions. Agent outputs `<ask>`, the system records the questions on the board, waits for user input, and injects the answer back. Combines board persistence with inline flow.
-
-**Questions:**
-- Which approach(es) to pursue? They're composable — e.g. 1+2, 1+3, or 1+4.
-- For approach 2 vs 4: is board persistence of Q&A important, or is the conversation history sufficient?
-
----
+Investigate when exactly coven plays a bell sound. The user is getting a lot of them and not sure they're always helpful.
 
 ## Done
 
