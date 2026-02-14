@@ -2,20 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 use anyhow::{Context, Result};
-use serde_yaml::Value;
 
 use crate::agents::AgentDef;
-
-/// Convert a YAML scalar value to a string representation.
-/// Non-scalar values (sequences, mappings, tagged, null) return `None`.
-fn yaml_scalar_to_string(v: &Value) -> Option<String> {
-    match v {
-        Value::String(s) => Some(s.clone()),
-        Value::Bool(b) => Some(b.to_string()),
-        Value::Number(n) => Some(n.to_string()),
-        Value::Null | Value::Sequence(_) | Value::Mapping(_) | Value::Tagged(_) => None,
-    }
-}
 
 /// A transition declared by an agent via the `<next>` or `<wait-for-user>` tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,44 +31,41 @@ pub fn parse_transition(text: &str) -> Result<Transition> {
         });
     }
 
-    let yaml_str = extract_tag_content(text, "next")?;
+    let content = extract_tag_content(text, "next")?;
 
-    let value: Value =
-        serde_yaml::from_str(&yaml_str).context("failed to parse transition YAML")?;
-    let map = value
-        .as_mapping()
-        .context("transition content is not a YAML mapping")?;
+    // Parse as line-based key: value pairs. Only the first colon is the
+    // delimiter, so colons in values (e.g. "task: Fix bug: the colon case")
+    // are preserved correctly.
+    let mut fields: HashMap<String, String> = HashMap::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let (key, value) = line
+            .split_once(": ")
+            .or_else(|| line.split_once(':'))
+            .with_context(|| {
+                format!("invalid line in transition block (expected `key: value`): {line}")
+            })?;
+        fields.insert(key.trim().to_string(), value.trim().to_string());
+    }
 
     // Check for sleep
-    if map
-        .get(Value::String("sleep".into()))
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
+    if fields.get("sleep").map(String::as_str) == Some("true") {
         return Ok(Transition::Sleep);
     }
 
     // Extract agent name
-    let agent = map
-        .get(Value::String("agent".into()))
-        .and_then(|v| v.as_str())
-        .context("transition YAML must contain 'agent' or 'sleep: true'")?
-        .to_string();
+    let agent = fields
+        .remove("agent")
+        .context("transition must contain 'agent' or 'sleep: true'")?;
 
-    // Collect remaining fields as string arguments
-    let args = map
-        .iter()
-        .filter_map(|(k, v)| {
-            let key = k.as_str()?;
-            if key == "agent" {
-                return None;
-            }
-            let val = yaml_scalar_to_string(v)?;
-            Some((key.to_string(), val))
-        })
-        .collect();
-
-    Ok(Transition::Next { agent, args })
+    // Remaining fields are args
+    Ok(Transition::Next {
+        agent,
+        args: fields,
+    })
 }
 
 /// Format the transition protocol system prompt, including the agent catalog.
@@ -181,7 +166,7 @@ pub fn corrective_prompt(
     }
 
     out.push_str(
-        "Please output your decision inside a <next> tag containing YAML. \
+        "Please output your decision inside a <next> tag with one key: value pair per line. \
          For example:\n\n",
     );
 
@@ -307,10 +292,13 @@ issue: issues/fix-scroll-bug.md
     }
 
     #[test]
-    fn parse_invalid_yaml() {
-        let text = "<next>\n: : : not yaml\n</next>";
+    fn parse_invalid_line() {
+        let text = "<next>\nno colon here\n</next>";
         let err = parse_transition(text).unwrap_err();
-        assert!(err.to_string().contains("parse"), "unexpected error: {err}");
+        assert!(
+            err.to_string().contains("invalid line"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
@@ -318,6 +306,23 @@ issue: issues/fix-scroll-bug.md
         let text = "<next>\npriority: high\n</next>";
         let err = parse_transition(text).unwrap_err();
         assert!(err.to_string().contains("agent"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn parse_colons_in_value() {
+        let text = "<next>\nagent: main\ntask: Refine post-compaction context: system.md scope and dispatch faithfulness\n</next>";
+        let transition = parse_transition(text).unwrap();
+        assert_eq!(
+            transition,
+            Transition::Next {
+                agent: "main".into(),
+                args: HashMap::from([(
+                    "task".into(),
+                    "Refine post-compaction context: system.md scope and dispatch faithfulness"
+                        .into()
+                )]),
+            }
+        );
     }
 
     #[test]
