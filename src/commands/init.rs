@@ -9,11 +9,10 @@ use crate::agents::AGENTS_DIR;
 use crate::vcr::VcrContext;
 
 const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
-const PLAN_PROMPT: &str = include_str!("../../.coven/agents/plan.md");
-const IMPLEMENT_PROMPT: &str = include_str!("../../.coven/agents/implement.md");
-const LAND_PROMPT: &str = include_str!("../../.coven/agents/land.md");
+const MAIN_PROMPT: &str = include_str!("../../.coven/agents/main.md");
 const LAND_SCRIPT: &str = include_str!("../../.coven/land.sh");
-const WORKFLOW_DOC: &str = include_str!("../../.coven/workflow.md");
+const SYSTEM_DOC: &str = include_str!("../../.coven/system.md");
+const CONFIG_DOC: &str = include_str!("../../.coven/config.toml");
 
 struct TemplateFile {
     path: &'static str,
@@ -26,16 +25,8 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
         content: DISPATCH_PROMPT,
     },
     TemplateFile {
-        path: "plan.md",
-        content: PLAN_PROMPT,
-    },
-    TemplateFile {
-        path: "implement.md",
-        content: IMPLEMENT_PROMPT,
-    },
-    TemplateFile {
-        path: "land.md",
-        content: LAND_PROMPT,
+        path: "main.md",
+        content: MAIN_PROMPT,
     },
 ];
 
@@ -48,16 +39,25 @@ struct CreateFilesResult {
     skipped: Vec<String>,
 }
 
-/// State of the CLAUDE.md file, used for VCR recording.
-#[derive(Serialize, Deserialize)]
-struct ClaudeMdState {
-    needs_reference: bool,
-    existing_content: Option<String>,
-}
+const BRIEF_TEMPLATE: &str = "\
+# Brief
 
-const WORKFLOW_REF: &str = "See @.coven/workflow.md for the issue-based development workflow.";
+Add tasks here — one per line or section. Workers pick them up automatically.
 
-/// Create agent templates, workflow doc, and directory structure.
+When workers have questions, they'll appear on `board.md` above the divider.
+Write your answers here (just reference the issue by name) and commit.
+
+You can also add general directives (\"prefer X over Y\", \"don't touch module Z\").
+Workers read this file but never edit it.
+";
+
+const BOARD_TEMPLATE: &str = "\
+# Board
+
+---
+";
+
+/// Create agent templates, system doc, and project files.
 fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
     let agents_dir = project_root.join(AGENTS_DIR);
     fs::create_dir_all(&agents_dir)
@@ -77,13 +77,22 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         }
     }
 
-    let workflow_path = project_root.join(COVEN_DIR).join("workflow.md");
-    if workflow_path.exists() {
-        skipped.push(format!("{COVEN_DIR}/workflow.md"));
+    let system_path = project_root.join(COVEN_DIR).join("system.md");
+    if system_path.exists() {
+        skipped.push(format!("{COVEN_DIR}/system.md"));
     } else {
-        fs::write(&workflow_path, WORKFLOW_DOC)
-            .with_context(|| format!("failed to write {}", workflow_path.display()))?;
-        created.push(format!("{COVEN_DIR}/workflow.md"));
+        fs::write(&system_path, SYSTEM_DOC)
+            .with_context(|| format!("failed to write {}", system_path.display()))?;
+        created.push(format!("{COVEN_DIR}/system.md"));
+    }
+
+    let config_path = project_root.join(COVEN_DIR).join("config.toml");
+    if config_path.exists() {
+        skipped.push(format!("{COVEN_DIR}/config.toml"));
+    } else {
+        fs::write(&config_path, CONFIG_DOC)
+            .with_context(|| format!("failed to write {}", config_path.display()))?;
+        created.push(format!("{COVEN_DIR}/config.toml"));
     }
 
     let land_script_path = project_root.join(COVEN_DIR).join("land.sh");
@@ -95,59 +104,38 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         created.push(format!("{COVEN_DIR}/land.sh"));
     }
 
-    for dir_name in ["issues", "review"] {
-        let dir = project_root.join(dir_name);
-        if dir.exists() {
-            skipped.push(format!("{dir_name}/"));
+    // Create brief.md and board.md at project root
+    for (name, initial_content) in [("brief.md", BRIEF_TEMPLATE), ("board.md", BOARD_TEMPLATE)] {
+        let path = project_root.join(name);
+        if path.exists() {
+            skipped.push(name.to_string());
         } else {
-            fs::create_dir_all(&dir)
-                .with_context(|| format!("failed to create {}", dir.display()))?;
-            fs::write(dir.join(".gitkeep"), "")
-                .with_context(|| format!("failed to write {dir_name}/.gitkeep"))?;
-            created.push(format!("{dir_name}/"));
+            fs::write(&path, initial_content).with_context(|| format!("failed to write {name}"))?;
+            created.push(name.to_string());
         }
+    }
+
+    // Ensure scratch.md is gitignored
+    let gitignore_path = project_root.join(".gitignore");
+    let gitignore_content = if gitignore_path.exists() {
+        fs::read_to_string(&gitignore_path).context("failed to read .gitignore")?
+    } else {
+        String::new()
+    };
+    if !gitignore_content.lines().any(|l| l.trim() == "scratch.md") {
+        let mut new_content = gitignore_content;
+        if !new_content.is_empty() && !new_content.ends_with('\n') {
+            new_content.push('\n');
+        }
+        new_content.push_str("scratch.md\n");
+        fs::write(&gitignore_path, new_content).context("failed to update .gitignore")?;
+        created.push(".gitignore (added scratch.md)".to_string());
     }
 
     Ok(CreateFilesResult { created, skipped })
 }
 
-/// Check whether CLAUDE.md needs a workflow reference.
-fn check_claude_md(project_root: &Path) -> Result<ClaudeMdState> {
-    let claude_md_path = project_root.join("CLAUDE.md");
-    let existing = if claude_md_path.exists() {
-        Some(fs::read_to_string(&claude_md_path).context("failed to read CLAUDE.md")?)
-    } else {
-        None
-    };
-    let needs_reference = existing
-        .as_ref()
-        .is_none_or(|c| !c.contains(".coven/workflow.md"));
-    Ok(ClaudeMdState {
-        needs_reference,
-        existing_content: existing,
-    })
-}
-
-/// Write or update CLAUDE.md with the workflow reference.
-fn update_claude_md(project_root: &Path, existing: Option<&String>) -> Result<()> {
-    let claude_md_path = project_root.join("CLAUDE.md");
-    if let Some(contents) = existing {
-        let mut contents = contents.clone();
-        if !contents.ends_with('\n') {
-            contents.push('\n');
-        }
-        contents.push('\n');
-        contents.push_str(WORKFLOW_REF);
-        contents.push('\n');
-        fs::write(&claude_md_path, contents).context("failed to update CLAUDE.md")?;
-    } else {
-        let contents = format!("{WORKFLOW_REF}\n");
-        fs::write(&claude_md_path, contents).context("failed to create CLAUDE.md")?;
-    }
-    Ok(())
-}
-
-/// Initialize the project with default agent prompts and directory structure.
+/// Initialize the project with agent prompts and orchestration files.
 pub async fn init(
     vcr: &VcrContext,
     writer: &mut impl Write,
@@ -179,48 +167,17 @@ pub async fn init(
         }
     }
 
-    let claude_md: ClaudeMdState = vcr
-        .call(
-            "init_check_claude_md",
-            project_root.clone(),
-            async |root: &String| check_claude_md(Path::new(root)),
-        )
-        .await?;
+    writeln!(writer)?;
+    writeln!(
+        writer,
+        "Add tasks to brief.md and commit. Run `coven worker` to start."
+    )?;
+    writeln!(
+        writer,
+        "Workers will post questions to board.md — answer in brief.md."
+    )?;
 
-    if claude_md.needs_reference {
-        write!(
-            writer,
-            "\nAdd a reference to .coven/workflow.md in CLAUDE.md? [Y/n] "
-        )?;
-        writer.flush()?;
-
-        let mut input_buf = String::new();
-        stdin.read_line(&mut input_buf)?;
-        let input = input_buf.trim();
-
-        if input.is_empty() || input.eq_ignore_ascii_case("y") || input.eq_ignore_ascii_case("yes")
-        {
-            let existing = claude_md.existing_content.clone();
-            vcr.call(
-                "init_update_claude_md",
-                project_root,
-                async |root: &String| update_claude_md(Path::new(root), existing.as_ref()),
-            )
-            .await?;
-
-            if claude_md.existing_content.is_some() {
-                writeln!(writer, "Updated CLAUDE.md with workflow reference.")?;
-            } else {
-                writeln!(writer, "Created CLAUDE.md with workflow reference.")?;
-            }
-        } else {
-            writeln!(
-                writer,
-                "\nTip: Add this to your CLAUDE.md so interactive sessions understand the workflow:"
-            )?;
-            writeln!(writer, "  {WORKFLOW_REF}")?;
-        }
-    }
+    let _ = stdin; // reserved for future interactive prompts
 
     Ok(())
 }

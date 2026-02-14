@@ -51,7 +51,7 @@ Avoid string interpolation (`$()`, backticks, `${}`), heredocs, loops, and advan
 - Bulk operations: `ls *.md | xargs wc -l`, not `for f in *.md; do cmd "$f"; done`
 - Parallel/batched xargs: use scripts, not `xargs -P4` or `xargs -L1`
 - Per-item shell logic: use scripts, not `xargs sh -c '...'`
-- Issue summary: `head -7 issues/*.md review/*.md 2>/dev/null || true`
+- Board/brief summary: `cat brief.md board.md`
 
 If a command that should be allowed is denied, or if project structure changes significantly, ask about running `/mats:permissions` to update settings.
 

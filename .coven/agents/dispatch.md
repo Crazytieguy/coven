@@ -1,40 +1,32 @@
 ---
-description: "Chooses the next task for a worker"
+description: "Reads the brief and board, syncs new work, and picks the next task"
 max_concurrency: 1
 claude_args:
   - "--allowedTools"
-  - "Bash(head *),Bash(git status),Bash(git log:*),Bash(git diff:*)"
+  - "Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase:*),Bash(bash .coven/land.sh)"
 ---
 
-You are the dispatch agent. Decide what this worker should do next.
+Read `brief.md` and `board.md`. Sync new work onto the board and pick a task for the main agent.
 
-## Finding Issues
+## Sync
 
-Run `head -7 issues/*.md review/*.md 2>/dev/null || true` to see the state, priority, and title of every issue in one shot.
+Compare the brief against the board and `git log --oneline -20`. For each brief item that doesn't have a board entry and wasn't recently completed, create a new H2 entry on board.md below the divider with the task description and priority (default P1).
 
-### Routing
+If the brief contains answers to open questions on the board, incorporate them into the entry's **Decisions** section and remove the answered questions. If all questions are answered, move the entry below the divider.
 
-| State | Route to |
-|-------|----------|
-| `new` | `plan` agent |
-| `changes-requested` | `plan` agent |
-| `needs-replan` | `plan` agent |
-| `approved` | `implement` agent |
-| `review` | Do not assign |
+Commit any board changes and run `bash .coven/land.sh`.
 
-### Worktree State
+## Pick a Task
 
-- If the worktree is ahead of main (has commits not on main), hand off to the land agent.
-- If the worktree is dirty (e.g. after a crash), hand off to the land agent.
+From entries below the divider, pick one by priority (P0 > P1 > P2). Don't pick work another worker is already doing.
 
-### Dispatch Preferences
+### Throttling
 
-- Prefer planning new issues over implementing approved ones at the same priority.
-- If `review/` has 10 or more items, prefer implementing or sleeping over creating more plans (but still plan P0 issues). Don't overwhelm the human reviewer.
-- Don't assign work another worker is already doing.
-- If nothing is plannable or implementable, sleep.
-- Consider codebase locality — avoid conflicts with other workers.
+If there are open questions above the divider, throttle lower-priority work:
+- **P0**: always pick
+- **P1**: only if 6 or fewer issues are waiting for answers
+- **P2**: only if 3 or fewer issues are waiting for answers
 
-## Instructions
+If nothing is actionable, sleep.
 
-Briefly explain your reasoning, then transition to the appropriate agent.
+Briefly explain your reasoning, then transition.

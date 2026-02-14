@@ -147,7 +147,7 @@ pub fn corrective_prompt(parse_err: &anyhow::Error) -> String {
         "Your previous output could not be parsed: {parse_err}\n\n\
          Please output your decision inside a <next> tag containing YAML. \
          For example:\n\n\
-         <next>\nagent: plan\nissue: issues/example.md\n</next>\n\n\
+         <next>\nagent: main\ntask: Example issue title\n</next>\n\n\
          Or to sleep:\n\n\
          <next>\nsleep: true\n</next>"
     )

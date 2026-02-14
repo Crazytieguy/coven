@@ -274,6 +274,8 @@ async fn run_agent_chain<W: Write>(
     let mut agent_name = entry_agent.to_string();
     let mut agent_args: HashMap<String, String> = HashMap::new();
 
+    let system_doc = vcr_load_system_doc(ctx.vcr, &wt_str).await?;
+
     loop {
         let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
 
@@ -312,13 +314,12 @@ async fn run_agent_chain<W: Write>(
                 worker_state::format_workers(&others, worker_state::StatusStyle::Dispatch)
             )
         };
-        let system_prompt = match ctx.fork_config {
-            Some(_) => format!(
-                "{transition_prompt}{worker_status_section}\n\n{}",
-                fork::fork_system_prompt()
-            ),
-            None => format!("{transition_prompt}{worker_status_section}"),
-        };
+        let system_prompt = build_system_prompt(
+            &system_doc,
+            &transition_prompt,
+            &worker_status_section,
+            ctx.fork_config,
+        );
 
         let args_display = format_args_display(&agent_args);
         ctx.renderer
@@ -382,6 +383,27 @@ async fn run_agent_chain<W: Write>(
     }
 }
 
+/// Assemble the system prompt from its components.
+fn build_system_prompt(
+    system_doc: &str,
+    transition_prompt: &str,
+    worker_status_section: &str,
+    fork_config: Option<&ForkConfig>,
+) -> String {
+    let mut prompt = String::new();
+    if !system_doc.is_empty() {
+        prompt.push_str(system_doc);
+        prompt.push_str("\n\n");
+    }
+    prompt.push_str(transition_prompt);
+    prompt.push_str(worker_status_section);
+    if fork_config.is_some() {
+        prompt.push_str("\n\n");
+        prompt.push_str(fork::fork_system_prompt());
+    }
+    prompt
+}
+
 /// Format args as a sorted display string.
 fn format_args_display(args: &HashMap<String, String>) -> String {
     let mut parts: Vec<_> = args.iter().map(|(k, v)| format!("{k}={v}")).collect();
@@ -439,6 +461,23 @@ async fn parse_transition_with_retry<W: Write>(
 }
 
 /// VCR-wrapped `main_head_sha`.
+/// Load `.coven/system.md` if it exists, empty string otherwise.
+async fn vcr_load_system_doc(vcr: &VcrContext, wt_str: &str) -> Result<String> {
+    vcr.call(
+        "load_system_doc",
+        wt_str.to_string(),
+        async |p: &String| -> Result<String> {
+            let path = Path::new(p).join(".coven/system.md");
+            match std::fs::read_to_string(&path) {
+                Ok(contents) => Ok(contents),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+                Err(e) => Err(e.into()),
+            }
+        },
+    )
+    .await
+}
+
 async fn vcr_main_head_sha(vcr: &VcrContext, wt_str: String) -> Result<String> {
     vcr.call("main_head_sha", wt_str, async |p: &String| {
         main_head_sha(Path::new(p))
