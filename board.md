@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Support `wait-for-user` tag in `ralph`
+
+The `wait-for-user` tag should also be supported by `ralph` if not already supported. Should share code with `worker`.
+
 ## P1: Bell sound: only ring when waiting for user input in run mode
 
 `coven worker` and `coven ralph` should not play a bell every time Claude finishes a turn. Bell should only play when specifically waiting for user input: the only mode that does this at the end of a turn is `run`. Going idle doesn't need a bell/notification either.
