@@ -88,20 +88,6 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("## Sleep (no actionable work)\n\n");
     out.push_str("<next>\nsleep: true\n</next>\n\n");
 
-    out.push_str("## Wait for user input\n\n");
-    out.push_str(
-        "If you need user input before you can proceed (e.g. a necessary command was denied,\n\
-         or you need clarification on a requirement), output a `<wait-for-user>` tag:\n\n",
-    );
-    out.push_str("<wait-for-user>\nReason the user needs to act\n</wait-for-user>\n\n");
-    out.push_str(
-        "The orchestrator will show your reason, wait for the user to respond, and resume\n\
-         your session with their input. After resuming, finish your work and output a `<next>` tag.\n\n\
-         Do NOT use `<wait-for-user>` when your agent prompt defines a different workflow for \
-         handling questions (e.g. posting to a board and transitioning). Only use it for \
-         blocks that your agent workflow cannot handle.\n\n",
-    );
-
     out.push_str("## Available Agents\n\n");
 
     if agents.is_empty() {
@@ -162,9 +148,8 @@ pub fn corrective_prompt(
 
     if final_attempt {
         out.push_str(
-            "This is your final automatic retry. If you can produce a valid transition, \
-             do so now. Otherwise, output a <wait-for-user> tag explaining what went wrong \
-             so the user can help.\n\n",
+            "This is your final automatic retry. You must produce a valid <next> tag. \
+             If you cannot determine the right transition, use `sleep: true`.\n\n",
         );
     }
 
@@ -190,11 +175,7 @@ pub fn corrective_prompt(
         out.push_str("<next>\nagent: <agent-name>\n</next>\n\n");
     }
 
-    out.push_str("Or to sleep:\n\n<next>\nsleep: true\n</next>\n\n");
-    out.push_str(
-        "Or if you need user input:\n\n\
-         <wait-for-user>\nReason the user needs to act\n</wait-for-user>",
-    );
+    out.push_str("Or to sleep:\n\n<next>\nsleep: true\n</next>");
 
     // Append available agents summary
     if !agents.is_empty() {
@@ -483,11 +464,10 @@ issue: issues/fix-scroll-bug.md
     }
 
     #[test]
-    fn system_prompt_documents_wait_for_user() {
+    fn system_prompt_does_not_mention_wait_for_user() {
         let agents = vec![make_agent("plan", "Plans work", vec![])];
         let prompt = format_transition_system_prompt(&agents);
-        assert!(prompt.contains("<wait-for-user>"));
-        assert!(prompt.contains("</wait-for-user>"));
+        assert!(!prompt.contains("wait-for-user"));
     }
 
     #[test]
@@ -518,7 +498,7 @@ issue: issues/fix-scroll-bug.md
     }
 
     #[test]
-    fn corrective_prompt_final_attempt_mentions_wait_for_user() {
+    fn corrective_prompt_final_attempt_does_not_mention_wait_for_user() {
         let agents = vec![make_agent("dispatch", "Picks tasks", vec![])];
         let err = parse_transition("no tag").unwrap_err();
 
@@ -527,7 +507,7 @@ issue: issues/fix-scroll-bug.md
 
         let final_prompt = corrective_prompt(&err, &agents, true);
         assert!(final_prompt.contains("final automatic retry"));
-        assert!(final_prompt.contains("<wait-for-user>"));
+        assert!(!final_prompt.contains("wait-for-user"));
     }
 
     #[test]

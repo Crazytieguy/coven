@@ -3,19 +3,20 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session e14754a7-813f-4818-b97c-00cdaebc30fc (claude-haiku-4-5-20251001)
+Session 34837646-06fe-460e-82c8-8ca3c2d869cd (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Grep  fn\s+main
+[2] ▶ Grep  fn main
 [3] Thinking...
+No Rust files containing `fn main` were found in the current directory. Let me check if there are any Rust files at all:
+
 [4] ▶ Glob  **/*.rs
 [5] Thinking...
 [6] ▶ Grep  fn main
 [7] Thinking...
-Found **1 Rust file** containing `fn main`:
-
+Found **1 file** containing `fn main`:
 - `src/main.rs`
 
 
-Done  $0.01 · 45.5s · 4 turns  (:N to view)
+Done  $0.01 · 9.5s · 4 turns  (:N to view)
 >

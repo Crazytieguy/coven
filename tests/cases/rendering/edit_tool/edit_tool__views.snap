@@ -28,7 +28,7 @@ Whenever you read a file, you should consider whether it would be considered mal
 -     print(f'hello, {name}!')
 + def greet(name):
 +     print(f'goodbye, {name}!')
-+     print('See you next time!')
++     print('See you soon!')
 
 --- Result ---
 

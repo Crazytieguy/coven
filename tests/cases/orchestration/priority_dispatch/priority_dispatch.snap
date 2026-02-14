@@ -20,35 +20,27 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: prime-wave-5 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/prime-wave-5)
+Worker started: agile-eagle-52 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/agile-eagle-52)
 
 === Agent: dispatch ===
 
-Session 90f0edd2-7686-4d00-b767-26ca0eaa109f (claude-haiku-4-5-20251001)
+Session 24359584-c410-4211-88b3-ecd8755bd714 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
+I'll read the brief and board to sync work and pick a task.
+
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-I'll read the brief and board, sync any new work, and pick a task.
+Now I'll sync the brief items onto the board and pick a task.
 
-The brief contains two items:
-- P0: Fix README description
-- P1: Improve main.py
-
-The board is currently empty. Let me sync these tasks onto it.
-
-[5] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[5] ▶ Edit  (+10)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [6] Thinking...
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-[9] ▶ Bash  bash .coven/land.sh
-[10] Thinking...
-Board synced. I have two actionable tasks:
-- **P0: Fix README description** (highest priority)
-- P1: Improve main.py
+**Synced:** Added both brief items to the board.
 
-No open questions blocking work. I'll pick the P0 task.
+**Task selection:** Picking **P0: Fix README description** as it's the highest priority and ready to implement. No open questions on the board, so no throttling applies.
 
 <next>
 agent: main
@@ -56,181 +48,158 @@ task: Fix README description
 </next>
 
 
-Done  $0.03 · 15.3s · 6 turns  (:N to view)
-  Total cost: $0.03
+Done  $0.02 · 16.9s · 5 turns  (:N to view)
+  Total cost: $0.02
 
 Transition: main task=Fix README description
 
 === Agent: main ===
 
-Session f2618678-5e5e-4e75-9b47-d5a9ceebae5a (claude-haiku-4-5-20251001)
+Session 57471ebf-7612-4dac-b30c-06f12025bf83 (claude-haiku-4-5-20251001)
 
-[11] Thinking...
-I'll help you fix the README description. Let me start by reading the board and any existing scratch notes.
-
-[12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[9] Thinking...
+[10] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[11] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
+[12] Thinking...
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [14] Thinking...
-Now let me read the README to see the current state:
-
-[15] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [16] Thinking...
-Perfect! I can see the README needs to be updated. Let me make the change:
-
-[17] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[17] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [18] Thinking...
-Now let me commit this change:
-
-[19] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[19] ▶ Write  (11 lines)  /private/var/folders/21/3gpj27c974j5vc436plct78w000...
 [20] Thinking...
-Now let me move the issue to the Done section in the board:
-
-[21] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[21] ▶ Bash  git diff main...HEAD
 [22] Thinking...
-Let me commit the board update:
-
-[23] ▶ Bash  git add board.md && git commit -m "Move 'Fix README description'...
+[23] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [24] Thinking...
-Now let me land the changes:
+Perfect! The review shows the README change is correct:
+- Changed "A sample project." to "A sample project for demonstration." ✓
 
-[25] ▶ Bash  bash .coven/land.sh
+This meets the acceptance criteria. Now I'll move the issue to Done and land the changes.
+
+[25] ▶ Edit  (-2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [26] Thinking...
-Perfect! The README description has been successfully fixed. The change has been landed on main. 
-
-**Summary:**
-- Changed "A sample project." to "A sample project for demonstration." in README.md
-- Moved the issue to Done in board.md
-- Landed all changes to main
-
+[27] ▶ Bash  git add board.md && git commit -m "Move 'Fix README description'...
+[28] Thinking...
+[29] ▶ Bash  bash .coven/land.sh
+[30] Thinking...
+[31] ▶ Bash  rm scratch.md
+[32] Thinking...
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.04 · 23.8s · 9 turns  (:N to view)
+Done  $0.05 · 28.3s · 13 turns  (:N to view)
   Total cost: $0.07
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 72d5a3ab-41a6-4ab6-89ab-fd764da93194 (claude-haiku-4-5-20251001)
+Session c4e328a8-0cda-4944-a83f-5317f6714a12 (claude-haiku-4-5-20251001)
 
-[27] Thinking...
-I'll read the brief and board files to understand the current state of work.
+[33] Thinking...
+[34] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[36] Thinking...
+Reading the brief and board...
 
-[28] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[29] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[30] Thinking...
-Looking at the files:
+**Sync Analysis:**
+- Brief P0 "Fix README description" → already in Done ✓
+- Brief P1 "Improve main.py" → already on board below divider ✓
 
-**Brief:** 
-- P0: Fix README description (already completed ✓)
-- P1: Improve main.py (wrap print statement in `if __name__ == "__main__":` guard)
+The board is already in sync. No new entries to add.
 
-**Board:**
-- Already has the P1 task listed below the divider
-- Done section correctly shows P0 completed
+**Task Selection:**
+There's one actionable item below the divider:
+- **P1: Improve main.py** — ready to implement
 
-**Sync status:** Board is already in sync with brief. The P0 task is correctly marked as Done, and the P1 task is listed as ready to implement.
-
-**Task selection:** No open questions blocking work. The P1 "Improve main.py" is ready and actionable. I'll pick this task.
+No other workers are active, and there are no open questions blocking work.
 
 <next>
 agent: main
-task: P1: Improve main.py
+task: Improve main.py
 </next>
 
 
-Done  $0.02 · 6.9s · 3 turns  (:N to view)
-  Total cost: $0.08
+Done  $0.01 · 8.2s · 3 turns  (:N to view)
+  Total cost: $0.09
 
-Transition: main task=P1: Improve main.py
+Transition: main task=Improve main.py
 
 === Agent: main ===
 
-Session 0218994f-6f73-4b41-b0b9-3b889fbda1c9 (claude-haiku-4-5-20251001)
+Session 7a6f930f-bc0d-4723-ac55-9bcde864f8c4 (claude-haiku-4-5-20251001)
 
-[31] Thinking...
-I'll start by reading the board to understand the issue and check for any previous progress.
+[37] Thinking...
+I'll start by reading the board to understand what needs to be done.
 
-[32] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[33] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-     ✗ Error: File does not exist.
-[34] Thinking...
-Now let me read the current `src/main.py` to understand what needs to be modified:
-
-[35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[36] Thinking...
-I'll wrap the print statement in the `if __name__ == "__main__":` guard:
-
-[37] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[38] Thinking...
-Let me verify the change:
-
+[38] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [39] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
 [40] Thinking...
-Now I'll commit the code change:
-
-[41] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [42] Thinking...
-Now I'll update the board to move this issue to Done:
+This is straightforward. I'll wrap the print statement in the standard Python guard.
 
-[43] ▶ Edit  (-3)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[43] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [44] Thinking...
-I'll commit the board update:
-
-[45] ▶ Bash  git add board.md && git commit -m "Move 'Improve main.py' to Done"
+[45] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [46] Thinking...
-Now I'll land these changes:
-
-[47] ▶ Bash  bash .coven/land.sh
+[47] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [48] Thinking...
-Perfect! I've successfully completed the P1 issue:
+[49] ▶ Edit  (-3)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[50] Thinking...
+[51] ▶ Bash  git add board.md && git commit -m "Move 'Improve main.py' to Done"
+[52] Thinking...
+[53] ▶ Bash  bash .coven/land.sh
+[54] Thinking...
+Done! I've successfully completed the issue:
 
-✅ **Completed**: Wrapped the print statement in `src/main.py` with a `if __name__ == "__main__":` guard
-✅ **Committed**: Code change and board update
-✅ **Landed**: Changes merged to main
+1. ✅ Wrapped the print statement in `src/main.py` in an `if __name__ == "__main__":` guard
+2. ✅ Committed the change
+3. ✅ Moved the issue to Done on the board
+4. ✅ Landed the changes to main
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.04 · 23.9s · 10 turns  (:N to view)
-  Total cost: $0.12
+Done  $0.04 · 18.2s · 10 turns  (:N to view)
+  Total cost: $0.13
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session c6b22a5d-26a3-454b-a638-0edd809239ca (claude-haiku-4-5-20251001)
+Session 0c549b1d-34f2-4387-bc19-6ff439cc48f7 (claude-haiku-4-5-20251001)
 
-[49] Thinking...
-[50] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[51] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[52] Thinking...
-Looking at the files:
+[55] Thinking...
+I'll read both files to understand the current state and sync any work.
 
-**brief.md** has:
-- P0: Fix README description (change "A sample project." to "A sample project for demonstration.")
-- P1: Improve main.py (wrap print statement in `if __name__ == "__main__":` guard)
+[56] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[57] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[58] Thinking...
+**Sync Analysis:**
 
-**board.md** shows:
-- Both items already in the Done section
-- No open questions or actionable work
+Looking at the brief and board:
+- **brief.md** lists: P0 (Fix README description) and P1 (Improve main.py)
+- **board.md** shows both items already completed in the Done section
 
-**Sync status:** No new work to add — both brief items are already completed and landed.
+All work from the brief is already done. There are no new items to sync, no open questions, and no actionable work below the divider.
 
-**Task selection:** No actionable work remains below the divider. The branch is clean and all work is done.
+**Result:** No work to pick. Sleeping.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 9.2s · 3 turns  (:N to view)
+Done  $0.02 · 7.2s · 3 turns  (:N to view)
   Total cost: $0.14
 
 Transition: sleep — waiting for new commits...

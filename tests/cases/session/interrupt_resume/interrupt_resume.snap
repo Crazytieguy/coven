@@ -3,7 +3,7 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session 55bf60bc-3564-4cbd-ba21-3c0ef68a2512 (claude-haiku-4-5-20251001)
+Session cce51487-748b-42ae-9119-d3072dcaa20c (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
@@ -13,10 +13,10 @@ Session 55bf60bc-3564-4cbd-ba21-3c0ef68a2512 (claude-haiku-4-5-20251001)
 ---
 
 [3] Thinking...
-I've just read the hello.txt file for you, which contains "Hello from the test file!" There's no previous task in progress that I can see. 
+[4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[5] Thinking...
+The file `hello.txt` says: **"Hello from the test file!"**
 
-Could you clarify what you'd like me to continue with?
 
-
-Done  $0.01 · 3.6s · 1 turn  (:N to view)
+Done  $0.01 · 3.6s · 2 turns  (:N to view)
 >

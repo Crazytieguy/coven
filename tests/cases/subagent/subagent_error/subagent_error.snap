@@ -3,21 +3,21 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
-Session b21da1f2-864a-4d28-b9e2-01dae144c93d (claude-haiku-4-5-20251001)
+Session 3b342bbe-9233-4d2b-9f59-163b24cfc58f (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Task  Read README.md and nonexistent.txt in parallel
+[2] ▶ Task  Read two files in parallel
   [2/1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
   [2/2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
         ✗ File does not exist.
 [3] Thinking...
-Done! The subagent successfully read both files in parallel. Here's what it found:
+Done! The subagent successfully read both files in parallel:
 
-- **README.md**: Exists and contains "# Test Project" with the description "A minimal project for testing."
-- **nonexistent.txt**: Does not exist in the current directory, so the read returned an error.
+- **README.md**: Contains "# Test Project" heading and "A minimal project for testing."
+- **nonexistent.txt**: File doesn't exist (returned error as expected)
 
-The parallel Read calls were made simultaneously in the same function call block as requested.
+Both Read calls were executed simultaneously in a single message.
 
 
-Done  $0.02 · 16.0s · 2 turns  (:N to view)
+Done  $0.02 · 9.8s · 2 turns  (:N to view)
 >
