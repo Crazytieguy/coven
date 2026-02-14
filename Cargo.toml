@@ -15,6 +15,10 @@ categories = ["command-line-utilities", "development-tools"]
 [[bin]]
 name = "record-vcr"
 path = "src/bin/record_vcr.rs"
+required-features = ["dev-tools"]
+
+[features]
+dev-tools = []
 
 [dependencies]
 anyhow = "1.0.101"
