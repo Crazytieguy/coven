@@ -2,16 +2,13 @@
 
 ---
 
-## P1: Investigate spurious worker wake-ups
-
-I suspect there might be spurious worker wake ups not caused by git commits, please check.
-
 ## P1: Release patch version
 
 I want to release a patch version, start working on it and wait for me when you need permission.
 
 ## Done
 
+- P1: Investigate spurious worker wake-ups
 - P1: Bell sound: recent fix overshot, should also ring when `wait-for-user` is outputted by ralph or worker (but no other states)
 - P1: Bell sound: ring when `wait-for-user` is outputted (already works — both ralph and worker ring via `wait_for_interrupt_input`)
 
