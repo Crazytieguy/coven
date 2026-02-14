@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Verify spurious wakeup fix for race conditions and other wakeup sources
+
+Make sure the spurious wake up fix doesn't cause a race condition. Also check if there might be other spurious wakeups: For instance I think maybe workers are woken up when another worktree is removed.
+
 ## P1: Release patch version
 
 I want to release a patch version, start working on it and wait for me when you need permission.
