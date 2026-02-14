@@ -16,6 +16,7 @@ Work on the board issue: **{{task}}**
 
 1. Read `board.md` to find your issue entry, and `scratch.md` if it exists for context from previous sessions
 2. Do one focused piece of work toward the issue. Commit.
+   - **First session** (no `scratch.md`): focus on understanding — read relevant code, identify questions, plan your approach. Start coding only if the task is straightforward and unambiguous.
 3. Update `scratch.md` with what you did and what's next
 
 ## Between Sessions
