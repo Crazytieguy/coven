@@ -2,10 +2,6 @@
 
 ---
 
-## P1: Verify spurious wakeup fix for race conditions and other wakeup sources
-
-Make sure the spurious wake up fix doesn't cause a race condition. Also check if there might be other spurious wakeups: For instance I think maybe workers are woken up when another worktree is removed.
-
 ## P1: Audit codebase for architectural issues
 
 Attempt to identify architectural issues in the codebase — e.g. misplaced responsibilities, overly coupled modules, unclear boundaries between components. If the fix is obvious do it, if unclear post a question.
@@ -35,3 +31,22 @@ The `ambiguous_task` VCR recording is flaky — the main agent sometimes skips `
 Is `wait-for-user` the right abstraction for both `worker` and `ralph`? Is it pulling its weight, or adding complexity and confusing the model?
 
 ## Done
+
+- P1: Verify spurious wakeup fix for race conditions and other wakeup sources
+- P1: Investigate spurious worker wake-ups
+- P1: Bell sound: recent fix overshot, should also ring when `wait-for-user` is outputted by ralph or worker (but no other states)
+- P1: Bell sound: ring when `wait-for-user` is outputted (already works — both ralph and worker ring via `wait_for_interrupt_input`)
+
+- P1: Bell sound: only ring when waiting for user input in run mode
+- P1: Support `wait-for-user` tag in `ralph`
+- P1: Main agent should be more willing to ask clarifying questions
+- P1: Transition YAML parsing fails on colons in values
+- P1: Refine post-compaction context: system.md scope and dispatch faithfulness
+- P1: Transition parsing failure behavior
+- P1: Add "Done" section to board
+- P1: Add main agent self-transition review test
+- P1: Re-record VCR tests and fix snapshots
+- P1: Improve post-compaction context loss
+- P1: Input line splits on first keystroke during streaming
+- P1: Pager keystroke capture in :N mode
+- P1: Test snapshots fail when run in wider terminal
