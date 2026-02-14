@@ -12,10 +12,6 @@ Enrich corrective prompt with available agents and bump auto-retries to 3. On fi
 - Agent should explicitly output wait-for-user tag on final failure
 - Was blocked on wait-for-user tag — now unblocked (implemented)
 
-## P1: Pager keystroke capture in :N mode
-
-Keystrokes in `:N` pager mode are captured by coven instead of the pager. Same root cause as Ctrl+O interactive sessions — apply same fix. Also investigate whether the first keystroke in Ctrl+O interactive mode fails to send (could be a Claude Code loading delay vs a coven issue).
-
 ## P1: Refine post-compaction context: system.md scope and dispatch faithfulness
 
 The recent post-compaction context loss fix was too aggressive. Two changes needed:
@@ -29,3 +25,4 @@ The recent post-compaction context loss fix was too aggressive. Two changes need
 - P1: Re-record VCR tests and fix snapshots
 - P1: Improve post-compaction context loss
 - P1: Input line splits on first keystroke during streaming
+- P1: Pager keystroke capture in :N mode
