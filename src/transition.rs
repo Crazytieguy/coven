@@ -162,17 +162,60 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
 }
 
 /// Build the corrective prompt for when a `<next>` tag is missing or malformed.
-pub fn corrective_prompt(parse_err: &anyhow::Error) -> String {
-    format!(
-        "Your previous output could not be parsed: {parse_err}\n\n\
-         Please output your decision inside a <next> tag containing YAML. \
-         For example:\n\n\
-         <next>\nagent: main\ntask: Example issue title\n</next>\n\n\
-         Or to sleep:\n\n\
-         <next>\nsleep: true\n</next>\n\n\
-         Or if you need user input:\n\n\
-         <wait-for-user>\nReason the user needs to act\n</wait-for-user>"
-    )
+///
+/// When `final_attempt` is true, the prompt instructs the agent to output a
+/// `<wait-for-user>` tag if it still can't produce a valid transition.
+pub fn corrective_prompt(
+    parse_err: &anyhow::Error,
+    agents: &[AgentDef],
+    final_attempt: bool,
+) -> String {
+    let mut out = format!("Your previous output could not be parsed: {parse_err}\n\n");
+
+    if final_attempt {
+        out.push_str(
+            "This is your final automatic retry. If you can produce a valid transition, \
+             do so now. Otherwise, output a <wait-for-user> tag explaining what went wrong \
+             so the user can help.\n\n",
+        );
+    }
+
+    out.push_str(
+        "Please output your decision inside a <next> tag containing YAML. \
+         For example:\n\n",
+    );
+
+    // Generate examples from real agent definitions
+    let agents_with_args: Vec<_> = agents
+        .iter()
+        .filter(|a| !a.frontmatter.args.is_empty())
+        .collect();
+    if let Some(agent) = agents_with_args.first() {
+        let _ = write!(out, "<next>\nagent: {}\n", agent.name);
+        for arg in &agent.frontmatter.args {
+            let _ = writeln!(out, "{}: <{}>", arg.name, arg.description);
+        }
+        out.push_str("</next>\n\n");
+    } else if let Some(agent) = agents.first() {
+        let _ = writeln!(out, "<next>\nagent: {}\n</next>\n", agent.name);
+    } else {
+        out.push_str("<next>\nagent: <agent-name>\n</next>\n\n");
+    }
+
+    out.push_str("Or to sleep:\n\n<next>\nsleep: true\n</next>\n\n");
+    out.push_str(
+        "Or if you need user input:\n\n\
+         <wait-for-user>\nReason the user needs to act\n</wait-for-user>",
+    );
+
+    // Append available agents summary
+    if !agents.is_empty() {
+        out.push_str("\n\nAvailable agents: ");
+        let names: Vec<_> = agents.iter().map(|a| a.name.as_str()).collect();
+        out.push_str(&names.join(", "));
+    }
+
+    out
 }
 
 /// Extract content between `<tag>` and `</tag>`.
@@ -437,5 +480,53 @@ issue: issues/fix-scroll-bug.md
         let prompt = format_transition_system_prompt(&agents);
         assert!(prompt.contains("<wait-for-user>"));
         assert!(prompt.contains("</wait-for-user>"));
+    }
+
+    #[test]
+    fn corrective_prompt_includes_agent_names() {
+        let agents = vec![
+            make_agent("dispatch", "Picks tasks", vec![]),
+            make_agent(
+                "main",
+                "Implements work",
+                vec![AgentArg {
+                    name: "task".into(),
+                    description: "Board entry title".into(),
+                    required: true,
+                }],
+            ),
+        ];
+        let err = parse_transition("no tag here").unwrap_err();
+        let prompt = corrective_prompt(&err, &agents, false);
+        assert!(
+            prompt.contains("agent: main"),
+            "should use agent with args as example"
+        );
+        assert!(prompt.contains("task:"), "should include arg in example");
+        assert!(
+            prompt.contains("dispatch, main"),
+            "should list available agents"
+        );
+    }
+
+    #[test]
+    fn corrective_prompt_final_attempt_mentions_wait_for_user() {
+        let agents = vec![make_agent("dispatch", "Picks tasks", vec![])];
+        let err = parse_transition("no tag").unwrap_err();
+
+        let normal = corrective_prompt(&err, &agents, false);
+        assert!(!normal.contains("final automatic retry"));
+
+        let final_prompt = corrective_prompt(&err, &agents, true);
+        assert!(final_prompt.contains("final automatic retry"));
+        assert!(final_prompt.contains("<wait-for-user>"));
+    }
+
+    #[test]
+    fn corrective_prompt_no_agents_uses_placeholder() {
+        let err = parse_transition("no tag").unwrap_err();
+        let prompt = corrective_prompt(&err, &[], false);
+        assert!(prompt.contains("agent: <agent-name>"));
+        assert!(!prompt.contains("Available agents:"));
     }
 }

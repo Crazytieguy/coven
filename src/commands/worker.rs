@@ -30,6 +30,7 @@ struct PhaseContext<'a, W: Write> {
     io: &'a mut Io,
     vcr: &'a VcrContext,
     fork_config: Option<&'a ForkConfig>,
+    total_cost: f64,
 }
 
 pub struct WorkerConfig {
@@ -116,7 +117,6 @@ pub async fn worker<W: Write>(
     renderer.set_show_thinking(config.show_thinking);
     renderer.render_help();
     let mut input = InputHandler::new(2);
-    let mut total_cost = 0.0;
 
     let wt_str = spawn_result.worktree_path.display().to_string();
 
@@ -146,6 +146,7 @@ pub async fn worker<W: Write>(
         io,
         vcr,
         fork_config: fork_config.as_ref(),
+        total_cost: 0.0,
     };
 
     let result = worker_loop(
@@ -153,7 +154,6 @@ pub async fn worker<W: Write>(
         &spawn_result.worktree_path,
         &spawn_result.branch,
         &mut ctx,
-        &mut total_cost,
     )
     .await;
 
@@ -195,7 +195,6 @@ async fn worker_loop<W: Write>(
     worktree_path: &Path,
     branch: &str,
     ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
 ) -> Result<()> {
     let wt_str = worktree_path.display().to_string();
 
@@ -225,7 +224,6 @@ async fn worker_loop<W: Write>(
             branch,
             &project_config.entry_agent,
             ctx,
-            total_cost,
         )
         .await?;
 
@@ -268,7 +266,6 @@ async fn run_agent_chain<W: Write>(
     branch: &str,
     entry_agent: &str,
     ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
 ) -> Result<ChainResult> {
     let wt_str = worktree_path.display().to_string();
     let mut agent_name = entry_agent.to_string();
@@ -338,8 +335,8 @@ async fn run_agent_chain<W: Write>(
             worktree_path,
             &merged_args,
             &system_prompt,
+            &agent_defs,
             ctx,
-            total_cost,
         )
         .await?;
         let Some(parsed_transition) = parsed_transition else {
@@ -373,8 +370,8 @@ async fn run_phase_with_wait<W: Write>(
     worktree_path: &Path,
     extra_args: &[String],
     system_prompt: &str,
+    agents: &[AgentDef],
     ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
 ) -> Result<Option<Transition>> {
     let mut phase_prompt = initial_prompt.to_string();
     let mut phase_resume: Option<String> = None;
@@ -397,9 +394,9 @@ async fn run_phase_with_wait<W: Write>(
             return Ok(None);
         };
 
-        *total_cost += cost;
+        ctx.total_cost += cost;
         ctx.renderer
-            .write_raw(&format!("  Total cost: ${total_cost:.2}\r\n"));
+            .write_raw(&format!("  Total cost: ${:.2}\r\n", ctx.total_cost));
 
         let Some(transition) = parse_transition_with_retry(
             &result_text,
@@ -407,8 +404,8 @@ async fn run_phase_with_wait<W: Write>(
             worktree_path,
             extra_args,
             Some(system_prompt),
+            agents,
             ctx,
-            total_cost,
         )
         .await?
         else {
@@ -471,69 +468,77 @@ fn format_args_display(args: &HashMap<String, String>) -> String {
     parts.join(" ")
 }
 
-/// Parse transition from agent output, retrying once automatically then
-/// waiting for user input if both attempts fail.
+/// Maximum number of automatic corrective retries before falling back to user input.
+const MAX_TRANSITION_RETRIES: usize = 3;
+
+/// Parse transition from agent output, retrying up to [`MAX_TRANSITION_RETRIES`]
+/// times automatically then waiting for user input if all attempts fail.
 async fn parse_transition_with_retry<W: Write>(
     result_text: &str,
     session_id: Option<&str>,
     worktree_path: &Path,
     extra_args: &[String],
     system_prompt: Option<&str>,
+    agents: &[AgentDef],
     ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
 ) -> Result<Option<Transition>> {
-    let parse_err = match transition::parse_transition(result_text) {
+    let mut last_err = match transition::parse_transition(result_text) {
         Ok(t) => return Ok(Some(t)),
         Err(e) => e,
     };
     let Some(sid) = session_id else {
-        return Err(parse_err).context("failed to parse transition");
+        return Err(last_err).context("failed to parse transition");
     };
+    let mut current_sid = sid.to_string();
 
-    ctx.renderer.write_raw(&format!(
-        "\r\nTransition output could not be parsed: {parse_err}\r\nRetrying...\r\n\r\n"
-    ));
+    for attempt in 1..=MAX_TRANSITION_RETRIES {
+        let final_attempt = attempt == MAX_TRANSITION_RETRIES;
 
-    // Auto-retry once with corrective prompt
-    let retry_prompt = transition::corrective_prompt(&parse_err);
+        ctx.renderer.write_raw(&format!(
+            "\r\nTransition output could not be parsed: {last_err}\r\nRetrying ({attempt}/{MAX_TRANSITION_RETRIES})...\r\n\r\n"
+        ));
 
-    let PhaseOutcome::Completed {
-        result_text: retry_text,
-        cost: retry_cost,
-        session_id: retry_sid,
-    } = run_phase_session(
-        &retry_prompt,
+        let retry_prompt = transition::corrective_prompt(&last_err, agents, final_attempt);
+
+        let PhaseOutcome::Completed {
+            result_text: retry_text,
+            cost: retry_cost,
+            session_id: retry_sid,
+        } = run_phase_session(
+            &retry_prompt,
+            worktree_path,
+            extra_args,
+            Some(&current_sid),
+            system_prompt,
+            ctx,
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        ctx.total_cost += retry_cost;
+        if let Some(id) = retry_sid {
+            current_sid = id;
+        }
+
+        match transition::parse_transition(&retry_text) {
+            Ok(t) => return Ok(Some(t)),
+            Err(e) => last_err = e,
+        }
+    }
+
+    // All automatic attempts failed — wait for user input instead
+    // of crashing. The user can talk to the agent to fix the situation.
+    wait_for_transition_input(
+        &last_err,
+        current_sid,
         worktree_path,
         extra_args,
-        Some(sid),
         system_prompt,
         ctx,
     )
-    .await?
-    else {
-        return Ok(None);
-    };
-
-    *total_cost += retry_cost;
-
-    match transition::parse_transition(&retry_text) {
-        Ok(t) => Ok(Some(t)),
-        Err(retry_err) => {
-            // Both automatic attempts failed — wait for user input instead
-            // of crashing. The user can talk to the agent to fix the situation.
-            let current_sid = retry_sid.unwrap_or_else(|| sid.to_string());
-            wait_for_transition_input(
-                &retry_err,
-                current_sid,
-                worktree_path,
-                extra_args,
-                system_prompt,
-                ctx,
-                total_cost,
-            )
-            .await
-        }
-    }
+    .await
 }
 
 /// When automatic transition parsing fails, wait for user input and retry.
@@ -546,7 +551,6 @@ async fn wait_for_transition_input<W: Write>(
     extra_args: &[String],
     system_prompt: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
-    total_cost: &mut f64,
 ) -> Result<Option<Transition>> {
     let mut last_err = format!("{initial_err}");
 
@@ -586,7 +590,7 @@ async fn wait_for_transition_input<W: Write>(
             return Ok(None);
         };
 
-        *total_cost += cost;
+        ctx.total_cost += cost;
         if let Some(id) = new_sid {
             session_id = id;
         }
