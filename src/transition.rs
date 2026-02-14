@@ -96,7 +96,10 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("<wait-for-user>\nReason the user needs to act\n</wait-for-user>\n\n");
     out.push_str(
         "The orchestrator will show your reason, wait for the user to respond, and resume\n\
-         your session with their input. After resuming, finish your work and output a `<next>` tag.\n\n",
+         your session with their input. After resuming, finish your work and output a `<next>` tag.\n\n\
+         Do NOT use `<wait-for-user>` when your agent prompt defines a different workflow for \
+         handling questions (e.g. posting to a board and transitioning). Only use it for \
+         blocks that your agent workflow cannot handle.\n\n",
     );
 
     out.push_str("## Available Agents\n\n");

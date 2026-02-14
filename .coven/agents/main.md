@@ -37,11 +37,11 @@ If at any point you encounter ambiguity — stop. Do not guess at architectural 
 
 More broadly: when you see multiple viable approaches — even for small decisions — prefer asking over choosing. If you'd mention "I went with X" in a scratch note, that's a sign you should ask first. The cost of a round-trip is low; the cost of rework is high.
 
-To ask:
+Do NOT use `<wait-for-user>` for questions — use this workflow instead:
 1. Discard your un-landed code changes
 2. Add questions to your board entry and move it above the divider
 3. Commit the board change
-4. Land and transition to dispatch
+4. Land (`bash .coven/land.sh`) and transition to dispatch
 
 Keep board entries concise. Questions need only enough context for a human to answer — not design explorations, approach comparisons, or code examples. A good question entry is 2-5 lines.
 
