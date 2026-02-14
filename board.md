@@ -11,6 +11,8 @@ In worker, `<wait-for-user>` competes with the board flow (add questions → lan
 - Implement via prompt changes (not code changes)
 - Clarify in ralph prompts how `<wait-for-user>` differs from `<break>`
 
+**Task:** Propose prompt changes. Clarify the behavior difference between `<wait-for-user>` and `<break>` in ralph.
+
 ## Done
 
 - P2: Investigate prompt issues causing flaky orchestration recordings
