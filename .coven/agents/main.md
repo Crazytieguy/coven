@@ -39,6 +39,8 @@ Instead:
 3. Commit the board change
 4. Land and transition to dispatch
 
+Keep board entries concise. Questions need only enough context for a human to answer — not design explorations, approach comparisons, or code examples. A good question entry is 2-5 lines.
+
 Code is cheap. Getting things wrong is expensive.
 
 ## Recording Issues
