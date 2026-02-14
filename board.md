@@ -1,13 +1,10 @@
 # Board
 
-## P1: Propose prompt changes for wait-for-user in ralph
-
-Please propose prompt changes. Keeping for ralph probably sounds good, could you just clarify the behavior difference with `<break>`?
-
 ---
 
 ## Done
 
+- P1: Propose prompt changes for wait-for-user in ralph
 - P2: Reconsider wait-for-user abstraction
 - P2: Investigate prompt issues causing flaky orchestration recordings
 - P1: Audit codebase for error handling and edge case issues
