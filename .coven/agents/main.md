@@ -11,39 +11,33 @@ claude_args:
 
 Work on the board issue: **{{task}}**
 
-## Steps
+## Each Session
 
-1. Read `board.md` to find your issue entry, and `scratch.md` if it exists for notes from previous sessions
-2. Implement the next piece of work — one focused, atomic change
-3. Run tests and fix any failures your change introduces
-4. Run the linter and fix warnings
-5. Commit with a descriptive message
-6. Update `scratch.md` with what you did and what's next
-7. Self-transition to continue — repeat from step 1 until the issue is fully complete
+1. Read `board.md` to find your issue entry, and `scratch.md` if it exists for context from previous sessions
+2. Do one focused piece of work toward the issue. Commit.
+3. Update `scratch.md` with what you did and what's next
 
-The number of steps varies by issue. Small tasks may complete in one session; larger ones take several.
+## Between Sessions
 
-## Final Session: Review & Land
+If more implementation work remains, self-transition to continue.
 
-When all implementation is done:
+When implementation is complete, self-transition for a **review session**: review the full diff (`git diff main...HEAD`), verify acceptance criteria, and fix anything that needs it.
 
-1. Review the full diff: `git diff main...HEAD`
-2. Do cleanup or fixes if needed (commit any changes)
-3. Run `bash .coven/land.sh` — if conflicts, resolve and run again
-4. Remove the entry from `board.md`, commit, and run `bash .coven/land.sh` again
-5. Delete `scratch.md`
-6. Transition to dispatch
+When review passes:
+1. Remove the entry from `board.md` and commit
+2. Run `bash .coven/land.sh` — if conflicts, resolve and run again
+3. Delete `scratch.md`
+4. Transition to dispatch
 
 ## Questions
 
 If at any point you encounter ambiguity — stop. Do not guess at architectural choices, API design, or behavior that isn't explicitly described in the task and its decisions.
 
 Instead:
-1. Discard your uncommitted code changes
+1. Discard your un-landed code changes
 2. Add questions to your board entry and move it above the divider
-3. Commit the board change and run `bash .coven/land.sh`
-4. Delete `scratch.md`
-5. Transition to dispatch
+3. Commit the board change
+4. Land and transition to dispatch
 
 Code is cheap. Getting things wrong is expensive.
 
@@ -53,5 +47,5 @@ If you notice unrelated problems (bugs, tech debt, improvements), add a new entr
 
 ## Rules
 
-- **Always land before transitioning to dispatch.** The worktree must not be ahead of main. If `land.sh` fails due to conflicts, resolve them and run it again.
+- **Never transition to dispatch without landing first.** The worktree must not be ahead of main.
 - Delete `scratch.md` on every land.
