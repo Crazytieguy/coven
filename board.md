@@ -56,7 +56,7 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
 
 "The divider" seems to be confusing. Propose a board format that makes it more obvious what's blocking on human input and what isn't (blocking still at the top).
 
-*In progress (keen-otter-5)*
+*In progress (prime-cedar-53)*
 
 ## Done
 - P1: Split main into main + review agents
