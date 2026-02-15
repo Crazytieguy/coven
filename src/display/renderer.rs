@@ -314,10 +314,10 @@ impl<W: Write> Renderer<W> {
                             self.current_thinking = Some(String::new());
                             self.tool_counter += 1;
                             let n = self.tool_counter;
-                            let label = format!("[{n}] Thinking...");
                             queue!(
                                 self.out,
-                                Print(theme::dim_italic().apply(label)),
+                                Print(theme::tool_name().apply(format!("[{n}] "))),
+                                Print(theme::dim_italic().apply("Thinking...")),
                                 Print("\r\n"),
                             )
                             .ok();
