@@ -1,3 +1,15 @@
 # Brief
 
-wait-for-user: We can make it even shorter but still clearer. I think "a permission was dnied" isn't exactly the right trigger: many permission denials are fine. But "permission to run a critical workflow command" should trigger wait for human. Hitting an error you can't resolve: some errors should block and some shouldn't. Basically the examples should be things that block **all** work, not just the work the agent is currently doing. Please propose another final version with this principle in mind. And no need to have the sleep: true note, we should be explaining the utility of sleep: true separately.
+wait-for-user: I think this should be bellow the divider? Maybe this means the divider's role isn't clear enough? So add a separate issue for that please.
+
+Also I think after exiting an embeded interactive session it would be nice to just have one status line. So instead of:
+```
+[returned to coven]
+
+
+[interrupted — Ctrl+O to open interactive]
+```
+It could just be:
+```
+[returned to coven — Ctrl+O to re-open interactive]
+```
