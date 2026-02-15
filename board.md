@@ -1,24 +1,5 @@
 # Blocked
 
-## P1: Review: is `git reset --hard main` correct in the review agent?
-
-Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
-
-**Finding 1: Hardcoded "main" is wrong.** The review agent hardcodes `main` in two places:
-- Line 19: `git diff main...HEAD`
-- Line 31: `git reset --hard main`
-
-But `land.sh` and `worktree.rs` both discover the main branch dynamically via `git worktree list --porcelain`. If the main worktree is on `master` or another branch, these commands break.
-
-**Finding 2: `--hard` is appropriate.** The push-back flow is "discard everything, post to board, commit, land." There's nothing to preserve — `--hard` is the right tool. A softer reset would leave uncommitted changes that interfere with the board commit + land.
-
-**Finding 3: `Bash(git reset:*)` permission is fine.** The review agent already has `git rebase:*`, `git rm:*`, and `bash .coven/land.sh` — all equally destructive. The real safety boundary is that the agent only operates in its worktree; `land.sh` handles the main worktree interaction carefully. Tightening `git reset:*` to `git reset:--hard *` doesn't meaningfully reduce risk.
-
-**Decisions:**
-- Approach: Add context about the main branch to the coven worker system prompt, so the agent reads it from its `gitStatus` context (which includes `Main branch: <name>`). Since coven worker is built around worktrees, this fits naturally.
-- Permissions: ok to keep as-is
-- Fix both `git diff main...HEAD` and `git reset --hard main` together
-
 # Ready
 
 ## P1: Investigate: some claude sessions don't get displayed by coven
@@ -43,6 +24,7 @@ Previous investigation ruled out: event channel replacement, serde fallback, tok
 
 # Done
 
+- P1: Review: is `git reset --hard main` correct in the review agent?
 - P1: Implement new board format (replace divider with Blocked/Ready sections)
 - P2: Capture stderr from claude process
 - P1: Split main into main + review agents
