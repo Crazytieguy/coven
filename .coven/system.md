@@ -42,7 +42,7 @@ Ready to work on.
 ## Lifecycle
 
 ```
-dispatch → main × N → dispatch → sleep
+dispatch → main × N → review → dispatch → sleep
 ```
 
 ## Rules

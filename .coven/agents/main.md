@@ -33,13 +33,7 @@ Code is cheap. Getting things wrong is expensive.
 
 If more work remains, transition to main again to continue.
 
-When implementation is complete, transition to main again for a **review session**: review the full diff (`git diff main...HEAD`), verify acceptance criteria, and fix anything that needs it.
-
-When review passes:
-1. Move the entry to the `## Done` section of `board.md` (single line: `- P1: Issue title`) and commit
-2. Run `bash .coven/land.sh` — if conflicts, resolve and run again
-3. Delete `scratch.md`
-4. Transition to dispatch
+When implementation is complete, transition to review to get the work landed.
 
 ## Recording Issues
 

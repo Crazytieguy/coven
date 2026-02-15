@@ -10,6 +10,7 @@ use crate::vcr::VcrContext;
 
 const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
 const MAIN_PROMPT: &str = include_str!("../../.coven/agents/main.md");
+const REVIEW_PROMPT: &str = include_str!("../../.coven/agents/review.md");
 const LAND_SCRIPT: &str = include_str!("../../.coven/land.sh");
 const SYSTEM_DOC: &str = include_str!("../../.coven/system.md");
 const CONFIG_DOC: &str = include_str!("../../.coven/config.toml");
@@ -27,6 +28,10 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
     TemplateFile {
         path: "main.md",
         content: MAIN_PROMPT,
+    },
+    TemplateFile {
+        path: "review.md",
+        content: REVIEW_PROMPT,
     },
 ];
 

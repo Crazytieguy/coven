@@ -5,6 +5,7 @@ expression: result.display
 Created:
   .coven/agents/dispatch.md
   .coven/agents/main.md
+  .coven/agents/review.md
   .coven/system.md
   .coven/config.toml
   .coven/land.sh
