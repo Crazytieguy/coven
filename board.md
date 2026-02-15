@@ -1,32 +1,5 @@
 # Board
 
-## P1: Investigate: some claude sessions don't get displayed by coven
-
-Maybe listening to the wrong session or something weird like that.
-
-Investigated the full event pipeline: spawning → stdout reading → parsing → event channel → renderer.
-
-**Finding: stderr is completely suppressed.** `runner.rs:75` sets `.stderr(Stdio::null())`, so if the claude CLI encounters an error (auth failure, API rate limits, invalid args, model unavailable), the error goes to stderr (invisible) and the process exits with no stdout. The user sees only "Claude process exited" with zero context.
-
-This is the most likely cause of "sessions that don't get displayed" — the claude process fails before producing any stream-json output, and the error message is swallowed.
-
-**Other things I checked (less likely):**
-- Event channel replacement (`io.replace_event_channel()`) — sequential design prevents lost events
-- `InboundEvent` enum has no `#[serde(other)]` fallback, but unknown types show as parse warnings (visible, not silent)
-- `tokio::select!` fairness in `next_event()` — can delay events but not lose them
-- `--verbose` flag is always passed (required for `stream_event` display) — no conditional paths
-- Renderer doesn't suppress content under normal conditions
-
-**Proposed fix:** Capture stderr instead of null'ing it. When the process exits, if there's stderr content, display it as a warning. Something like:
-```
-[warn] Claude stderr: <error message>
-Claude process exited
-```
-
-**Questions:**
-- Does this match what you're observing? (sessions that seem to start but show nothing before exiting?)
-- Or is it more like sessions that run for a while and produce output that disappears?
-
 ## P1: Review: is `git reset --hard main` correct in the review agent?
 
 Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
@@ -49,6 +22,18 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
   2. Add a `.coven/main-branch.sh` helper that outputs the branch name
   3. Inject `{{main_branch}}` as a template variable at dispatch time (cleanest, but requires code changes to pass the value)
 - Also: `git diff main...HEAD` on line 19 has the same problem — should fix both together
+
+---
+
+## P1: Investigate: some claude sessions don't get displayed by coven
+
+Coven hangs and doesn't display, but claude is actually running in the background. Not a session-exit issue — the process is alive. Maybe listening to the wrong session or something weird like that.
+
+Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression. Need to look at what happens between spawning and stdout reading — maybe stdout isn't being read, or we're reading the wrong stream.
+
+## P2: Capture claude stderr instead of suppressing it
+
+`runner.rs:75` sets `.stderr(Stdio::null())`. Capture stderr and display it as a warning when the process exits. Separate from the display-hang issue.
 
 ## P1: Propose a new board format that replaces the divider
 
