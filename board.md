@@ -11,7 +11,7 @@ Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent i
 - Explain the "why": a review with a fresh context window catches issues that could be missed — like fresh eyes
 - Prefer explaining the "why" over ALL CAPS instructions
 - Make the task slightly harder as well (safety buffer)
-- Use Option B — separate into two explicit phases (Implementation Sessions / Review Sessions H2s)
+- Use Option B — separate into two explicit phases (Implementation Sessions / Review Sessions H2 split)
 - Try with just the prompt change first; if that's not enough, add a unit test requirement to the task
 
 ## Done
