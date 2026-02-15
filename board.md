@@ -52,6 +52,10 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
 
 ---
 
+## P1: Propose a new board format that replaces the divider
+
+"The divider" seems to be confusing. Propose a board format that makes it more obvious what's blocking on human input and what isn't (blocking still at the top).
+
 *In progress (keen-otter-5)*
 
 ## Done
