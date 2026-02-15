@@ -80,10 +80,12 @@ fn ralph_system_prompt(break_tag: &str) -> String {
          `<{break_tag}>reason</{break_tag}>` — **ends the loop permanently.** Use only when \
          you have exhausted all available work and another iteration would accomplish nothing \
          new. The loop stops and does not resume.\n\n\
-         `<wait-for-user>reason</wait-for-user>` — **pauses the loop for user input.** Your \
-         session is preserved. The user sees your reason, types a response, and your session \
-         resumes with their input. Use when you are blocked (e.g. a command was denied, you \
-         need clarification on a requirement, or you want to show progress before continuing)."
+         `<wait-for-user>reason</wait-for-user>` — **pauses the loop for user input (last \
+         resort).** Your session is preserved. The user sees your reason, types a response, \
+         and your session resumes with their input. This completely blocks the loop until a \
+         human is available. Use only when you cannot make any progress without human \
+         intervention (e.g. a critical permission was denied, requirements are fundamentally \
+         ambiguous, or you've hit an unrecoverable error)."
     )
 }
 /// Mutable I/O handles shared across the ralph loop.

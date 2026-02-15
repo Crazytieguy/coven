@@ -88,6 +88,17 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("## Sleep (no actionable work)\n\n");
     out.push_str("<next>\nsleep: true\n</next>\n\n");
 
+    out.push_str("## Wait for user (last resort)\n\n");
+    out.push_str(
+        "`<wait-for-user>reason</wait-for-user>` — **completely blocks the worker** until a \
+         human is available. Your session is preserved; the human sees your reason, types a \
+         response, and your session resumes with their input. Use only as a last resort when \
+         you cannot make any progress without human intervention (e.g. a critical permission \
+         was denied, requirements are fundamentally ambiguous, or you've hit an unrecoverable \
+         error). Prefer `sleep: true` when work might become available later without human \
+         action.\n\n",
+    );
+
     out.push_str("## Available Agents\n\n");
 
     if agents.is_empty() {
@@ -464,10 +475,11 @@ issue: issues/fix-scroll-bug.md
     }
 
     #[test]
-    fn system_prompt_does_not_mention_wait_for_user() {
+    fn system_prompt_documents_wait_for_user() {
         let agents = vec![make_agent("plan", "Plans work", vec![])];
         let prompt = format_transition_system_prompt(&agents);
-        assert!(!prompt.contains("wait-for-user"));
+        assert!(prompt.contains("wait-for-user"));
+        assert!(prompt.contains("last resort"));
     }
 
     #[test]
