@@ -8,10 +8,9 @@ use crate::agents::AgentDef;
 /// Shared description of the `<wait-for-user>` tag, used by both worker and ralph prompts.
 pub const WAIT_FOR_USER_PROMPT: &str = "\
     `<wait-for-user>reason</wait-for-user>` — pauses the session until a human responds. \
-    Your session is preserved; the human sees your reason, types a response, and your session \
-    resumes with their input. Use when something prevents all further work — not just the \
-    current task (e.g. a critical tool is unavailable, the environment is misconfigured, or \
-    authentication has expired).";
+    The human sees your reason, types a reply, and your session resumes. Use when nothing \
+    can proceed without human intervention (e.g. a critical workflow permission was denied, \
+    the dev environment is broken, or shared authentication has expired).";
 
 /// A transition declared by an agent via the `<next>` or `<wait-for-user>` tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
