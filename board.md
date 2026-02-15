@@ -1,35 +1,19 @@
 # Board
 
+---
+
 ## P1: wait-for-user re-proposal
 
-**Proposal: shared prompt constant, calmer tone, drop "ambiguous requirements"**
+Revise the prompt text. The guiding principle: examples should be things that block **all** work, not just the agent's current task. Many permission denials are fine (the agent can work around them). "An external service is down" or "an error you can't resolve" may not block all work either. Focus on truly session-blocking situations.
 
-**Prompt text** — new shared constant in `src/wait_for_user.rs` (or a `WAIT_FOR_USER_PROMPT` in an existing shared location):
+Also: drop the `sleep: true` note from the worker append — that should be explained separately.
 
-```
-`<wait-for-user>reason</wait-for-user>` — pauses your session until the user
-responds. Your session is preserved and resumes with their input. Use when
-you're blocked on something only a human can fix — a permission was denied,
-an external service is down, or you've hit an error you can't resolve.
-```
+**Code sharing:** Extract prompt text to a shared constant both `transition.rs` and `ralph.rs` import. Handling code stays separate.
 
-Worker appends: `Prefer \`sleep: true\` when work might become available later without human action.`
-
-Ralph uses it as-is (break tag is the only other control, no need for extra guidance).
-
-**Changes from current:**
-- Drops "last resort", bold emphasis, "completely blocks" — just explains what it does
-- Removes "fundamentally ambiguous requirements" as an example
-- Keeps permission denied and unrecoverable error, adds "external service is down" as a concrete non-scary example
-
-**Code sharing:**
-- Extract prompt text to a shared constant both `transition.rs` and `ralph.rs` import
-- Handling code stays separate — worker uses `Transition` enum + `run_phase_with_wait`, ralph uses direct `extract_tag_inner` + its own resume loop. Different enough that sharing would be forced.
-
-**Questions:**
-- Good to proceed?
-
----
+**Decisions:**
+- Calmer tone, no "last resort" or bold emphasis — just explain what it does
+- Drop "fundamentally ambiguous requirements" as an example
+- Examples must be things that block ALL work, not just current task
 
 ## P1: Split main into main + review agents
 
