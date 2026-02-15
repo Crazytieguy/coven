@@ -46,7 +46,7 @@ Replace the `---` divider in `board.md` with H1 section headers: `# Blocked`, `#
 **Decisions:**
 - Human approved the approach
 - Section names: `Blocked` and `Ready`
-- Remove all dividers when done
+- Remove all dividers when done (human emphasized this — a spurious divider was added previously)
 
 **What changes in the prompts:**
 - `system.md`: new format example, replace divider language with section names
