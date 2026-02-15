@@ -1,3 +1,3 @@
 # Brief
 
-wait-for-user: I'm not super happy with the prompts, I think they're a bit too aggressive and at the same time I think "ambiguous requirements" is a bad reason to wait for user: good workflows will have a built in way to asynchronously ask the user questions. Needs to be re-proposed. Also I don't see a reason the worker and ralph shouldn't just share this prompt (and code?). agents skip board posts: no action needed right now, I have separate plans for improving the main agent
+self_transition_review: I think the review agent should also read the original issue off the board, and make another judgement call on whether to land the change or post questions instead. If the main agent made decisions without asking: discard the work and post questions on the board instead. We also probably want the review agent to evaluate the implementation for quality and improve anything they notice can be improved. Otherwise good to proceed!
