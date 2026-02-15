@@ -5,6 +5,14 @@ use anyhow::{Context, Result};
 
 use crate::agents::AgentDef;
 
+/// Shared description of the `<wait-for-user>` tag, used by both worker and ralph prompts.
+pub const WAIT_FOR_USER_PROMPT: &str = "\
+    `<wait-for-user>reason</wait-for-user>` — pauses the session until a human responds. \
+    Your session is preserved; the human sees your reason, types a response, and your session \
+    resumes with their input. Use when something prevents all further work — not just the \
+    current task (e.g. a critical tool is unavailable, the environment is misconfigured, or \
+    authentication has expired).";
+
 /// A transition declared by an agent via the `<next>` or `<wait-for-user>` tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transition {
@@ -88,16 +96,9 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("## Sleep (no actionable work)\n\n");
     out.push_str("<next>\nsleep: true\n</next>\n\n");
 
-    out.push_str("## Wait for user (last resort)\n\n");
-    out.push_str(
-        "`<wait-for-user>reason</wait-for-user>` — **completely blocks the worker** until a \
-         human is available. Your session is preserved; the human sees your reason, types a \
-         response, and your session resumes with their input. Use only as a last resort when \
-         you cannot make any progress without human intervention (e.g. a critical permission \
-         was denied, requirements are fundamentally ambiguous, or you've hit an unrecoverable \
-         error). Prefer `sleep: true` when work might become available later without human \
-         action.\n\n",
-    );
+    out.push_str("## Wait for user\n\n");
+    out.push_str(WAIT_FOR_USER_PROMPT);
+    out.push_str("\n\n");
 
     out.push_str("## Available Agents\n\n");
 
@@ -479,7 +480,7 @@ issue: issues/fix-scroll-bug.md
         let agents = vec![make_agent("plan", "Plans work", vec![])];
         let prompt = format_transition_system_prompt(&agents);
         assert!(prompt.contains("wait-for-user"));
-        assert!(prompt.contains("last resort"));
+        assert!(prompt.contains("pauses the session"));
     }
 
     #[test]
