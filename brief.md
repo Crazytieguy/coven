@@ -1,3 +1,3 @@
 # Brief
 
-self_transition_review: I think we probably want to improve the prompt, but I've found that explaining the "why" often works better than ALL CAPS instructions. The "why" for this is that a review with a fresh context window often catches issues that could be missed if reviewed in the same context window as implementation. It's like fresh eyes. Though: if haiku performs the task correctly easily on the first try maybe that means it really isn't hard enough to warant independent review. But we want a safety buffer. Let's maybe also make the task just slightly harder. Please propose several prompting options
+self_transition_review: for I like option B as well! task difficulty: try with just the prompt change first, but I'm willing to go just one step further. Unit tests sound good. Ready to implement
