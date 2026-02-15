@@ -14,8 +14,8 @@ mode = "exit"
 
 [files]
 ".claude/settings.json" = '{"permissions":{"allow":["Bash(ls:*)","Bash(cat:*)"]}}'
-"src/calc.py" = "def add(a, b):\n    return a + b\n"
+"src/intervals.py" = ""
 "brief.md" = """# Brief
 
-- Add a `subtract` function to src/calc.py that takes two arguments and returns their difference.
+- Add a `merge_intervals` function to `src/intervals.py`. It takes a list of `[start, end]` intervals (list of two-element lists), merges overlapping or adjacent intervals, and returns a sorted list of merged intervals. Handle empty input.
 """

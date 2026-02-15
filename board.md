@@ -1,5 +1,26 @@
 # Board
 
+## P1: self_transition_review test doesn't trigger a review session
+
+Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent intervals, edge cases). Updated the fixture and re-recorded. Haiku still completes everything in one main session:
+
+1. Reads board + code
+2. Implements merge_intervals (28 lines)
+3. Commits
+4. Runs `git diff main...HEAD` and verifies acceptance criteria inline
+5. Updates board to Done
+6. Transitions to dispatch
+
+The model does a review, but it inlines it into the implementation session rather than self-transitioning to a new main session. Making the task harder doesn't change this — haiku treats "implement then review" as a single workflow.
+
+The fixture is updated and snapshot accepted (test passes). Two options:
+
+1. **Prompt change** — make the self-transition instruction stronger/more explicit, e.g. "You MUST transition to main for review — never review in the same session you implemented in"
+2. **Drop the requirement** — accept that inline review is good enough and adjust the test expectations accordingly
+
+**Questions:**
+- Which direction? Stronger prompt, or accept inline review?
+
 ---
 
 ## P1: Add wait-for-user to worker and ralph system prompts
@@ -11,13 +32,5 @@ Add `<wait-for-user>` to the built-in coven worker system prompt (not `.coven/sy
 - Present as last resort (blocks worker until human available)
 - Same approach for ralph
 - `<break>` tag name is fine as-is
-
-## P1: self_transition_review test doesn't trigger a review session
-
-The main agent completes trivial tasks in a single session without self-transitioning for review. Need a slightly harder task — a slightly tricky algorithm that's still fast for VCR (single file generation). If it still doesn't trigger a self-transition to review, update the human and decide whether to go harder or change the prompt.
-
-**Decisions:**
-- Try a slightly harder task (not prompt changes). Keep it cheap for VCR — single file, slightly tricky algorithm.
-- If it still fails, report back rather than iterating autonomously.
 
 ## Done
