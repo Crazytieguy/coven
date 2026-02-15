@@ -1,5 +1,11 @@
 # Board
 
+## P1: Investigate: some claude sessions don't get displayed by coven
+
+Maybe listening to the wrong session or something weird like that.
+
+*In progress (prime-cedar-53)*
+
 ---
 
 ## P1: Investigate: some claude sessions don't get displayed by coven
