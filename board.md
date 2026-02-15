@@ -1,7 +1,5 @@
 # Blocked
 
-# Ready
-
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
 Deep audit of the full pipeline (spawn → reader → channel → event loop → renderer). No architectural bugs found — the data flow is sound.
@@ -24,6 +22,8 @@ Deep audit of the full pipeline (spawn → reader → channel → event loop →
 
 **Questions:**
 - Propose streaming stderr lines in real-time (as `ParseWarning`-style events) + adding a "waiting for claude..." heartbeat after ~5s of no stdout. This would either surface the root cause or confirm the pipeline is fine and the issue is on the claude CLI side. Good to proceed?
+
+# Ready
 
 # Done
 
