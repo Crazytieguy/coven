@@ -30,21 +30,36 @@ The model can't skip what it doesn't know about. Instead of teaching one agent t
 **Questions:**
 - Good to proceed with this split?
 
----
-
 ## P1: wait-for-user re-proposal
 
-Current wait-for-user prompts (commit 050323a) are too aggressive and "ambiguous requirements" is a bad reason to wait-for-user — good workflows have built-in ways to ask async questions. Worker and ralph should share this prompt (and possibly code). Needs a new proposal.
+**Proposal: shared prompt constant, calmer tone, drop "ambiguous requirements"**
 
-### Context
+**Prompt text** — new shared constant in `src/wait_for_user.rs` (or a `WAIT_FOR_USER_PROMPT` in an existing shared location):
 
-**Worker** (`src/transition.rs`): Added "Wait for user (last resort)" section documenting `<wait-for-user>` alongside `<next>` and `sleep`. Examples: permission denied, fundamentally ambiguous requirements, unrecoverable error.
+```
+`<wait-for-user>reason</wait-for-user>` — pauses your session until the user
+responds. Your session is preserved and resumes with their input. Use when
+you're blocked on something only a human can fix — a permission was denied,
+an external service is down, or you've hit an error you can't resolve.
+```
 
-**Ralph** (`src/commands/ralph.rs`): Reworded existing `<wait-for-user>` docs with same last-resort framing.
+Worker appends: `Prefer \`sleep: true\` when work might become available later without human action.`
 
-### Task
+Ralph uses it as-is (break tag is the only other control, no need for extra guidance).
 
-Propose revised wait-for-user prompt wording — post to board for review before implementing. Also explore sharing the prompt text and/or code between worker and ralph.
+**Changes from current:**
+- Drops "last resort", bold emphasis, "completely blocks" — just explains what it does
+- Removes "fundamentally ambiguous requirements" as an example
+- Keeps permission denied and unrecoverable error, adds "external service is down" as a concrete non-scary example
+
+**Code sharing:**
+- Extract prompt text to a shared constant both `transition.rs` and `ralph.rs` import
+- Handling code stays separate — worker uses `Transition` enum + `run_phase_with_wait`, ralph uses direct `extract_tag_inner` + its own resume loop. Different enough that sharing would be forced.
+
+**Questions:**
+- Good to proceed?
+
+---
 
 ## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
