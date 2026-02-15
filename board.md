@@ -32,23 +32,39 @@ The current `main.md` agent prompt has a "Decide" section that says to prefer po
 - Are you happy with the actual prompt wording that landed, or do you want to revise it?
 - For the "agents skip board posts" problem: should we strengthen the main agent prompt to be more explicit about when to post vs implement? One idea: if the board entry contains a phrase like "next step" describing research/options, the agent should treat that as "post findings, don't implement yet."
 
----
-
 ## P1: self_transition_review test doesn't trigger a review session
 
-Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent intervals, edge cases). Updated the fixture and re-recorded. Haiku still completes everything in one main session — it inlines the review rather than self-transitioning to a fresh context.
+Prompt-only approach failed — even with explicit "Implementation Sessions" / "Review Sessions" H2s, "do not land during implementation", and a harder task (merge_intervals + unit tests), Haiku still inlines the review. The model reads the whole prompt and sees both phases as steps in one workflow.
 
-**Decisions:**
-- Improve the prompt rather than dropping the requirement
-- Explain the "why": a review with a fresh context window catches issues that could be missed — like fresh eyes
-- Prefer explaining the "why" over ALL CAPS instructions
-- Make the task slightly harder as well (safety buffer)
-- Use Option B — separate into two explicit phases (Implementation Sessions / Review Sessions H2 split)
-- Try with just the prompt change first; if that's not enough, add a unit test requirement to the task
+**Proposal: split main into main + review agents**
 
-## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
+The model can't skip what it doesn't know about. Instead of teaching one agent two modes, give each mode its own agent. The transition system already supports this — agents are just `.md` files.
+
+**Lifecycle:** `dispatch → main × N → review → dispatch → sleep`
+
+**main.md** — stripped of all landing/board-update responsibilities:
+- Orient, Decide (post vs implement) stay as-is
+- Implementation sessions: commit, write scratch.md, transition to main (more work) or review (done)
+- Remove the review checklist entirely — main doesn't know how to land
+
+**review.md** — new agent, single responsibility:
+- Takes `task` arg (same as main)
+- Reads scratch.md and the full diff (`git diff main...HEAD`)
+- Verifies acceptance criteria, fixes issues if needed
+- When it passes: update board → land → delete scratch.md → dispatch
+
+**system.md** — update Lifecycle diagram
+
+**init.rs** — add `REVIEW_PROMPT` constant + entry in `AGENT_TEMPLATES`
+
+**Test fixture** — keep merge_intervals + unit tests task, re-record
+
+**Questions:**
+- Good to proceed with this split?
 
 ---
+
+## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
 ## Done
 - P1: Thinking messages: only indent the "Thinking...", not the [N] before it
