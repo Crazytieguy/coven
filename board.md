@@ -27,11 +27,30 @@ Claude process exited
 - Does this match what you're observing? (sessions that seem to start but show nothing before exiting?)
 - Or is it more like sessions that run for a while and produce output that disappears?
 
----
-
 ## P1: Review: is `git reset --hard main` correct in the review agent?
 
-review agent: is `git reset --hard main` correct? Most notable: the main worktree might be on a different branch. Currently everything else takes that into account. But also: is there a less aggressive way of reseting? And can the `git reset:*` permissions be abused?
+Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
+
+**Finding 1: Hardcoded "main" is wrong.** The review agent hardcodes `main` in two places:
+- Line 19: `git diff main...HEAD`
+- Line 31: `git reset --hard main`
+
+But `land.sh` and `worktree.rs` both discover the main branch dynamically via `git worktree list --porcelain`. If the main worktree is on `master` or another branch, these commands break.
+
+**Finding 2: `--hard` is appropriate.** The push-back flow is "discard everything, post to board, commit, land." There's nothing to preserve — `--hard` is the right tool. A softer reset would leave uncommitted changes that interfere with the board commit + land.
+
+**Finding 3: `Bash(git reset:*)` permission is fine.** The review agent already has `git rebase:*`, `git rm:*`, and `bash .coven/land.sh` — all equally destructive. The real safety boundary is that the agent only operates in its worktree; `land.sh` handles the main worktree interaction carefully. Tightening `git reset:*` to `git reset:--hard *` doesn't meaningfully reduce risk.
+
+**Proposed fix:** Replace hardcoded `main` with the output of `land.sh`'s branch discovery, or teach the agent to use the main branch from Claude Code's injected `gitStatus` (which includes `Main branch: <name>`). Simplest approach: add a small `main-branch.sh` helper script, or just inline the git command in the prompt. Or we could template it as a variable rendered at agent-dispatch time.
+
+**Questions:**
+- Preferred approach? Options:
+  1. Tell the agent to read the main branch from its `gitStatus` context (zero code changes, but fragile — relies on Claude Code's format)
+  2. Add a `.coven/main-branch.sh` helper that outputs the branch name
+  3. Inject `{{main_branch}}` as a template variable at dispatch time (cleanest, but requires code changes to pass the value)
+- Also: `git diff main...HEAD` on line 19 has the same problem — should fix both together
+
+---
 
 *In progress (keen-otter-5)*
 
