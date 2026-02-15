@@ -1,5 +1,22 @@
 # Board
 
+## P1: self_transition_review test doesn't trigger a review session
+
+The main agent completes trivial tasks in a single session without self-transitioning for review. The test may need a harder task, or the prompt may need to better encourage review sessions.
+
+**Analysis:** In the current test, Haiku adds a `subtract` function to calc.py, moves the entry to Done, lands, and transitions straight to dispatch — all in one session. The prompt says "transition to main again for a review session" but the model treats implementation + cleanup as one atomic step.
+
+**Options:**
+
+1. **Harder task** — Replace the trivial subtract function with something multi-file or requiring more thought. A harder task would naturally cause the model to commit implementation first and defer review to a second session. Pro: more realistic test. Con: more expensive VCR recording, test is slower.
+
+2. **Sharpen the prompt** — Make the separation explicit, e.g., "After implementing, commit your work and update scratch.md. Then self-transition for review. Do NOT move entries to Done or transition to dispatch from an implementation session." Pro: enforces the pattern even for trivial tasks. Con: adds friction for genuinely simple work.
+
+3. **Both** — Harder task + clearer prompt.
+
+**Questions:**
+- Which approach do you prefer? My lean is option 2 (sharpen the prompt) since the review session is a quality gate we probably want even for simple tasks, and it keeps the test fast/cheap.
+
 ## P1: Review break and wait-for-user state
 
 ### Current state
@@ -31,9 +48,5 @@
 - Want me to add `<wait-for-user>` back to the transition system prompt? If so, should it be presented as a peer of `<next>`/`sleep`, or as a last-resort escape hatch with strong guidance to prefer autonomous action?
 
 ---
-
-## P1: self_transition_review test doesn't trigger a review session
-
-The main agent completes trivial tasks in a single session without self-transitioning for review. The test may need a harder task, or the prompt may need to better encourage review sessions.
 
 ## Done
