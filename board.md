@@ -1,36 +1,5 @@
 # Board
 
-## P1: Review: is `git reset --hard main` correct in the review agent?
-
-Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
-
-**Finding 1: Hardcoded "main" is wrong.** The review agent hardcodes `main` in two places:
-- Line 19: `git diff main...HEAD`
-- Line 31: `git reset --hard main`
-
-But `land.sh` and `worktree.rs` both discover the main branch dynamically via `git worktree list --porcelain`. If the main worktree is on `master` or another branch, these commands break.
-
-**Finding 2: `--hard` is appropriate.** The push-back flow is "discard everything, post to board, commit, land." There's nothing to preserve — `--hard` is the right tool. A softer reset would leave uncommitted changes that interfere with the board commit + land.
-
-**Finding 3: `Bash(git reset:*)` permission is fine.** The review agent already has `git rebase:*`, `git rm:*`, and `bash .coven/land.sh` — all equally destructive. The real safety boundary is that the agent only operates in its worktree; `land.sh` handles the main worktree interaction carefully. Tightening `git reset:*` to `git reset:--hard *` doesn't meaningfully reduce risk.
-
-**Proposed fix:** Replace hardcoded `main` with the output of `land.sh`'s branch discovery, or teach the agent to use the main branch from Claude Code's injected `gitStatus` (which includes `Main branch: <name>`). Simplest approach: add a small `main-branch.sh` helper script, or just inline the git command in the prompt. Or we could template it as a variable rendered at agent-dispatch time.
-
-**Questions:**
-- Preferred approach? Options:
-  1. Tell the agent to read the main branch from its `gitStatus` context (zero code changes, but fragile — relies on Claude Code's format)
-  2. Add a `.coven/main-branch.sh` helper that outputs the branch name
-  3. Inject `{{main_branch}}` as a template variable at dispatch time (cleanest, but requires code changes to pass the value)
-- Also: `git diff main...HEAD` on line 19 has the same problem — should fix both together
-
----
-
-## P1: Investigate: some claude sessions don't get displayed by coven
-
-Coven hangs and doesn't display, but claude is actually running in the background. Not a session-exit issue — the process is alive. Maybe listening to the wrong session or something weird like that.
-
-Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression. Need to look at what happens between spawning and stdout reading — maybe stdout isn't being read, or we're reading the wrong stream.
-
 ## P1: Propose a new board format that replaces the divider
 
 Replace the `---` divider with H1 section headers. The file is already called `board.md`, so the `# Board` title is redundant — use that heading level for semantic sections instead:
@@ -72,15 +41,36 @@ Description.
 
 ---
 
+## P1: Review: is `git reset --hard main` correct in the review agent?
+
+Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
+
+**Finding 1: Hardcoded "main" is wrong.** The review agent hardcodes `main` in two places:
+- Line 19: `git diff main...HEAD`
+- Line 31: `git reset --hard main`
+
+But `land.sh` and `worktree.rs` both discover the main branch dynamically via `git worktree list --porcelain`. If the main worktree is on `master` or another branch, these commands break.
+
+**Finding 2: `--hard` is appropriate.** The push-back flow is "discard everything, post to board, commit, land." There's nothing to preserve — `--hard` is the right tool. A softer reset would leave uncommitted changes that interfere with the board commit + land.
+
+**Finding 3: `Bash(git reset:*)` permission is fine.** The review agent already has `git rebase:*`, `git rm:*`, and `bash .coven/land.sh` — all equally destructive. The real safety boundary is that the agent only operates in its worktree; `land.sh` handles the main worktree interaction carefully. Tightening `git reset:*` to `git reset:--hard *` doesn't meaningfully reduce risk.
+
+**Decisions:**
+- Approach: Add context about the main branch to the coven worker system prompt, so the agent reads it from its `gitStatus` context (which includes `Main branch: <name>`). Since coven worker is built around worktrees, this fits naturally.
+- Permissions: ok to keep as-is
+- Fix both `git diff main...HEAD` and `git reset --hard main` together
+
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
-Maybe listening to the wrong session or something weird like that.
+Coven hangs and doesn't display, but claude is actually running in the background. Not a session-exit issue — the process is alive.
 
 **Decisions:**
 - Sessions don't exit — coven hangs and doesn't display, but claude is actually running in the background. The original stderr hypothesis was wrong for this issue.
-- The stderr fix (capturing stderr instead of null'ing it) is good but is a separate issue — split out below.
+- The stderr fix (capturing stderr instead of null'ing it) is good but is a separate issue — already done.
 
 **New direction:** The problem is that coven's display layer stops showing output even though the claude process is still running. Need to investigate the streaming/rendering pipeline for cases where events are received but not displayed, or where stdout reading stalls.
+
+Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression.
 
 ## Done
 - P2: Capture stderr from claude process
