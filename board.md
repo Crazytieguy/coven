@@ -4,20 +4,16 @@
 
 ## P1: wait-for-user prompt final revision
 
+**Decisions:**
+- Approved to implement
+
 **Proposed text** (shared constant, used by both worker and ralph):
 
 ```
 `<wait-for-user>reason</wait-for-user>` — pauses the session until a human responds. The human sees your reason, types a reply, and your session resumes. Use when nothing can proceed without human intervention (e.g. a critical workflow permission was denied, the dev environment is broken, or shared authentication has expired).
 ```
 
-Changes from current:
-- Shorter — dropped "Your session is preserved" (implied by "resumes") and "not just the current task" (the examples make this clear)
-- "nothing can proceed" instead of "prevents all further work" — same meaning, tighter
-- Examples refined: "critical workflow permission" (per your feedback), "dev environment is broken" (unambiguously blocks everything), "shared authentication has expired" (blocks all external calls)
-- No `sleep: true` note
-
-**Decisions:**
-- Approved to implement
+*In progress by prime-cedar-53.*
 
 ## P1: Simplify status line after exiting embedded interactive session
 
