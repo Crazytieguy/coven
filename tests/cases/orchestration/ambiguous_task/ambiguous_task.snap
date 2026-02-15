@@ -20,39 +20,110 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: fleet-hawk-4 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/fleet-hawk-4)
+Worker started: rapid-hawk-73 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/rapid-hawk-73)
 
 === Agent: dispatch ===
 
-Session f687244e-a12d-4061-813b-30898b0ffbe6 (claude-haiku-4-5-20251001)
+Session 2cae6fb6-10f9-46c3-a269-d758086febf0 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-[5] ▶ Edit  (+9)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
-[6] Thinking...
-Now let me commit the board changes:
+**Sync:**
+The brief contains one new task: "Add a caching layer to the application." The board is empty, so I'll add this as a P1 entry below the divider.
 
+[5] ▶ Edit  (+6)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[6] Thinking...
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-## Summary
+[9] ▶ Bash  bash .coven/land.sh
+[10] Thinking...
+**Pick:**
+One P1 task is ready below the divider: "Add a caching layer to the application". No items are blocked above the divider, so this is actionable. Picking it now.
 
-**Synced work:** Added the caching layer task from brief.md to board.md as a P1 issue with clarifying questions.
+<next>
+agent: main
+task: Add a caching layer to the application
+</next>
 
-**Current state:**
-- 1 P1 issue above the divider (needs human input)
-- 0 issues ready to implement below the divider
 
-**Reasoning:** The only task on the board has open questions that need clarification before implementation can begin. There's no actionable work ready to pick right now.
+Done  $0.03 · 19.6s · 6 turns  (:N to view)
+  Total cost: $0.03
+
+Transition: main task=Add a caching layer to the application
+
+=== Agent: main ===
+
+Session e6907913-1e63-4003-8ecc-5206dac5bb3e (claude-haiku-4-5-20251001)
+
+[11] Thinking...
+I'll start by reading the board and understanding the caching task.
+
+[12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+     ✗ Sibling tool call errored
+[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] Thinking...
+[16] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[17] ▶ Glob  **/*.{js,ts,jsx,tsx,py,java,go,rb}
+[18] Thinking...
+[19] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[20] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[21] Thinking...
+I need to understand the caching requirements better before implementing. Let me post to the board with some clarifying questions.
+
+[22] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[23] Thinking...
+Now let me commit and transition to dispatch for your input on these questions.
+
+[24] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[25] Thinking...
+[26] ▶ Bash  bash .coven/land.sh
+[27] Thinking...
+<next>
+agent: dispatch
+</next>
+
+
+Done  $0.04 · 28.6s · 11 turns  (:N to view)
+  Total cost: $0.07
+
+Transition: dispatch 
+
+=== Agent: dispatch ===
+
+Session 9d429517-25da-41d3-99bd-9890080e89a6 (claude-haiku-4-5-20251001)
+
+[28] Thinking...
+[29] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[30] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[31] Thinking...
+Reading the files now to sync and pick a task.
+
+The brief contains the same task already on the board. The board entry for "P1: Add a caching layer to the application" is above the divider with open questions, meaning it's blocked on human input:
+- What type of caching to use?
+- Where's the actual bottleneck?
+- What cache size/eviction policy?
+- Should cache persist between runs?
+
+**Analysis:**
+- No new items in brief to add
+- One P1 issue blocked above the divider
+- Nothing actionable below the divider
+
+No unblocked work is available. The caching task is waiting for decisions from the human.
+
+**Reasoning:** All work is blocked on human input. Per throttling rules, I should sleep when there's nothing actionable.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.05 · 19.8s · 5 turns  (:N to view)
-  Total cost: $0.05
+Done  $0.02 · 9.3s · 3 turns  (:N to view)
+  Total cost: $0.08
 
 Transition: sleep — waiting for new commits...
 

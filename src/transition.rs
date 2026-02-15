@@ -77,7 +77,7 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
 
     out.push_str("# Transition Protocol\n\n");
     out.push_str(
-        "When you finish your work, output a <next> tag containing YAML to declare\n\
+        "When you finish your session, output a <next> tag containing YAML to declare\n\
          what should happen next. This is how the orchestration system routes between\n\
          agents.\n\n",
     );
