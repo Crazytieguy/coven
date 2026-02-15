@@ -1,13 +1,10 @@
 # Board
 
-## P1: Clarify behavior difference between `<break>` and `wait-for-user` in ralph prompt
-
-The user reviewed the proposed prompt changes and likes keeping `wait-for-user` for ralph. Update the ralph prompt to clarify the behavior difference between `<break>` (ends the loop) and `wait-for-user` (pauses for human input, then continues).
-
 ---
 
 ## Done
 
+- P1: Clarify behavior difference between `<break>` and `wait-for-user` in ralph prompt
 - P1: Propose prompt changes for wait-for-user in ralph
 - P2: Reconsider wait-for-user abstraction
 - P2: Investigate prompt issues causing flaky orchestration recordings
