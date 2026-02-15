@@ -21,8 +21,6 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
 
 # Ready
 
-## P2: scratch.md: should clarify that it's gitignored
-
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
 Coven hangs and doesn't display, but claude is actually running in the background. Not a session-exit issue — the process is alive.
@@ -54,3 +52,4 @@ Previous investigation ruled out: event channel replacement, serde fallback, tok
 - P1: wait-for-user re-proposal
 - P1: Simplify status line after exiting embedded interactive session
 - P1: wait-for-user prompt final revision
+- P2: scratch.md: should clarify that it's gitignored
