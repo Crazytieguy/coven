@@ -1,5 +1,7 @@
 # Board
 
+---
+
 ## P1: wait-for-user prompt final revision
 
 **Proposed text** (shared constant, used by both worker and ralph):
@@ -14,10 +16,22 @@ Changes from current:
 - Examples refined: "critical workflow permission" (per your feedback), "dev environment is broken" (unambiguously blocks everything), "shared authentication has expired" (blocks all external calls)
 - No `sleep: true` note
 
-**Questions:**
-- Good to implement?
+**Decisions:**
+- Approved to implement
 
----
+## P1: Simplify status line after exiting embedded interactive session
+
+Instead of:
+```
+[returned to coven]
+
+
+[interrupted — Ctrl+O to open interactive]
+```
+It should just be:
+```
+[returned to coven — Ctrl+O to re-open interactive]
+```
 
 ## Done
 - P1: Split main into main + review agents
