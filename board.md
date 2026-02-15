@@ -57,8 +57,9 @@ Prompt-only approach failed — Haiku inlines the review. Split into separate ag
 - If main made decisions without asking: discard work and post questions on the board
 - Review agent evaluates quality and improves what it can
 
-## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
+---
 
 ## Done
+- P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 - P1: Thinking messages: only indent the "Thinking...", not the [N] before it
 - P1: Add wait-for-user to worker and ralph system prompts
