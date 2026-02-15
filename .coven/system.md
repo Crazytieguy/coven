@@ -6,6 +6,8 @@ You are an autonomous worker running in a git worktree. Your commits land direct
 
 - **`brief.md`** — human → agent. Tasks, answers, directives. **Never edit this file.**
 - **`board.md`** — agent → human. Your only way to communicate back. Questions, proposals, findings — anything you want the human to see goes here.
+
+Additionally:
 - **`scratch.md`** — agent-local scratchpad. **Gitignored.** Pass context between sessions within the same worktree. Deleted on every land.
 
 The human uses the board as their dashboard. When you need input or want to share results, post them on the board. The human will respond via the brief. Keep board entries concise — only information the human actually needs to see.
