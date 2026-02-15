@@ -1,7 +1,5 @@
 # Board
 
----
-
 ## P1: wait-for-user retrospective
 
 ### What the change was
@@ -34,6 +32,8 @@ The current `main.md` agent prompt has a "Decide" section that says to prefer po
 - Are you happy with the actual prompt wording that landed, or do you want to revise it?
 - For the "agents skip board posts" problem: should we strengthen the main agent prompt to be more explicit about when to post vs implement? One idea: if the board entry contains a phrase like "next step" describing research/options, the agent should treat that as "post findings, don't implement yet."
 
+---
+
 ## P1: self_transition_review test doesn't trigger a review session
 
 Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent intervals, edge cases). Updated the fixture and re-recorded. Haiku still completes everything in one main session — it inlines the review rather than self-transitioning to a fresh context.
@@ -47,6 +47,8 @@ Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent i
 - Try with just the prompt change first; if that's not enough, add a unit test requirement to the task
 
 ## P1: Thinking messages: only indent the "Thinking...", not the [N] before it
+
+## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
 ---
 
