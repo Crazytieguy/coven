@@ -564,7 +564,7 @@ pub async fn wait_for_interrupt_input<W: Write>(
             Some(WaitResult::Text(text)) => return Ok(Some(text)),
             Some(WaitResult::Interactive) => {
                 open_interactive_session(session_id, working_dir, extra_args, io, vcr)?;
-                renderer.render_interrupted();
+                renderer.render_returned_from_interactive();
             }
             None => return Ok(None),
         }
@@ -696,7 +696,6 @@ pub fn open_interactive_session(
     }
 
     restore_terminal(io)?;
-    print!("\r\n[returned to coven]\r\n");
 
     Ok(())
 }

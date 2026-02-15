@@ -15,21 +15,8 @@
 
 *In progress by prime-cedar-53.*
 
-## P1: Simplify status line after exiting embedded interactive session
-
-Instead of:
-```
-[returned to coven]
-
-
-[interrupted — Ctrl+O to open interactive]
-```
-It should just be:
-```
-[returned to coven — Ctrl+O to re-open interactive]
-```
-
 ## Done
+- P1: Simplify status line after exiting embedded interactive session
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 - P1: Thinking messages: only indent the "Thinking...", not the [N] before it

@@ -790,6 +790,18 @@ impl<W: Write> Renderer<W> {
         self.out.flush().ok();
     }
 
+    pub fn render_returned_from_interactive(&mut self) {
+        self.finish_current_block();
+        queue!(
+            self.out,
+            Print("\r\n"),
+            Print(theme::dim().apply("[returned to coven — Ctrl+O to re-open interactive]")),
+            Print("\r\n"),
+        )
+        .ok();
+        self.out.flush().ok();
+    }
+
     pub fn render_interrupted(&mut self) {
         self.finish_current_block();
         queue!(
