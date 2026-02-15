@@ -9,6 +9,8 @@ pub enum AppEvent {
     Claude(Box<InboundEvent>),
     /// A warning about an unparseable line from claude's stdout.
     ParseWarning(String),
+    /// Content from claude's stderr (displayed as a warning on exit).
+    Stderr(String),
     /// The claude process has exited.
     ProcessExit(Option<i32>),
 }

@@ -413,7 +413,7 @@ async fn process_claude_event<W: Write>(
                 ClaudeEventAction::Rendered => {}
             }
         }
-        AppEvent::ParseWarning(warning) => {
+        AppEvent::ParseWarning(warning) | AppEvent::Stderr(warning) => {
             renderer.render_warning(&warning);
         }
         AppEvent::ProcessExit(code) => {
@@ -451,7 +451,7 @@ fn flush_event_buffer<W: Write>(
                     ClaudeEventAction::Rendered => {}
                 }
             }
-            AppEvent::ParseWarning(warning) => {
+            AppEvent::ParseWarning(warning) | AppEvent::Stderr(warning) => {
                 renderer.render_warning(&warning);
             }
             AppEvent::ProcessExit(code) => {

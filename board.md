@@ -31,10 +31,6 @@ Coven hangs and doesn't display, but claude is actually running in the backgroun
 
 Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression. Need to look at what happens between spawning and stdout reading — maybe stdout isn't being read, or we're reading the wrong stream.
 
-## P2: Capture claude stderr instead of suppressing it
-
-`runner.rs:75` sets `.stderr(Stdio::null())`. Capture stderr and display it as a warning when the process exits. Separate from the display-hang issue.
-
 ## P1: Propose a new board format that replaces the divider
 
 Replace the `---` divider with H1 section headers. The file is already called `board.md`, so the `# Board` title is redundant — use that heading level for semantic sections instead:
@@ -86,13 +82,8 @@ Maybe listening to the wrong session or something weird like that.
 
 **New direction:** The problem is that coven's display layer stops showing output even though the claude process is still running. Need to investigate the streaming/rendering pipeline for cases where events are received but not displayed, or where stdout reading stalls.
 
-## P2: Capture stderr from claude process
-
-`runner.rs:75` sets `.stderr(Stdio::null())`, so if the claude CLI encounters an error, it's invisible. Capture stderr and display it as a warning when the process exits with stderr content.
-
-This was identified during the claude sessions investigation and confirmed as a good fix by the human, but it's a separate issue from the display hang.
-
 ## Done
+- P2: Capture stderr from claude process
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 - P1: Thinking messages: only indent the "Thinking...", not the [N] before it

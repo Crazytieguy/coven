@@ -119,7 +119,7 @@ pub async fn run_fork<W: Write>(
                 }
                 _ => {}
             },
-            AppEvent::ParseWarning(w) => {
+            AppEvent::ParseWarning(w) | AppEvent::Stderr(w) => {
                 renderer.render_warning(&w);
             }
             AppEvent::ProcessExit(_) => {

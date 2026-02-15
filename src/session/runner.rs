@@ -3,8 +3,8 @@ use std::process::Stdio;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use tokio::sync::mpsc;
 
 use crate::event::AppEvent;
@@ -72,11 +72,12 @@ impl SessionRunner {
 
         cmd.stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped());
 
         let mut child = cmd.spawn().context("Failed to spawn claude process")?;
 
         let stdout = child.stdout.take().context("stdout should be piped")?;
+        let stderr = child.stderr.take().context("stderr should be piped")?;
         let mut stdin = child.stdin.take().context("stdin should be piped")?;
 
         // Send initial prompt if provided
@@ -93,8 +94,8 @@ impl SessionRunner {
             stdin.flush().await?;
         }
 
-        // Spawn stdout reader task
-        Self::spawn_reader(stdout, event_tx);
+        // Spawn stdout reader task (also collects stderr on exit)
+        Self::spawn_reader(stdout, stderr, event_tx);
 
         Ok(Self {
             child: Some(child),
@@ -178,7 +179,19 @@ impl SessionRunner {
         Ok(())
     }
 
-    fn spawn_reader(stdout: ChildStdout, event_tx: mpsc::UnboundedSender<AppEvent>) {
+    fn spawn_reader(
+        stdout: ChildStdout,
+        stderr: ChildStderr,
+        event_tx: mpsc::UnboundedSender<AppEvent>,
+    ) {
+        // Collect stderr in the background so it doesn't block the process.
+        let stderr_handle = tokio::spawn(async move {
+            let mut reader = BufReader::new(stderr);
+            let mut buf = String::new();
+            reader.read_to_string(&mut buf).await.ok();
+            buf
+        });
+
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
@@ -200,7 +213,15 @@ impl SessionRunner {
                 }
             }
 
-            // stdout closed — process is exiting or has exited
+            // stdout closed — process is exiting or has exited.
+            // Collect any stderr content and surface it as a warning.
+            if let Ok(stderr_content) = stderr_handle.await {
+                let trimmed = stderr_content.trim();
+                if !trimmed.is_empty() {
+                    let _ = event_tx.send(AppEvent::Stderr(trimmed.to_string()));
+                }
+            }
+
             let _ = event_tx.send(AppEvent::ProcessExit(None));
         });
     }
