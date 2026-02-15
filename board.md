@@ -4,23 +4,26 @@
 
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
-Coven hangs and doesn't display, but claude is actually running in the background. Not a session-exit issue — the process is alive.
+Deep audit of the full pipeline (spawn → reader → channel → event loop → renderer). No architectural bugs found — the data flow is sound.
 
-**Decisions:**
-- Sessions don't exit — coven hangs and doesn't display, but claude is actually running in the background. The original stderr hypothesis was wrong for this issue.
-- The stderr fix (capturing stderr instead of null'ing it) is good but is a separate issue — already done.
+**What's been ruled out (cumulative):**
+- Event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression (previous sessions)
+- Channel aliasing, fork interference, stdin deadlock, reader I/O hang, renderer blocking (this session)
+- Reader task panic (would cause ProcessExit, not a hang)
+- Race between channel replacement and event loop (borrow checker prevents it)
 
-**New direction:** The problem is that coven's display layer stops showing output even though the claude process is still running. Need to investigate the streaming/rendering pipeline for cases where events are received but not displayed, or where stdout reading stalls.
+**Two concrete observability gaps found:**
 
-**Code audit findings (spawn → reader → event loop):**
-- Channel replacement (`replace_event_channel`) is clean — creates a fresh (tx, rx) pair, old rx is dropped, new tx goes to reader task. No way to "listen to the wrong session."
-- Reader task (`spawn_reader`) correctly takes ownership of stdout via `tokio::spawn`. The `BufReader::lines()` reader handles partial JSON, empty lines, and parse errors without hanging.
-- No reference aliasing between old/new channels — Rust's borrow checker prevents `next_event` and `replace_event_channel` from overlapping.
-- Fork children use independent channels, never touch `io.event_rx`.
-- Initial prompt write to stdin happens before reader task spawn, but can't deadlock — stdin write is async and the prompt is small.
-- Minor: `spawn_reader`'s `while let Ok(Some(line))` silently exits on I/O errors — no warning, just `ProcessExit(None)`. Worth fixing but wouldn't cause a hang.
+1. **Stderr is batched, not streamed.** `spawn_reader` collects ALL stderr via `read_to_string` in a background task, only surfacing it after stdout closes. If the claude CLI outputs startup diagnostics to stderr (auth, rate limits, loading, MCP), coven shows nothing until the session ends. If the CLI hangs during startup, coven is completely silent — no way to tell what's happening.
 
-Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression.
+2. **No reader heartbeat.** When the reader task is blocked on `next_line()` waiting for the first stdout line, there's no timeout or diagnostic. Can't distinguish "claude is slow to start" from "reader is stuck" from "claude hung during auth."
+
+**One potential hang source:**
+
+`runner.wait()` in the worker's `run_phase_session` (line 741) has no timeout. If claude doesn't exit promptly after stdin close (e.g., mid-tool-use), this blocks indefinitely. The process is alive (matches the symptom), but coven isn't reading its output anymore (event loop already returned).
+
+**Questions:**
+- Propose streaming stderr lines in real-time (as `ParseWarning`-style events) + adding a "waiting for claude..." heartbeat after ~5s of no stdout. This would either surface the root cause or confirm the pipeline is fine and the issue is on the claude CLI side. Good to proceed?
 
 # Done
 
