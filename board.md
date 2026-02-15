@@ -60,7 +60,6 @@ Ralph uses it as-is (break tag is the only other control, no need for extra guid
 - Good to proceed?
 
 ---
-
 ## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
 ## Done
