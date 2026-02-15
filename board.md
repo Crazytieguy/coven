@@ -46,11 +46,10 @@ Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent i
 - Use Option B — separate into two explicit phases (Implementation Sessions / Review Sessions H2 split)
 - Try with just the prompt change first; if that's not enough, add a unit test requirement to the task
 
-## P1: Thinking messages: only indent the "Thinking...", not the [N] before it
-
 ## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
 ---
 
 ## Done
+- P1: Thinking messages: only indent the "Thinking...", not the [N] before it
 - P1: Add wait-for-user to worker and ralph system prompts
