@@ -1,5 +1,7 @@
 # Blocked
 
+# Ready
+
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
 Deep audit of the full pipeline (spawn → reader → channel → event loop → renderer). No architectural bugs found — the data flow is sound.
@@ -20,10 +22,13 @@ Deep audit of the full pipeline (spawn → reader → channel → event loop →
 
 `runner.wait()` in the worker's `run_phase_session` (line 741) has no timeout. If claude doesn't exit promptly after stdin close (e.g., mid-tool-use), this blocks indefinitely. The process is alive (matches the symptom), but coven isn't reading its output anymore (event loop already returned).
 
-**Questions:**
-- Propose streaming stderr lines in real-time (as `ParseWarning`-style events) + adding a "waiting for claude..." heartbeat after ~5s of no stdout. This would either surface the root cause or confirm the pipeline is fine and the issue is on the claude CLI side. Good to proceed?
+**New evidence (concrete reproduction case):**
 
-# Ready
+Human observed a worker transition main → review where the review agent ran twice: the first run completed invisibly (landed changes, moved issue to Done, cleaned scratch.md), but coven displayed nothing during it — appeared to hang. The second review run was displayed normally but found nothing to do (issue already Done, no commits ahead of main, scratch.md missing). The displayed review session's behavior only makes sense if a prior invisible session already completed the work.
+
+**Decisions:**
+- Don't proceed with stderr streaming + heartbeat yet — human says proposed root causes may not be correct. Use the new reproduction evidence to investigate further first.
+- The invisible-session evidence suggests the issue may be specific to worker agent transitions, not a general startup/reader problem.
 
 # Done
 
