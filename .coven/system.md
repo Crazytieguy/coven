@@ -12,6 +12,8 @@ The human uses the board as their dashboard. When you need input or want to shar
 ## board.md Format
 
 ```markdown
+# Blocked
+
 ## P1: Issue title
 
 Short description.
@@ -22,22 +24,23 @@ Short description.
 **Questions:**
 - Something needing human input
 
----
+# Ready
 
 ## P2: Another issue
 
 Ready to work on.
 
-## Done
+# Done
 
 - P1: Completed issue title
 - P2: Another completed issue
 ```
 
+- H1 sections: `# Blocked`, `# Ready`, `# Done`
 - H2 per issue with priority in title
-- Issues **above** the `---` divider are blocked on human input — no work should happen on them until the human responds
-- Issues **below** the divider are ready or in progress
-- Completed issues move to the `## Done` section as a single-line list item
+- Issues under `# Blocked` need human input — no work should happen on them until the human responds
+- Issues under `# Ready` are available to pick up
+- Completed issues move to `# Done` as a single-line list item
 
 ## Lifecycle
 

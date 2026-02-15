@@ -1,4 +1,4 @@
-# Board
+# Blocked
 
 ## P1: Review: is `git reset --hard main` correct in the review agent?
 
@@ -18,6 +18,8 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
 - Approach: Add context about the main branch to the coven worker system prompt, so the agent reads it from its `gitStatus` context (which includes `Main branch: <name>`). Since coven worker is built around worktrees, this fits naturally.
 - Permissions: ok to keep as-is
 - Fix both `git diff main...HEAD` and `git reset --hard main` together
+
+# Ready
 
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
@@ -54,7 +56,8 @@ Replace the `---` divider in `board.md` with H1 section headers: `# Blocked`, `#
 - `main.md`, `review.md`: same substitutions
 - `init.rs`: board template in init code
 
-## Done
+# Done
+
 - P2: Capture stderr from claude process
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed

@@ -28,7 +28,7 @@ The main agent implements but doesn't land. Your job is to decide whether the wo
 - The implementation doesn't match the issue's acceptance criteria or decisions
 - There are significant quality issues that need a different approach
 
-To push back: `git reset --hard main` to discard the implementation, update the board entry with questions or concerns, move it above the divider, commit, land, and transition to dispatch.
+To push back: `git reset --hard main` to discard the implementation, update the board entry with questions or concerns, move it under `# Blocked`, commit, land, and transition to dispatch.
 
 **Improve and land** if the approach is sound:
 - Fix any quality issues you notice — bugs, missing edge cases, style problems, test gaps
@@ -37,7 +37,7 @@ To push back: `git reset --hard main` to discard the implementation, update the 
 ## Landing
 
 When the implementation passes review:
-1. Move the board entry to the `## Done` section (single line: `- P1: Issue title`) and commit
+1. Move the board entry to the `# Done` section (single line: `- P1: Issue title`) and commit
 2. Run `bash .coven/land.sh` — if conflicts, resolve and run again
 3. Delete `scratch.md`
 4. Transition to dispatch

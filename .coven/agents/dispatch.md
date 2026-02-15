@@ -14,9 +14,9 @@ Dispatch runs with max_concurrency 1 — you're holding a lock that blocks other
 
 The human works asynchronously — the brief may be stale. Check when the brief was last updated relative to board activity, and use your judgement: brief items that have already been addressed on the board don't need new entries.
 
-For new brief items, create a board entry below the divider. Copy the task description from the brief faithfully — often verbatim — rather than summarizing or rephrasing. Add priority (default P1).
+For new brief items, create a board entry under `# Ready`. Copy the task description from the brief faithfully — often verbatim — rather than summarizing or rephrasing. Add priority (default P1).
 
-If the brief contains answers to open questions on the board, incorporate them into the entry's **Decisions** section and remove the answered questions. If all questions are answered, move the entry below the divider.
+If the brief contains answers to open questions on the board, incorporate them into the entry's **Decisions** section and remove the answered questions. If all questions are answered, move the entry under `# Ready`.
 
 Only clean up the Done section when explicitly requested in `brief.md`.
 
@@ -24,11 +24,11 @@ Commit any board changes and run `bash .coven/land.sh`.
 
 ## Pick a Task
 
-From entries below the divider, pick one by priority (P0 > P1 > P2). Don't pick work another worker is already doing. Issues above the divider are blocked on human input — never pick them.
+From entries under `# Ready`, pick one by priority (P0 > P1 > P2). Don't pick work another worker is already doing. Issues under `# Blocked` need human input — never pick them.
 
 ### Throttling
 
-When issues are blocked above the divider, throttle lower-priority work to avoid overwhelming the human or letting blocked issues go stale:
+When issues are under `# Blocked`, throttle lower-priority work to avoid overwhelming the human or letting blocked issues go stale:
 - **P0**: always pick
 - **P1**: only if 6 or fewer issues are blocked
 - **P2**: only if 3 or fewer issues are blocked

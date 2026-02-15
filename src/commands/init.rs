@@ -49,7 +49,7 @@ const BRIEF_TEMPLATE: &str = "\
 
 Add tasks here — one per line or section. Workers pick them up automatically.
 
-When workers have questions, they'll appear on `board.md` above the divider.
+When workers have questions, they'll appear on `board.md` under `# Blocked`.
 Write your answers here (just reference the issue by name) and commit.
 
 You can also add general directives (\"prefer X over Y\", \"don't touch module Z\").
@@ -57,9 +57,11 @@ Workers read this file but never edit it.
 ";
 
 const BOARD_TEMPLATE: &str = "\
-# Board
+# Blocked
 
----
+# Ready
+
+# Done
 ";
 
 /// Create agent templates, system doc, and project files.
