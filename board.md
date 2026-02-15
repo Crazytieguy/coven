@@ -76,6 +76,22 @@ Description.
 
 ---
 
+## P1: Investigate: some claude sessions don't get displayed by coven
+
+Maybe listening to the wrong session or something weird like that.
+
+**Decisions:**
+- Sessions don't exit — coven hangs and doesn't display, but claude is actually running in the background. The original stderr hypothesis was wrong for this issue.
+- The stderr fix (capturing stderr instead of null'ing it) is good but is a separate issue — split out below.
+
+**New direction:** The problem is that coven's display layer stops showing output even though the claude process is still running. Need to investigate the streaming/rendering pipeline for cases where events are received but not displayed, or where stdout reading stalls.
+
+## P2: Capture stderr from claude process
+
+`runner.rs:75` sets `.stderr(Stdio::null())`, so if the claude CLI encounters an error, it's invisible. Capture stderr and display it as a warning when the process exits with stderr content.
+
+This was identified during the claude sessions investigation and confirmed as a good fix by the human, but it's a separate issue from the display hang.
+
 ## Done
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
