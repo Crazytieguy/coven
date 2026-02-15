@@ -1,35 +1,5 @@
 # Board
 
-## P1: self_transition_review test doesn't trigger a review session
-
-Prompt-only approach failed — even with explicit "Implementation Sessions" / "Review Sessions" H2s, "do not land during implementation", and a harder task (merge_intervals + unit tests), Haiku still inlines the review. The model reads the whole prompt and sees both phases as steps in one workflow.
-
-**Proposal: split main into main + review agents**
-
-The model can't skip what it doesn't know about. Instead of teaching one agent two modes, give each mode its own agent. The transition system already supports this — agents are just `.md` files.
-
-**Lifecycle:** `dispatch → main × N → review → dispatch → sleep`
-
-**main.md** — stripped of all landing/board-update responsibilities:
-- Orient, Decide (post vs implement) stay as-is
-- Implementation sessions: commit, write scratch.md, transition to main (more work) or review (done)
-- Remove the review checklist entirely — main doesn't know how to land
-
-**review.md** — new agent, single responsibility:
-- Takes `task` arg (same as main)
-- Reads scratch.md and the full diff (`git diff main...HEAD`)
-- Verifies acceptance criteria, fixes issues if needed
-- When it passes: update board → land → delete scratch.md → dispatch
-
-**system.md** — update Lifecycle diagram
-
-**init.rs** — add `REVIEW_PROMPT` constant + entry in `AGENT_TEMPLATES`
-
-**Test fixture** — keep merge_intervals + unit tests task, re-record
-
-**Questions:**
-- Good to proceed with this split?
-
 ## P1: wait-for-user re-proposal
 
 **Proposal: shared prompt constant, calmer tone, drop "ambiguous requirements"**
@@ -60,6 +30,33 @@ Ralph uses it as-is (break tag is the only other control, no need for extra guid
 - Good to proceed?
 
 ---
+
+## P1: Split main into main + review agents
+
+Prompt-only approach failed — Haiku inlines the review. Split into separate agents so the model can't skip what it doesn't know about.
+
+**Lifecycle:** `dispatch → main × N → review → dispatch → sleep`
+
+**main.md** — stripped of all landing/board-update responsibilities:
+- Orient, Decide (post vs implement) stay as-is
+- Implementation sessions: commit, write scratch.md, transition to main (more work) or review (done)
+- Remove the review checklist entirely — main doesn't know how to land
+
+**review.md** — new agent, single responsibility:
+- Takes `task` arg (same as main)
+- Reads the original board issue + scratch.md + full diff (`git diff main...HEAD`)
+- Judges whether to land or post questions: if main made decisions without asking, discard work and post questions on the board instead
+- Evaluates implementation quality and improves anything noticeable
+- When it passes: update board → land → delete scratch.md → dispatch
+
+**Also:** system.md (lifecycle diagram), init.rs (`REVIEW_PROMPT` + `AGENT_TEMPLATES`), test fixture (re-record)
+
+**Decisions:**
+- Approved: split main into main + review agents
+- Review agent reads the original board issue and makes its own judgement on landing vs posting questions
+- If main made decisions without asking: discard work and post questions on the board
+- Review agent evaluates quality and improves what it can
+
 ## P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
 
 ## Done
