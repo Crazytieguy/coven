@@ -79,14 +79,5 @@ The merge_intervals function is straightforward enough that Haiku feels confiden
 
 ---
 
-## P1: Add wait-for-user to worker and ralph system prompts
-
-Add `<wait-for-user>` to the built-in coven worker system prompt (not `.coven/system.md` — that's a template). Present it as a last resort that completely blocks the worker until a human is available. Same treatment for ralph. Next step: quick overview of the current prompting for this and some options.
-
-**Decisions:**
-- Add to built-in system prompt, not `.coven/system.md`
-- Present as last resort (blocks worker until human available)
-- Same approach for ralph
-- `<break>` tag name is fine as-is
-
 ## Done
+- P1: Add wait-for-user to worker and ralph system prompts
