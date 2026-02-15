@@ -166,6 +166,32 @@ pub fn format_workers<S: Borrow<WorkerState>>(states: &[S], style: StatusStyle) 
     out
 }
 
+// ── Sleep signal ─────────────────────────────────────────────────────────
+
+fn sleep_signal_path(repo_path: &Path) -> Result<PathBuf> {
+    Ok(coven_dir(repo_path)?.join("last_sleep_sha"))
+}
+
+/// Record that dispatch decided to sleep at the given main HEAD SHA.
+///
+/// Other workers seeing this signal for the current HEAD will skip dispatch
+/// and go straight to sleep.
+pub fn write_sleep_signal(repo_path: &Path, head_sha: &str) -> Result<()> {
+    let path = sleep_signal_path(repo_path)?;
+    fs::write(&path, head_sha.as_bytes())
+        .with_context(|| format!("failed to write {}", path.display()))
+}
+
+/// Read the last sleep signal SHA, if any.
+pub fn read_sleep_signal(repo_path: &Path) -> Result<Option<String>> {
+    let path = sleep_signal_path(repo_path)?;
+    match fs::read_to_string(&path) {
+        Ok(s) => Ok(Some(s.trim().to_string())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e).with_context(|| format!("failed to read {}", path.display())),
+    }
+}
+
 // ── Private helpers ─────────────────────────────────────────────────────
 
 fn write_state(repo_path: &Path, state: &WorkerState) -> Result<()> {

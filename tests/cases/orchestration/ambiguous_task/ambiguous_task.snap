@@ -21,11 +21,11 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: cosmic-brook-64 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/cosmic-brook-64)
+Worker started: brave-brook-38 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/brave-brook-38)
 
 === Agent: dispatch ===
 
-Session 66f80202-8f3d-4b6b-8222-e38c54c8dba0 (claude-haiku-4-5-20251001)
+Session ede3516f-3356-4bbf-8b2d-42c6d9b935d2 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
@@ -37,96 +37,99 @@ Session 66f80202-8f3d-4b6b-8222-e38c54c8dba0 (claude-haiku-4-5-20251001)
 [8] Thinking...
 [9] ▶ Bash  bash .coven/land.sh
 [10] Thinking...
-**Sync complete.** Added 1 new task from brief: "Add a caching layer to the application" (P1).
+**Sync complete.** One new task from brief:
+- **P1: Add a caching layer to the application** — Performance concern
 
-**Picking task:** P1 - one actionable item, no blocking issues. Ready to hand off to main.
+No blocked issues. Picking the ready P1 task.
 
 <next>
 agent: main
-task: Add a caching layer to the application
+task: P1: Add a caching layer to the application
 </next>
 
 
-Done  $0.03 · 18.1s · 6 turns  (:N to view)
+Done  $0.03 · 12.0s · 6 turns  (:N to view)
   Total cost: $0.03
 
-Transition: main task=Add a caching layer to the application
+Transition: main task=P1: Add a caching layer to the application
 
 === Agent: main ===
 
-Session fcc13d87-6011-4ddf-bcea-535dfe727ab3 (claude-haiku-4-5-20251001)
+Session 2e763ade-38a4-4dc4-bc71-fa9c214ac79f (claude-haiku-4-5-20251001)
 
 [11] Thinking...
-I'll start by reading the board and relevant context to understand the task.
+I'll start by reviewing the board and understanding the current task.
 
 [12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-     ✗ Error: File does not exist.
-     ✗ Sibling tool call errored
 [14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
 [15] Thinking...
-Let me explore the codebase structure to understand the application.
-
-[16] ▶ Bash  find . -type f -name "*.ts" -o -name "*.js" -o -name "*.json" -o...
-[17] ▶ Bash  ls -la
-[18] Thinking...
-[19] ▶ Bash  find src -type f | head -20
-[20] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[16] ▶ Bash  find . -type f -name "*.md" | head -20
+[17] Thinking...
+[18] ▶ Bash  ls -la
+[19] Thinking...
+[20] ▶ Bash  find ./src -type f | head -20
 [21] Thinking...
-[22] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[22] ▶ Bash  find ./tests -type f
 [23] Thinking...
-[24] ▶ Bash  find tests -type f
-[25] Thinking...
-[26] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[27] Thinking...
-I've reviewed the application and found it's a simple Python app that reads input and converts it to uppercase. Before implementing a caching layer, I need clarification on the scope of this task.
+[24] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[25] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[26] Thinking...
+I've reviewed the codebase. The application is very simple - it just converts input text to uppercase. Before implementing a caching layer, I need to understand the requirements better, as there's some ambiguity here.
 
 Let me update the board with my findings:
 
-[28] ▶ Edit  (+11)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
-[29] Thinking...
-[30] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[31] Thinking...
-[32] ▶ Bash  bash .coven/land.sh
-[33] Thinking...
-I've identified some ambiguity in the task and posted questions to the board. The application is very simple (just uppercasing text), so I need clarification on:
-- Whether caching should apply to repeated identical inputs
-- If there are other computationally expensive operations I'm missing
-- The scope and requirements for the caching layer (decorator pattern, cache size, TTL, etc.)
+[27] ▶ Edit  (+11)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[28] Thinking...
+[29] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[30] Thinking...
+[31] ▶ Bash  bash .coven/land.sh
+[32] Thinking...
+I've identified key ambiguities in the caching task and posted questions to the board. The application is very simple (just converts text to uppercase), so I need your clarification on:
 
-The board is now updated and landed. Transitioning to dispatch for human input.
+1. **What to cache** - the process function? API calls? file I/O?
+2. **Caching mechanism** - in-memory, functools.lru_cache, Redis, or something else?
+3. **Performance baseline** - what are the actual bottlenecks?
+
+The findings and questions are now on the board for your review.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.05 · 36.9s · 14 turns  (:N to view)
+Done  $0.05 · 27.6s · 13 turns  (:N to view)
   Total cost: $0.08
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 099ccc98-6273-4122-8d38-afc6413fb092 (claude-haiku-4-5-20251001)
+Session 31df2c6c-4b2d-4a77-a31a-fef122fcfd24 (claude-haiku-4-5-20251001)
 
-[34] Thinking...
+[33] Thinking...
+I'll read the brief and board to sync work and pick a task.
+
+[34] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[37] Thinking...
-**Sync:** The brief contains the same caching task already on the board (P1). No new work to add. The previous investigation identified findings and documented 4 open questions about implementation requirements.
+[36] Thinking...
+**Status:** Board already reflects the brief. The caching layer task is on the board under `# Blocked` with open questions from the previous session.
 
-**Task Selection:** The only task (P1: caching layer) is above the divider, blocked on human input about caching requirements (scope, size, TTL, pattern). Nothing is actionable below the divider.
+**Analysis:**
+- 1 P1 issue is blocked (within throttle threshold)
+- No issues under `# Ready`
+- Previous session identified that the task needs clarification on: what specifically to cache, which mechanism to use, and whether performance metrics exist
 
-**Decision:** Sleep — waiting for human to answer the open questions.
+**Decision:** No actionable work. The task is blocked pending human answers to fundamental design questions. Sleeping.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 10.6s · 3 turns  (:N to view)
-  Total cost: $0.10
+Done  $0.02 · 10.0s · 3 turns  (:N to view)
+  Total cost: $0.09
 
 Transition: sleep — waiting for new commits...
 

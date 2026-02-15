@@ -21,152 +21,228 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker_a ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: brave-flame-11 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-landing_conflict-worker_a-worktrees/coven-vcr-landing_conflict/brave-flame-11)
+Worker started: bright-falcon-0 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-landing_conflict-worker_a-worktrees/coven-vcr-landing_conflict/bright-falcon-0)
 
 === Agent: dispatch ===
 
-Session 1f233b17-3d55-47f5-a076-352bff826b46 (claude-haiku-4-5-20251001)
+Session 233ef706-f64a-41c0-b69c-37ff2099f4f7 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-I'll sync the brief items onto the board and pick a task.
-
 [5] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
 [6] Thinking...
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
 [9] ▶ Bash  bash .coven/land.sh
 [10] Thinking...
-**Sync complete.** I've created two board entries from the brief:
-- P1: Add project description to README
-- P1: Add status badge to README
+Synced two tasks from brief. Both are P1 README updates:
+1. Add status badge to README.md
+2. Add project description to README.md
 
-Both tasks are ready to work on. Picking the first one.
+Picking the first: **Add status badge to README.md** — straightforward task with clear requirements.
 
 <next>
 agent: main
-task: Add project description to README
+task: P1: Add status badge to README.md
 </next>
 
 
-Done  $0.03 · 18.4s · 6 turns  (:N to view)
+Done  $0.03 · 19.2s · 6 turns  (:N to view)
   Total cost: $0.03
 
-Transition: main task=Add project description to README
+Transition: main task=P1: Add status badge to README.md
 
 === Agent: main ===
 
-Session a58e1b08-a83d-4e3c-a6b4-239e77b7f693 (claude-haiku-4-5-20251001)
+Session e14c4b6b-017d-4325-9ba3-b8ca0032f713 (claude-haiku-4-5-20251001)
 
 [11] Thinking...
-I'll start by reading the board and understanding the task.
+I'll help you work on adding a status badge to README.md. Let me start by understanding the current state of the project.
 
 [12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
-[14] Thinking...
-[15] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[16] Thinking...
-Now I'll add the project description right after the title. The task is clear: add a description like "A modern toolkit for building great software." after the title line.
+     ✗ Sibling tool call errored
+[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[15] Thinking...
+Let me try reading the README again:
 
-[17] ▶ Edit  (+2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[18] Thinking...
-Now I'll commit this change:
+[16] ▶ Glob  README.md
+[17] Thinking...
+[18] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[19] Thinking...
+Perfect! I can see the task clearly. I need to add a status badge right after the title line in README.md. Let me implement this:
 
-[19] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[20] Thinking...
-Now I'll update the board to mark this task as completed:
+[20] ▶ Edit  (+2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[21] Thinking...
+Now let me commit this change:
 
-[21] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[22] Thinking...
-[23] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
-[24] Thinking...
-[25] ▶ Bash  bash .coven/land.sh
-     ✗ Error: Exit code 1
-[26] Thinking...
-[27] ▶ Bash  git status
-[28] Thinking...
-[29] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[30] Thinking...
-I see there's a merge conflict. The main branch has combined both tasks into a single one. Let me resolve the conflict by keeping the main branch's version since it represents the current source of truth:
+[22] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[23] Thinking...
+Now let me update the board to mark this task as complete:
 
-[31] ▶ Edit  (-20)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
-[32] Thinking...
-[33] ▶ Bash  git add board.md && git rebase --continue
-[34] Thinking...
-[35] ▶ Bash  bash .coven/land.sh
-[36] Thinking...
-[37] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[38] Thinking...
-[39] ▶ Bash  git status
-[40] Thinking...
-Perfect! I've successfully completed the task "Add project description to README":
+[24] ▶ Edit  (-2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[25] Thinking...
+[26] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
+[27] Thinking...
+Now let me land the changes:
 
-**Summary of work:**
-- Added the project description "A modern toolkit for building great software." to README.md immediately after the title
-- Committed the changes with appropriate commit message
-- Updated the board to mark this task as completed
-- Resolved a merge conflict with main branch during rebase
-- Landed changes to main branch
+[28] ▶ Bash  bash .coven/land.sh
+[29] Thinking...
+Perfect! I've successfully completed the task:
 
-The README now has the project description properly positioned right after the title line.
+✅ **Added status badge to README.md** — The badge `![Status](https://img.shields.io/badge/status-active-green)` is now displayed right after the title line.
+
+The changes have been committed and landed to main. The board has been updated to move this task to Done.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.08 · 57.1s · 16 turns  (:N to view)
-  Total cost: $0.11
+Done  $0.04 · 22.1s · 11 turns  (:N to view)
+  Total cost: $0.07
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 8f54b81d-3181-4eb5-95c1-478ea4e55098 (claude-haiku-4-5-20251001)
+Session 985a78c0-1f99-4393-b956-0040754fdd8f (claude-haiku-4-5-20251001)
 
+[30] Thinking...
+I'll read the brief and board to sync work and pick the next task.
+
+[31] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[32] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[33] Thinking...
+## Sync
+
+Brief and board are in sync. Both README tasks are already on the board:
+- Status badge task: ✓ Done (already completed)
+- Project description task: → Ready (no new work)
+
+## Pick Task
+
+Picking **P1: Add project description to README.md** — only actionable item in Ready.
+
+<next>
+agent: main
+task: P1: Add project description to README.md
+</next>
+
+
+Done  $0.02 · 6.2s · 3 turns  (:N to view)
+  Total cost: $0.09
+
+Transition: main task=P1: Add project description to README.md
+
+=== Agent: main ===
+
+Session 113a20df-e721-4200-b46d-23aa9f6a4489 (claude-haiku-4-5-20251001)
+
+[34] Thinking...
+I'll start by reading the board and scratch files to understand the task.
+
+[35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[36] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[37] Thinking...
+[38] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[39] Thinking...
+I can see the task clearly. Let me check the current state:
+
+The README.md already has:
+1. Title: "# My Project"
+2. Status badge (from the previous task)
+3. A description: "A sample project for testing."
+
+The task asks to "Add a project description to README.md right after the title line. Something like 'A modern toolkit for building great software.'"
+
+There's some ambiguity here - a description already exists ("A sample project for testing."), so I need to clarify:
+
+**Should I:**
+1. Keep the existing description as-is (task already complete)?
+2. Replace "A sample project for testing." with something like the example "A modern toolkit for building great software."?
+3. Add an additional description line?
+
+Let me post this to the board for guidance.
+
+[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [41] Thinking...
-[42] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[43] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[44] Thinking...
-Looking at the brief and board:
+Looking at the task and current README, I can see there's already a description ("A sample project for testing."), but it appears to be a placeholder. The task asks for something like "A modern toolkit for building great software." — a more substantive description.
 
-**Sync findings:**
-- Brief has two items: add project description (done) + add status badge (needed)
-- Board shows "P1: Update README with description and status badge" but it's positioned **above** the divider (blocked state)
-- The description was already completed (commit 731e602) and marked done
-- The status badge still needs to be added
-- The board entry has no questions/blockers, so it should be **below** the divider
+I'll replace the current description with a more appropriate one. Since this is "My Project", I'll use a project description similar to the example style.
 
-**Action:** I'll move the P1 task below the divider to make it ready to work on, since both tasks are actionable and unblocked. Then I'll transition to the main agent to complete it.
+[42] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[43] Thinking...
+Now I'll update the board to mark this task complete and commit the changes.
 
-[45] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[46] Thinking...
-[47] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-[48] Thinking...
-[49] ▶ Bash  bash .coven/land.sh
-     ✗ Error: Exit code 1
-[50] Thinking...
-[51] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[44] ▶ Edit  (-3)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[45] Thinking...
+[46] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[47] Thinking...
+[48] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[49] Thinking...
+[50] ▶ Bash  bash .coven/land.sh
+[51] Thinking...
+Task complete! I've updated the README.md with a proper project description and marked the task as done on the board. Changes are now landed on main.
+
+<next>
+agent: dispatch
+</next>
+
+
+Done  $0.05 · 33.8s · 10 turns  (:N to view)
+  Total cost: $0.14
+
+Transition: dispatch 
+
+=== Agent: dispatch ===
+
+Session 314cadd2-03a8-4df2-a1fd-418884acf5c5 (claude-haiku-4-5-20251001)
+
 [52] Thinking...
-[53] ▶ Edit  (-16)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
-[54] Thinking...
-[55] ▶ Bash  git add board.md && git rebase --continue
-[56] Thinking...
-[57] ▶ Bash  bash .coven/land.sh
+[53] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: Claude requested permissions to read from /private/var/folders/...
+     ✗ Sibling tool call errored
+[54] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[55] Thinking...
+[56] ▶ Read  ./brief.md
+[57] ▶ Read  ./board.md
 [58] Thinking...
-**Dispatch complete:**
+Looking at brief.md and board.md:
 
-Main already completed the README task (added both description and status badge). The board shows all work is done. No actionable issues remain below the divider.
+**Brief:** Two tasks
+- Add project description to README.md
+- Add status badge to README.md
+
+**Board status:**
+- Both items are already in `# Done` (though "status badge" oddly appears in both Ready and Done)
+- Recent commits show both tasks were completed
+
+The brief tasks have already been addressed. The board has stale entries — "Add status badge" shouldn't be in Ready if it's already done. Let me clean this up.
+
+[59] ▶ Edit  (-5)  ./board.md
+[60] Thinking...
+[61] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+     ✗ Error: cd in '/private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
+[62] Thinking...
+[63] ▶ Bash  git add board.md && git commit -m "Clean up board: remove duplic...
+[64] Thinking...
+**Sync complete.** All brief items have been completed:
+- ✅ Project description added to README
+- ✅ Status badge added to README
+
+Board cleaned up. No actionable work remains.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.06 · 51.4s · 10 turns  (:N to view)
+Done  $0.03 · 22.2s · 8 turns  (:N to view)
   Total cost: $0.17
 
 Transition: sleep — waiting for new commits...
@@ -176,11 +252,11 @@ Removing worktree...
 --- worker_b ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
 
-Worker started: sharp-glow-10 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-landing_conflict-worker_b-worktrees/coven-vcr-landing_conflict/sharp-glow-10)
+Worker started: golden-wolf-94 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-landing_conflict-worker_b-worktrees/coven-vcr-landing_conflict/golden-wolf-94)
 
 === Agent: dispatch ===
 
-Session 76b91b27-8528-48c2-b0e2-0f4a13d495e4 (claude-haiku-4-5-20251001)
+Session f9ed466b-9fab-4a94-8d71-d5d17179a425 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 I'll read the brief and board to sync work and pick a task.
@@ -188,159 +264,159 @@ I'll read the brief and board to sync work and pick a task.
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [4] Thinking...
-I'll sync the brief items to the board and pick a task.
-
-**Current state:** brief.md has 2 new items, board.md is empty.
-
-**Sync:** Both items are README.md updates. I'll combine them as a single P1 task below the divider.
-
-[5] ▶ Edit  (+4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[5] ▶ Edit  (+8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
 [6] Thinking...
-Now I'll commit and land the board update.
-
 [7] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [8] Thinking...
-[9] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[9] ▶ Bash  bash .coven/land.sh
+    ✗ Error: Exit code 1
 [10] Thinking...
-I see the land script split these into separate entries. Let me clean this up - these should be a single actionable task below the divider:
-
-[11] ▶ Edit  (-8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[11] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [12] Thinking...
-[13] ▶ Bash  git add board.md && git commit -m "Clean up board: consolidate R...
+[13] ▶ Edit  (-12)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
 [14] Thinking...
-**Reasoning:** One P1 task is ready below the divider with no blocked issues. Picking it now.
+[15] ▶ Bash  git add board.md && git rebase --continue
+[16] Thinking...
+[17] ▶ Bash  bash .coven/land.sh
+[18] Thinking...
+**Synced and landed.** Two P1 tasks added to the board — both README.md updates. Picking the first one to work on.
 
 <next>
 agent: main
-task: Update README with description and status badge
+task: P1: Add project description to README.md
 </next>
 
 
-Done  $0.04 · 25.7s · 8 turns  (:N to view)
-  Total cost: $0.04
+Done  $0.05 · 21.1s · 10 turns  (:N to view)
+  Total cost: $0.05
 
-Transition: main task=Update README with description and status badge
+Transition: main task=P1: Add project description to README.md
 
 === Agent: main ===
 
-Session daf926fb-7b73-4ffe-b68b-df16f4091c68 (claude-haiku-4-5-20251001)
+Session 31fd189f-3052-4310-bbcd-4b51f6f2753c (claude-haiku-4-5-20251001)
 
-[15] Thinking...
-I'll help you work on the board issue. Let me start by reading the board and understanding the current task.
+[19] Thinking...
+I'll start by reading the board and scratch files to understand the task.
 
-[16] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[17] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[20] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[21] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
-[18] Thinking...
-Now let me read the current README to see what needs to be updated:
-
-[19] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[20] Thinking...
-Perfect! I can see the task clearly. I need to add a status badge and update the project description. Let me make these changes to the README:
-
-[21] ▶ Edit  (+2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [22] Thinking...
-Let me verify the change:
+Now let me read the current README.md to see where to add the description:
 
 [23] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [24] Thinking...
-Excellent! The changes look good. Now let me commit this and update the board:
+The task is clear: add a project description to README.md right after the title line. Currently the README has "A sample project for testing." I'll update it with a more descriptive tagline using the suggestion provided.
 
-[25] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[25] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [26] Thinking...
-Now let me update the board to mark this task as done:
+Now I'll commit this change:
 
-[27] ▶ Edit  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[27] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [28] Thinking...
-Now let me commit the board update and land the changes:
+Now I'll update the board to mark this issue as done:
 
-[29] ▶ Bash  git add board.md && git commit -m "$(cat <<'EOF'
-     ✗ Error: Exit code 1
+[29] ▶ Edit  (-2)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [30] Thinking...
-There's a conflict during rebase. Let me check and resolve it:
+Now I'll commit the board update:
 
-[31] ▶ Bash  git status
+[31] ▶ Bash  git add board.md && git commit -m "Mark P1: Add project descript...
 [32] Thinking...
-Let me read the README to see the conflict:
+Now I'll land the changes:
 
-[33] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[34] Thinking...
-I can see the conflict. Main already has the description. Let me resolve it to keep both the badge and the proper description:
-
-[35] ▶ Edit  (-8)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
-[36] Thinking...
-Now let me continue the rebase:
-
-[37] ▶ Bash  git add README.md && git rebase --continue && bash .coven/land.sh
+[33] ▶ Bash  bash .coven/land.sh
      ✗ Error: Exit code 1
+[34] Thinking...
+I need to resolve a rebase conflict. Let me check what's in the README.md:
+
+[35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[36] Thinking...
+I can see the conflict. Main already has the status badge (the other P1 task), so I need to combine both changes:
+
+[37] ▶ Edit  (-6)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [38] Thinking...
-There's a conflict in board.md too. Let me check and resolve it:
+Now I'll complete the rebase:
 
-[39] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[39] ▶ Bash  git add README.md && git rebase --continue
+     ✗ Error: Exit code 1
 [40] Thinking...
-Let me resolve the board.md conflict to mark the task as complete:
+There's also a conflict in board.md. Let me read it:
 
-[41] ▶ Edit  (-20)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [42] Thinking...
-Now let me continue the rebase:
+I'll resolve the board.md conflict by keeping both completed tasks:
 
-[43] ▶ Bash  git add board.md && git rebase --continue && bash .coven/land.sh
+[43] ▶ Edit  (-5)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [44] Thinking...
-Perfect! The work has been landed successfully. Let me verify the final state:
+Now I'll continue the rebase:
 
-[45] ▶ Bash  git log --oneline -5
+[45] ▶ Bash  git add board.md && git rebase --continue
 [46] Thinking...
-Excellent! Let me verify the final state:
+Now I'll run the land script again to complete the process:
 
-[47] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[48] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[49] Thinking...
-Perfect! ✓ The task has been completed successfully:
+[47] ▶ Bash  bash .coven/land.sh
+[48] Thinking...
+Excellent! The work has been landed. Now I'll clean up by removing the scratch file:
 
-**Summary:**
-- Added status badge: `![Status](https://img.shields.io/badge/status-active-green)`
-- Updated project description to: "A modern toolkit for building great software."
-- Resolved merge conflicts during rebase
-- Marked the task as complete on the board
-- Changes have been landed on main
+[49] ▶ Bash  rm -f scratch.md && git status
+[50] Thinking...
+Perfect! I've successfully completed the task:
+
+✅ **Added project description to README.md** — Changed from "A sample project for testing." to "A modern toolkit for building great software."
+
+✅ **Resolved merge conflicts** — The status badge from the other P1 task was already in main, so I combined both changes in README.md
+
+✅ **Landed changes** — Both commits are now on main
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.09 · 62.0s · 19 turns  (:N to view)
+Done  $0.08 · 44.7s · 17 turns  (:N to view)
   Total cost: $0.13
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session dd8b207a-3772-4668-8d54-e24835912f04 (claude-haiku-4-5-20251001)
+Session 6450fed8-f9d7-4647-84a5-38ae84b6b01e (claude-haiku-4-5-20251001)
 
-[50] Thinking...
-[51] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[51] Thinking...
 [52] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[53] Thinking...
-**Sync Status:**
+[53] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[54] Thinking...
+I'll read the brief and board to understand the current state.
 
-The brief items (status badge + project description for README) have already been completed and are marked Done on the board. The recent commits confirm this work is finished.
+**Current state:**
+- Brief shows 2 items, both already completed per the Done section
+- Board has a stale entry under Ready that's already marked Done
+- No blocked issues
+- All work appears to be done
 
-**Current State:**
-- No blocked items (nothing above the divider)
-- No ready work (nothing below the divider)
-- All completed work is in Done section
+Syncing: Both brief items (add status badge, add project description) are already in the Done section and reflected in recent commits. I'll clean up the stale Ready entry and commit the board update.
 
-**Action:**
-Nothing actionable. Sleeping until new tasks appear in the brief.
+[55] ▶ Edit  (-4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[56] Thinking...
+[57] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[58] Thinking...
+[59] ▶ Bash  bash .coven/land.sh
+[60] Thinking...
+**Summary:**
+- All brief items already completed (status badge and project description both in Done and committed)
+- No blocked or ready issues
+- No new work to sync
+
+Nothing actionable. Sleeping.
 
 <next>
 sleep: true
 </next>
 
 
-Done  $0.02 · 9.4s · 3 turns  (:N to view)
-  Total cost: $0.14
+Done  $0.03 · 18.0s · 6 turns  (:N to view)
+  Total cost: $0.16
 
 Transition: sleep — waiting for new commits...
 

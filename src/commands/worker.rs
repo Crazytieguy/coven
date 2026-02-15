@@ -218,29 +218,42 @@ async fn worker_loop<W: Write>(
             .await?
             .context("failed to sync worktree to main")?;
 
-        let chain_result = run_agent_chain(
-            config,
-            worktree_path,
-            branch,
-            &project_config.entry_agent,
-            ctx,
-        )
-        .await?;
+        // Get current HEAD SHA for sleep coordination
+        let head_sha = vcr_main_head_sha(ctx.vcr, wt_str.clone()).await?;
 
-        match chain_result {
-            ChainResult::Sleep => {
-                ctx.renderer
-                    .set_title(&format!("cv sleeping \u{2014} {branch}"));
-                ctx.renderer
-                    .write_raw("\r\nTransition: sleep \u{2014} waiting for new commits...\r\n");
-                ctx.io.clear_event_channel();
-                let wait =
-                    wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
-                if matches!(wait.await?, WaitOutcome::Exited) {
-                    return Ok(());
+        // If a peer dispatch already decided to sleep at this HEAD, skip dispatch
+        let sleep_signal = vcr_read_sleep_signal(ctx.vcr, &wt_str).await?;
+        if sleep_signal.as_deref() == Some(head_sha.as_str()) {
+            ctx.renderer.write_raw(
+                "\r\nSkipping dispatch \u{2014} peer worker already decided to sleep at this commit.\r\n",
+            );
+        } else {
+            match run_agent_chain(
+                config,
+                worktree_path,
+                branch,
+                &project_config.entry_agent,
+                &head_sha,
+                ctx,
+            )
+            .await?
+            {
+                ChainResult::Sleep => {
+                    vcr_write_sleep_signal(ctx.vcr, &wt_str, &head_sha).await?;
                 }
+                ChainResult::Exited => return Ok(()),
             }
-            ChainResult::Exited => return Ok(()),
+        }
+
+        // Sleep until new commits appear on main
+        ctx.renderer
+            .set_title(&format!("cv sleeping \u{2014} {branch}"));
+        ctx.renderer
+            .write_raw("\r\nTransition: sleep \u{2014} waiting for new commits...\r\n");
+        ctx.io.clear_event_channel();
+        let wait = wait_for_new_commits(worktree_path, ctx.renderer, ctx.input, ctx.io, ctx.vcr);
+        if matches!(wait.await?, WaitOutcome::Exited) {
+            return Ok(());
         }
     }
 }
@@ -259,6 +272,7 @@ async fn run_agent_chain<W: Write>(
     worktree_path: &Path,
     branch: &str,
     entry_agent: &str,
+    head_sha: &str,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<ChainResult> {
     let wt_str = worktree_path.display().to_string();
@@ -268,6 +282,7 @@ async fn run_agent_chain<W: Write>(
     let system_doc = vcr_load_system_doc(ctx.vcr, &wt_str).await?;
     let main_worktree_branch = vcr_main_branch_name(ctx.vcr, &wt_str).await?;
 
+    let mut is_entry = true;
     loop {
         let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
 
@@ -278,6 +293,17 @@ async fn run_agent_chain<W: Write>(
 
         let _semaphore_permit =
             vcr_acquire_semaphore(ctx.vcr, &wt_str, &agent_name, agent_def).await?;
+
+        // After acquiring the entry agent's semaphore, check if a peer dispatch
+        // decided to sleep while we were waiting. This avoids redundant dispatch
+        // runs when multiple workers wake simultaneously.
+        if is_entry {
+            is_entry = false;
+            let signal = vcr_read_sleep_signal(ctx.vcr, &wt_str).await?;
+            if signal.as_deref() == Some(head_sha) {
+                return Ok(ChainResult::Sleep);
+            }
+        }
 
         vcr_update_worker_state(ctx.vcr, &wt_str, branch, Some(&agent_name), &agent_args).await?;
 
@@ -679,6 +705,26 @@ async fn vcr_acquire_semaphore(
         )
         .await?;
     Ok(Some(permit))
+}
+
+/// VCR-wrapped `worker_state::write_sleep_signal`.
+async fn vcr_write_sleep_signal(vcr: &VcrContext, wt_str: &str, head_sha: &str) -> Result<()> {
+    vcr.call(
+        "worker_state::write_sleep_signal",
+        (wt_str.to_string(), head_sha.to_string()),
+        async |a: &(String, String)| worker_state::write_sleep_signal(Path::new(&a.0), &a.1),
+    )
+    .await
+}
+
+/// VCR-wrapped `worker_state::read_sleep_signal`.
+async fn vcr_read_sleep_signal(vcr: &VcrContext, wt_str: &str) -> Result<Option<String>> {
+    vcr.call(
+        "worker_state::read_sleep_signal",
+        wt_str.to_string(),
+        async |p: &String| worker_state::read_sleep_signal(Path::new(p)),
+    )
+    .await
 }
 
 /// VCR-wrapped `worker_state::update`.
