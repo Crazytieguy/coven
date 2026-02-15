@@ -16,7 +16,7 @@ Review the implementation for board issue: **{{task}}**
 
 1. Read `board.md` to find the original issue entry and its acceptance criteria / decisions
 2. Read `scratch.md` for the implementer's notes on what was done
-3. Run `git diff main...HEAD` to see the full diff
+3. Run `git diff <main-worktree-branch>...HEAD` to see the full diff
 4. Read any files that need closer inspection
 
 ## Judge: Land or Push Back
@@ -28,7 +28,7 @@ The main agent implements but doesn't land. Your job is to decide whether the wo
 - The implementation doesn't match the issue's acceptance criteria or decisions
 - There are significant quality issues that need a different approach
 
-To push back: `git reset --hard main` to discard the implementation, update the board entry with questions or concerns, move it under `# Blocked`, commit, land, and transition to dispatch.
+To push back: `git reset --hard <main-worktree-branch>` to discard the implementation, update the board entry with questions or concerns, move it under `# Blocked`, commit, land, and transition to dispatch.
 
 **Improve and land** if the approach is sound:
 - Fix any quality issues you notice — bugs, missing edge cases, style problems, test gaps

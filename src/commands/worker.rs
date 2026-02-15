@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write as FmtWrite;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -265,6 +266,7 @@ async fn run_agent_chain<W: Write>(
     let mut agent_args: HashMap<String, String> = HashMap::new();
 
     let system_doc = vcr_load_system_doc(ctx.vcr, &wt_str).await?;
+    let main_worktree_branch = vcr_main_branch_name(ctx.vcr, &wt_str).await?;
 
     loop {
         let agent_defs = vcr_load_agents(ctx.vcr, worktree_path).await?;
@@ -308,6 +310,7 @@ async fn run_agent_chain<W: Write>(
             &system_doc,
             &transition_prompt,
             &worker_status_section,
+            &main_worktree_branch,
             ctx.fork_config,
         );
 
@@ -441,6 +444,7 @@ fn build_system_prompt(
     system_doc: &str,
     transition_prompt: &str,
     worker_status_section: &str,
+    main_worktree_branch: &str,
     fork_config: Option<&ForkConfig>,
 ) -> String {
     let mut prompt = String::new();
@@ -450,6 +454,7 @@ fn build_system_prompt(
     }
     prompt.push_str(transition_prompt);
     prompt.push_str(worker_status_section);
+    let _ = write!(prompt, "\n\nMain worktree branch: {main_worktree_branch}");
     if fork_config.is_some() {
         prompt.push_str("\n\n");
         prompt.push_str(fork::fork_system_prompt());
@@ -613,6 +618,16 @@ async fn vcr_load_system_doc(vcr: &VcrContext, wt_str: &str) -> Result<String> {
                 Err(e) => Err(e.into()),
             }
         },
+    )
+    .await
+}
+
+/// VCR-wrapped `worktree::main_branch_name`.
+async fn vcr_main_branch_name(vcr: &VcrContext, wt_str: &str) -> Result<String> {
+    vcr.call(
+        "worktree::main_branch_name",
+        wt_str.to_string(),
+        async |p: &String| Ok(worktree::main_branch_name(Path::new(p))?),
     )
     .await
 }
