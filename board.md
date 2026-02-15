@@ -2,14 +2,6 @@
 
 ## P1: Investigate: some claude sessions don't get displayed by coven
 
-Maybe listening to the wrong session or something weird like that.
-
-*In progress (prime-cedar-53)*
-
----
-
-## P1: Investigate: some claude sessions don't get displayed by coven
-
 Investigated the full event pipeline: spawning → stdout reading → parsing → event channel → renderer.
 
 **Finding: stderr is completely suppressed.** `runner.rs:75` sets `.stderr(Stdio::null())`, so if the claude CLI encounters an error (auth failure, API rate limits, invalid args, model unavailable), the error goes to stderr (invisible) and the process exits with no stdout. The user sees only "Claude process exited" with zero context.
@@ -34,6 +26,10 @@ Claude process exited
 - Or is it more like sessions that run for a while and produce output that disappears?
 
 ---
+
+## P1: Review: is `git reset --hard main` correct in the review agent?
+
+review agent: is `git reset --hard main` correct? Most notable: the main worktree might be on a different branch. Currently everything else takes that into account. But also: is there a less aggressive way of reseting? And can the `git reset:*` permissions be abused?
 
 ## Done
 - P1: Split main into main + review agents
