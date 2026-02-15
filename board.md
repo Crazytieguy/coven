@@ -2,6 +2,10 @@
 
 ---
 
+## P1: wait-for-user retrospective
+
+Please give me a quick overview of what the change ended up being, and search the relevant session history to explain why it was marked as done before I got a say in the final prompts (also see board.md and brief.md history). We might need prompt changes re when to post questions to the board.
+
 ## P1: self_transition_review test doesn't trigger a review session
 
 Tried a harder task (merge_intervals — sorting, merging overlapping/adjacent intervals, edge cases). Updated the fixture and re-recorded. Haiku still completes everything in one main session — it inlines the review rather than self-transitioning to a fresh context.
