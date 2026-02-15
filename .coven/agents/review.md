@@ -7,7 +7,7 @@ args:
     required: true
 claude_args:
   - "--allowedTools"
-  - "Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git add:*),Bash(git mv:*),Bash(git rm:*),Bash(git commit:*),Bash(git rebase:*),Bash(bash .coven/land.sh)"
+  - "Bash(git status),Bash(git log:*),Bash(git diff:*),Bash(git add:*),Bash(git mv:*),Bash(git rm:*),Bash(git commit:*),Bash(git rebase:*),Bash(git reset:*),Bash(bash .coven/land.sh)"
 ---
 
 Review the implementation for board issue: **{{task}}**
@@ -28,7 +28,7 @@ The main agent implements but doesn't land. Your job is to decide whether the wo
 - The implementation doesn't match the issue's acceptance criteria or decisions
 - There are significant quality issues that need a different approach
 
-To push back: `git reset main`, update the board entry with questions or concerns, move it above the divider, commit, land, and transition to dispatch.
+To push back: `git reset --hard main` to discard the implementation, update the board entry with questions or concerns, move it above the divider, commit, land, and transition to dispatch.
 
 **Improve and land** if the approach is sound:
 - Fix any quality issues you notice — bugs, missing edge cases, style problems, test gaps
