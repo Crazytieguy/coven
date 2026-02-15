@@ -1,46 +1,5 @@
 # Board
 
-## P1: Propose a new board format that replaces the divider
-
-Replace the `---` divider with H1 section headers. The file is already called `board.md`, so the `# Board` title is redundant — use that heading level for semantic sections instead:
-
-```markdown
-# Blocked
-
-## P1: Issue with questions
-
-**Questions:**
-- Need human input here
-
-# Ready
-
-## P2: Another issue
-
-Description.
-
-# Done
-
-- P1: Completed issue
-- P2: Another completed issue
-```
-
-**Why this works:**
-- Self-documenting — "Blocked" and "Ready" say exactly what the divider couldn't
-- Minimal change — issues stay as H2, Done stays the same, just swap the divider for named H1 sections
-- Easy to reference in prompts — "move to `# Blocked`" / "move to `# Ready`" is clearer than "above/below the divider"
-
-**What changes in the prompts:**
-- `system.md`: new format example, replace divider language with section names
-- `dispatch.md`: "below the divider" → "under `# Ready`", "above the divider" → "under `# Blocked`"
-- `main.md`, `review.md`: same substitutions
-- `init.rs`: brief template reference
-
-**Questions:**
-- Good to proceed with this approach?
-- Any preference on the section names? (`Blocked`/`Ready` vs `Waiting`/`Active` vs something else)
-
----
-
 ## P1: Review: is `git reset --hard main` correct in the review agent?
 
 Reviewed `review.md`, `land.sh`, `worktree.rs`, and the agent rendering pipeline.
@@ -71,6 +30,21 @@ Coven hangs and doesn't display, but claude is actually running in the backgroun
 **New direction:** The problem is that coven's display layer stops showing output even though the claude process is still running. Need to investigate the streaming/rendering pipeline for cases where events are received but not displayed, or where stdout reading stalls.
 
 Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression.
+
+## P1: Implement new board format (replace divider with Blocked/Ready sections)
+
+Replace the `---` divider in `board.md` with H1 section headers: `# Blocked`, `# Ready`, `# Done`.
+
+**Decisions:**
+- Human approved the approach
+- Section names: `Blocked` and `Ready`
+- Remove all dividers when done
+
+**What changes in the prompts:**
+- `system.md`: new format example, replace divider language with section names
+- `dispatch.md`: "below the divider" → "under `# Ready`", "above the divider" → "under `# Blocked`"
+- `main.md`, `review.md`: same substitutions
+- `init.rs`: board template in init code
 
 ## Done
 - P2: Capture stderr from claude process
