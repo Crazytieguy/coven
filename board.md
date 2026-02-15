@@ -2,6 +2,10 @@
 
 ---
 
+## P1: Investigate: some claude sessions don't get displayed by coven
+
+Maybe listening to the wrong session or something weird like that.
+
 ## Done
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
