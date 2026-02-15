@@ -50,13 +50,46 @@ But `land.sh` and `worktree.rs` both discover the main branch dynamically via `g
   3. Inject `{{main_branch}}` as a template variable at dispatch time (cleanest, but requires code changes to pass the value)
 - Also: `git diff main...HEAD` on line 19 has the same problem — should fix both together
 
----
-
 ## P1: Propose a new board format that replaces the divider
 
-"The divider" seems to be confusing. Propose a board format that makes it more obvious what's blocking on human input and what isn't (blocking still at the top).
+Replace the `---` divider with H1 section headers. The file is already called `board.md`, so the `# Board` title is redundant — use that heading level for semantic sections instead:
 
-*In progress (prime-cedar-53)*
+```markdown
+# Blocked
+
+## P1: Issue with questions
+
+**Questions:**
+- Need human input here
+
+# Ready
+
+## P2: Another issue
+
+Description.
+
+# Done
+
+- P1: Completed issue
+- P2: Another completed issue
+```
+
+**Why this works:**
+- Self-documenting — "Blocked" and "Ready" say exactly what the divider couldn't
+- Minimal change — issues stay as H2, Done stays the same, just swap the divider for named H1 sections
+- Easy to reference in prompts — "move to `# Blocked`" / "move to `# Ready`" is clearer than "above/below the divider"
+
+**What changes in the prompts:**
+- `system.md`: new format example, replace divider language with section names
+- `dispatch.md`: "below the divider" → "under `# Ready`", "above the divider" → "under `# Blocked`"
+- `main.md`, `review.md`: same substitutions
+- `init.rs`: brief template reference
+
+**Questions:**
+- Good to proceed with this approach?
+- Any preference on the section names? (`Blocked`/`Ready` vs `Waiting`/`Active` vs something else)
+
+---
 
 ## Done
 - P1: Split main into main + review agents
