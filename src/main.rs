@@ -132,33 +132,49 @@ fn create_live_io() -> (Io, VcrContext) {
 
     // Background task: forward crossterm events to the channel.
     // Respects the pause gate — when paused, drops the EventStream to
-    // release stdin, then waits for the gate to become true again.
+    // release stdin (and its internal parser state), then waits for the
+    // gate to become true and recreates the stream fresh.
+    //
+    // Uses `tokio::select!` so the gate change is noticed immediately,
+    // even while blocked in `stream.next()`. Without this, the reader
+    // would hold the EventStream (and compete for stdin) until the next
+    // terminal event arrives — causing stale parser state that can
+    // swallow the first character typed after returning from a child
+    // process (e.g. the native Claude TUI via Ctrl+O).
     tokio::spawn(async move {
         let mut stream = EventStream::new();
         loop {
-            if !*gate_rx.borrow() {
-                // Paused: drop the stream to release stdin
-                drop(stream);
-                // Wait for resume signal
-                loop {
-                    if gate_rx.changed().await.is_err() {
+            tokio::select! {
+                result = stream.next() => {
+                    match result {
+                        Some(Ok(event)) => {
+                            if term_tx.send(event).is_err() {
+                                return;
+                            }
+                        }
+                        Some(Err(_)) | None => return,
+                    }
+                }
+                result = gate_rx.changed() => {
+                    if result.is_err() {
                         return; // gate sender dropped, shut down
                     }
-                    if *gate_rx.borrow() {
-                        break;
+                    if !*gate_rx.borrow() {
+                        // Paused: drop the stream to release stdin
+                        drop(stream);
+                        // Wait for resume signal
+                        loop {
+                            if gate_rx.changed().await.is_err() {
+                                return;
+                            }
+                            if *gate_rx.borrow() {
+                                break;
+                            }
+                        }
+                        // Recreate the stream after resuming
+                        stream = EventStream::new();
                     }
                 }
-                // Recreate the stream after resuming
-                stream = EventStream::new();
-            }
-
-            match stream.next().await {
-                Some(Ok(event)) => {
-                    if term_tx.send(event).is_err() {
-                        break;
-                    }
-                }
-                Some(Err(_)) | None => break,
             }
         }
     });
