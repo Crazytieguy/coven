@@ -41,23 +41,9 @@ Coven hangs and doesn't display, but claude is actually running in the backgroun
 
 Previous investigation ruled out: event channel replacement, serde fallback, tokio::select fairness, --verbose flag, renderer suppression.
 
-## P1: Implement new board format (replace divider with Blocked/Ready sections)
-
-Replace the `---` divider in `board.md` with H1 section headers: `# Blocked`, `# Ready`, `# Done`.
-
-**Decisions:**
-- Human approved the approach
-- Section names: `Blocked` and `Ready`
-- Remove all dividers when done (human emphasized this — a spurious divider was added previously)
-
-**What changes in the prompts:**
-- `system.md`: new format example, replace divider language with section names
-- `dispatch.md`: "below the divider" → "under `# Ready`", "above the divider" → "under `# Blocked`"
-- `main.md`, `review.md`: same substitutions
-- `init.rs`: board template in init code
-
 # Done
 
+- P1: Implement new board format (replace divider with Blocked/Ready sections)
 - P2: Capture stderr from claude process
 - P1: Split main into main + review agents
 - P1: First typed character after entering interactive with Ctrl+O seems to be swallowed
