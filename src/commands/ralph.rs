@@ -77,14 +77,13 @@ fn ralph_system_prompt(break_tag: &str) -> String {
          one you do a small piece of work, then end your response normally. The next \
          iteration starts automatically.\n\n\
          Two special tags control the loop:\n\n\
-         `<{break_tag}>reason</{break_tag}>` — **ends the loop permanently.** The session is \
-         discarded and the loop stops. Use only when all available work is exhausted and \
-         another iteration would accomplish nothing new.\n\n\
-         `<wait-for-user>reason</wait-for-user>` — **pauses the loop for user input.** The \
+         `<{break_tag}>reason</{break_tag}>` — **ends the loop permanently.** Use only when \
+         you have exhausted all available work and another iteration would accomplish nothing \
+         new. The loop stops and does not resume.\n\n\
+         `<wait-for-user>reason</wait-for-user>` — **pauses the loop for user input.** Your \
          session is preserved. The user sees your reason, types a response, and your session \
-         resumes with their input and full conversation history. Use when you need human \
-         input to continue (e.g. a command was denied, you need clarification, or you want \
-         to show progress before continuing)."
+         resumes with their input. Use when you are blocked (e.g. a command was denied, you \
+         need clarification on a requirement, or you want to show progress before continuing)."
     )
 }
 /// Mutable I/O handles shared across the ralph loop.
