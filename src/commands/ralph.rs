@@ -156,8 +156,9 @@ pub async fn ralph<W: Write>(
                 fork_config.as_ref(),
             )
             .await?;
-            runner.close_input();
-            let _ = runner.wait().await;
+            // Kill the CLI process immediately to prevent async task
+            // notifications from triggering an invisible continuation.
+            runner.kill().await?;
 
             match handle_session_outcome(
                 outcome,

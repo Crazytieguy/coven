@@ -798,8 +798,9 @@ async fn run_phase_session<W: Write>(
         )
         .await?;
 
-        runner.close_input();
-        let _ = runner.wait().await;
+        // Kill the CLI process immediately to prevent async task
+        // notifications from triggering an invisible continuation.
+        runner.kill().await?;
 
         match outcome {
             SessionOutcome::Completed { result_text } => {
