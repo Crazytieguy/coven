@@ -1,18 +1,52 @@
 # Blocked
 
-# Ready
-
 ## P1: Agent restructuring — split main into plan + implement
 
-Split the main agent into two: plan and implement. Issues default to needing planning. New lifecycle:
-- Issue added via brief, marked as needs planning (via dispatch)
-- Planning → results in questions/decisions for the human (via plan agent)
-- Human answers questions, dispatch infers whether issue still needs planning or can transition to implementation ready
-- Either re-plan or implement
+### Proposal
 
-Plans should be concise: key decisions and open questions only, no irrelevant implementation details. Implementation agent keeps an escape hatch to add questions if needed. Agent-added issues default to needing planning. All agents should be empowered to add issues liberally.
+**New board sections** — add `# Plan` to distinguish planning-needed from implementation-ready:
 
-Human wants to be involved in prompting decisions — propose specifics for review.
+```
+# Blocked     ← needs human input (unchanged)
+# Plan        ← needs planning (default state for new issues)
+# Ready       ← implementation ready (human approved plan)
+# Done        ← completed (unchanged)
+```
+
+**New lifecycle:**
+
+```
+dispatch → plan → dispatch → [human answers] → dispatch → implement × N → review → dispatch
+```
+
+**Changes to each agent:**
+
+**dispatch** — Route by section. `# Plan` issues → plan agent. `# Ready` issues → implement agent. New brief items default to `# Plan` unless the human says otherwise. When brief answers questions on a blocked issue, dispatch infers: still unclear → `# Plan`, clear enough → `# Ready`. Same priority/throttling logic applies across both sections.
+
+**plan** (new, replaces main's "post to board" path) — Read-only exploration. Reads the issue, explores the codebase, produces a concise plan: key decisions made + open questions. Moves issue to `# Blocked`, lands, transitions to dispatch. No code modifications. Prompt core:
+
+> Read the board issue. Explore the codebase to understand the problem. Post a concise plan: key decisions and open questions only — no implementation details the human doesn't need. Move the issue under `# Blocked`, commit, land, transition to dispatch.
+
+**implement** (new, replaces main's "implement" path) — Focused execution. Only picks up `# Ready` issues where a plan has been approved. Same permissions and flow as current main's implementation mode. Escape hatch: if implementation reveals ambiguity, discard work and post to board. Prompt core:
+
+> Implement the board issue. The plan has been approved — follow the decisions. If you hit ambiguity, stop, discard uncommitted changes, post questions to the board, and transition to dispatch. Otherwise, commit your work and continue or transition to review.
+
+**review** — Mostly unchanged. Continues to review implementation quality and can push back.
+
+**Agent-added issues** — All agents can add issues to `# Plan` (default) liberally. This ensures agent-spotted problems get human review before implementation.
+
+**Decisions:**
+- Plan agent is read-only (no code modifications, just exploration + git for board updates)
+- Implement agent retains escape hatch for posting questions
+
+**Questions:**
+- Does the `# Blocked` / `# Plan` / `# Ready` / `# Done` section approach work, or prefer a different mechanism?
+- Plan agent permissions: read-only + git, or does it need anything else?
+- Should dispatch prioritize planning over implementation at the same priority level (so plans get reviewed faster)?
+- Prompt drafts above capture the right tone and constraints? Anything to add or remove?
+
+# Ready
+
 # Done
 
 - P2: Fix parent auto-continue during fork (kill parent CLI before fork children run, respawn with reintegration message after)
