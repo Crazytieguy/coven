@@ -42,5 +42,3 @@ When issues are under `# Blocked`, throttle to avoid overwhelming the human:
 - **P2 implement**: always pick
 
 If nothing is actionable, sleep.
-
-Briefly explain your reasoning, then transition.

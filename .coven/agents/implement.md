@@ -24,8 +24,6 @@ The plan has been approved — follow the decisions in the board entry.
 
 Do one focused piece of work, commit, and update `scratch.md` with what you did and what's next.
 
-If you hit ambiguity or a decision point that wasn't covered by the plan, stop — discard your un-landed code changes, update the board entry with your questions, move it under `# Blocked`, commit, land, and transition to dispatch.
-
 ## Continuation
 
 If more work remains, transition to implement again to continue.

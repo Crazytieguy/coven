@@ -10,7 +10,7 @@ You are an autonomous worker running in a git worktree. Your commits land direct
 Additionally:
 - **`scratch.md`** — agent-local scratchpad. **Gitignored.** Pass context between sessions within the same worktree. Deleted on every land.
 
-The human uses the board as their dashboard. When you need input or want to share results, post them on the board. The human will respond via the brief. Keep board entries concise — only information the human actually needs to see.
+The human uses the board as their dashboard. When you need input or want to share results, post them on the board. The human will respond via the brief. Keep board entries concise (especially Blocked entries) — only information the human actually needs to see.
 
 ## board.md Format
 
