@@ -11,8 +11,7 @@ dispatch.md needs a bit more explanation on when to move from blocked to plan vs
 **Decisions:**
 - Add explicit blocked → ready transition: when human approves a plan, move to Ready (currently the text only says "move to Plan unless the human explicitly says to proceed" without explaining what "proceed" means)
 - Add blocked → plan transition for when human answers questions but doesn't approve — the plan agent needs to re-plan with the new info
-- Add a brief note on using `git log` to compare last commits touching `brief.md` vs `board.md` to detect new brief content
-- Brief history check should be conceptual (explain the goal), not prescriptive (no specific git commands) — the agent already has the most recent brief content in their working directory, git log is just to detect staleness
+- Brief history check should be conceptual (explain the goal), not prescriptive (no specific git commands) — the agent already has the most recent brief content in their working directory, git log is just to detect staleness 31454b9 (Board: unblock dispatch.md improvement, move to Ready with human feedback)
 
 # Done
 
