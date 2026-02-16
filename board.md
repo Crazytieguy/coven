@@ -2,6 +2,22 @@
 
 # Plan
 
+## P1: Further agent prompt revisions (dispatch + review)
+
+dispatch.md: Simplify the "Use your judgement on where to move the issue" language — should mostly defer to human rather than deciding.
+
+review "improve and land" section: can be shorter. Suggested text:
+```
+**Improve and land** if the approach is sound:
+- Fix quality issues
+- Simplify, dry
+- Clean up redundant, or inconsistent comments
+- Check against project guidelines
+- Commit
+```
+
+Also check board.md and brief.md history — some decisions for this issue may have been lost along the way.
+
 # Ready
 
 # Done
