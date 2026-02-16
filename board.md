@@ -2,6 +2,18 @@
 
 # Ready
 
+## P1: Agent restructuring — split main into plan + implement
+
+Split the main agent into two: plan and implement. Issues default to needing planning. New lifecycle:
+- Issue added via brief, marked as needs planning (via dispatch)
+- Planning → results in questions/decisions for the human (via plan agent)
+- Human answers questions, dispatch infers whether issue still needs planning or can transition to implementation ready
+- Either re-plan or implement
+
+Plans should be concise: key decisions and open questions only, no irrelevant implementation details. Implementation agent keeps an escape hatch to add questions if needed. Agent-added issues default to needing planning. All agents should be empowered to add issues liberally.
+
+Human wants to be involved in prompting decisions — propose specifics for review.
+
 ## P2: Parent session may auto-continue during fork execution
 
 When the parent outputs `<fork>`, coven runs fork children then sends the reintegration message back. While fork children are running, the parent CLI is idle — if an async task completes, the parent auto-continues and may change state before receiving the expected fork results.
