@@ -1,10 +1,17 @@
 # Blocked
 
-# Plan
-
 ## P2: Strengthen dispatch prompt — new items must go to Plan
 
 In VCR recordings (priority_dispatch), haiku sometimes puts new brief items directly in Ready, bypassing Plan. The dispatch prompt says "create a board entry under `# Plan`" but the model takes shortcuts for simple tasks. Consider making the instruction more emphatic or adding a rule.
+
+**Decisions:**
+- Add an explicit constraint rule to the Sync section of `dispatch.md`: new items always go to Plan, never directly to Ready. Even if a task looks trivial, the human reviews plans before implementation begins.
+- Keep it to one bolded sentence + short rationale — minimal change to the prompt.
+
+**Questions:**
+- Good to proceed?
+
+# Plan
 
 # Ready
 
