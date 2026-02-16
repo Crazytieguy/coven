@@ -1,28 +1,16 @@
 # Blocked
 
+# Plan
+
+## P2: Strengthen dispatch prompt — new items must go to Plan
+
+In VCR recordings (priority_dispatch), haiku sometimes puts new brief items directly in Ready, bypassing Plan. The dispatch prompt says "create a board entry under `# Plan`" but the model takes shortcuts for simple tasks. Consider making the instruction more emphatic or adding a rule.
+
 # Ready
 
-## P1: Agent restructuring — split main into plan + implement
-
-### Proposal
-
-**New board sections:** `# Blocked` / `# Plan` / `# Ready` / `# Done`
-
-**New lifecycle:** `dispatch → plan → dispatch → [human answers] → dispatch → implement × N → review → dispatch`
-
-**Agents:** dispatch routes by section (Plan → plan agent, Ready → implement agent). plan agent explores codebase, posts plan + questions, moves to Blocked. implement agent executes approved plans, posts to Blocked if ambiguity found. review agent unchanged.
-
-**Decisions:**
-- Sections: Blocked / Plan / Ready / Done — approved
-- Plan agent: write permission to board, read-only enforced via prompting (not mechanically)
-- Implement agent escape hatch: posting questions means moving issue to Blocked (light touch, review gate catches missing decisions)
-- Dispatch priority order: Plan P0 > Implement P0 > Plan P1 (throttled) > Implement P1 (not throttled) > Plan P2 (throttled) > Implement P2 (not throttled)
-- Prompt drafts approved as starting point
-- system.md must be updated coherently — prefer explaining the why over explaining the what
-- All agents can add issues to `# Plan` liberally
-- Re-record VCR after implementation
-
 # Done
+
+- P1: Agent restructuring — split main into plan + implement
 
 - P1: Investigate follow-up messages vs. next tag (findings below)
 - P2: Fix parent auto-continue during fork (kill parent CLI before fork children run, respawn with reintegration message after)
