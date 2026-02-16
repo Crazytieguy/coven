@@ -1,51 +1,26 @@
 # Blocked
 
+# Ready
+
 ## P1: Agent restructuring — split main into plan + implement
 
 ### Proposal
 
-**New board sections** — add `# Plan` to distinguish planning-needed from implementation-ready:
+**New board sections:** `# Blocked` / `# Plan` / `# Ready` / `# Done`
 
-```
-# Blocked     ← needs human input (unchanged)
-# Plan        ← needs planning (default state for new issues)
-# Ready       ← implementation ready (human approved plan)
-# Done        ← completed (unchanged)
-```
+**New lifecycle:** `dispatch → plan → dispatch → [human answers] → dispatch → implement × N → review → dispatch`
 
-**New lifecycle:**
-
-```
-dispatch → plan → dispatch → [human answers] → dispatch → implement × N → review → dispatch
-```
-
-**Changes to each agent:**
-
-**dispatch** — Route by section. `# Plan` issues → plan agent. `# Ready` issues → implement agent. New brief items default to `# Plan` unless the human says otherwise. When brief answers questions on a blocked issue, dispatch infers: still unclear → `# Plan`, clear enough → `# Ready`. Same priority/throttling logic applies across both sections.
-
-**plan** (new, replaces main's "post to board" path) — Read-only exploration. Reads the issue, explores the codebase, produces a concise plan: key decisions made + open questions. Moves issue to `# Blocked`, lands, transitions to dispatch. No code modifications. Prompt core:
-
-> Read the board issue. Explore the codebase to understand the problem. Post a concise plan: key decisions and open questions only — no implementation details the human doesn't need. Move the issue under `# Blocked`, commit, land, transition to dispatch.
-
-**implement** (new, replaces main's "implement" path) — Focused execution. Only picks up `# Ready` issues where a plan has been approved. Same permissions and flow as current main's implementation mode. Escape hatch: if implementation reveals ambiguity, discard work and post to board. Prompt core:
-
-> Implement the board issue. The plan has been approved — follow the decisions. If you hit ambiguity, stop, discard uncommitted changes, post questions to the board, and transition to dispatch. Otherwise, commit your work and continue or transition to review.
-
-**review** — Mostly unchanged. Continues to review implementation quality and can push back.
-
-**Agent-added issues** — All agents can add issues to `# Plan` (default) liberally. This ensures agent-spotted problems get human review before implementation.
+**Agents:** dispatch routes by section (Plan → plan agent, Ready → implement agent). plan agent explores codebase, posts plan + questions, moves to Blocked. implement agent executes approved plans, posts to Blocked if ambiguity found. review agent unchanged.
 
 **Decisions:**
-- Plan agent is read-only (no code modifications, just exploration + git for board updates)
-- Implement agent retains escape hatch for posting questions
-
-**Questions:**
-- Does the `# Blocked` / `# Plan` / `# Ready` / `# Done` section approach work, or prefer a different mechanism?
-- Plan agent permissions: read-only + git, or does it need anything else?
-- Should dispatch prioritize planning over implementation at the same priority level (so plans get reviewed faster)?
-- Prompt drafts above capture the right tone and constraints? Anything to add or remove?
-
-# Ready
+- Sections: Blocked / Plan / Ready / Done — approved
+- Plan agent: write permission to board, read-only enforced via prompting (not mechanically)
+- Implement agent escape hatch: posting questions means moving issue to Blocked (light touch, review gate catches missing decisions)
+- Dispatch priority order: Plan P0 > Implement P0 > Plan P1 (throttled) > Implement P1 (not throttled) > Plan P2 (throttled) > Implement P2 (not throttled)
+- Prompt drafts approved as starting point
+- system.md must be updated coherently — prefer explaining the why over explaining the what
+- All agents can add issues to `# Plan` liberally
+- Re-record VCR after implementation
 
 # Done
 
