@@ -1,15 +1,6 @@
 # Blocked
 
-## P2: Strengthen dispatch prompt — new items must go to Plan
-
-In VCR recordings (priority_dispatch), haiku sometimes puts new brief items directly in Ready, bypassing Plan. The dispatch prompt says "create a board entry under `# Plan`" but the model takes shortcuts for simple tasks. Consider making the instruction more emphatic or adding a rule.
-
-**Decisions:**
-- Add an explicit constraint rule to the Sync section of `dispatch.md`: new items always go to Plan, never directly to Ready. Even if a task looks trivial, the human reviews plans before implementation begins.
-- Keep it to one bolded sentence + short rationale — minimal change to the prompt.
-
-**Questions:**
-- Good to proceed?
+# Plan
 
 ## P1: Revise agent prompts based on restructuring feedback
 
@@ -20,6 +11,8 @@ Draft wording for each prompt revision. VCR re-recording waits until end of impl
 One change in Sync — add "verbatim" to the brief-answers paragraph:
 
 > If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions. Use your judgement…
+
+Also simplify the "use your judgement on where to move the issue" paragraph — should mostly defer to the human rather than the agent deciding.
 
 ### plan.md
 
@@ -63,7 +56,7 @@ If more work remains, transition to implement again to continue. When done, tran
 
 ### review.md
 
-Rename section to "Evaluate". Use "refer back." Make it about the changes. Expand quality guidance:
+Rename section to "Evaluate". Use "refer back." Make it about the changes. Shorter "improve and land":
 
 ```
 ## Evaluate
@@ -78,10 +71,11 @@ Assess the implementation against the plan's decisions.
 To refer back: `git reset --hard <main-worktree-branch>` to discard the implementation, update the board entry with what went wrong, move it under `# Blocked`, commit, land, and transition to dispatch.
 
 **Improve and land** if the approach is sound:
-- Fix quality issues: bugs, missing edge cases, test gaps
-- Clean up comments — remove dry, redundant, or inconsistent ones
-- Check against project guidelines (CLAUDE.md conventions, style rules)
-- Commit improvements separately from the implementer's work
+- Fix quality issues
+- Simplify, dry
+- Clean up redundant or inconsistent comments
+- Check against project guidelines
+- Commit
 ```
 
 Remove `## Recording Issues`.
@@ -97,12 +91,10 @@ If you notice unrelated problems (bugs, tech debt, improvements) while working, 
 ```
 
 **Decisions:**
-- All feedback incorporated. No remaining open questions — the human's direction was specific enough to proceed.
-
-**Questions:**
-- Good to proceed?
-
-# Plan
+- All prior decisions preserved (review term "refer back", plan reframing, implement simplification, Recording Issues to system.md).
+- dispatch.md: simplify the "use your judgement" move-issue paragraph — defer to human rather than agent deciding.
+- review.md: shorter "improve and land" list per human's wording.
+- "Strengthen dispatch prompt" issue dropped — subsumed by these revisions.
 
 # Ready
 
