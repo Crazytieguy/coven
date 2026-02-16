@@ -11,29 +11,21 @@ In VCR recordings (priority_dispatch), haiku sometimes puts new brief items dire
 **Questions:**
 - Good to proceed?
 
-# Plan
-
 ## P1: Revise agent prompts based on restructuring feedback
 
-Comments from the brief on each agent prompt:
+**Decisions:**
+- **system.md:** Add a "Recording Issues" section (moved from individual agents). All agents get the instruction; review.md gets additional emphasis with its own wording.
+- **dispatch.md:** Add a note about preserving the human's decisions and intent faithfully when incorporating brief answers into board entries — not just task descriptions, but the reasoning behind decisions.
+- **plan.md:** Rewrite the "Plan" section. Current framing ("exploration and decision-making") positions the agent as the decision-maker. Reframe: the agent explores to find ambiguity, surfaces trade-offs, and asks the right questions to elicit the human's preferences. "Decisions" in the board entry are things the agent proposes for human approval, not unilateral choices.
+- **implement.md:** Simplify. Merge "Continuation" into "Implement", remove "Recording Issues" (now in system.md). Three sections: Orient, Implement, Rules. Key message: follow the plan, commit incrementally, transition to review when done.
+- **review.md:** Reframe from "judge/gate" to "evaluate the changes against the plan." Replace "push back" with "request changes." Add emphasis on noticing incidental issues and recording them on the board as part of the review task (distinct wording from system.md).
+- **VCR re-recording** not part of this task — tests are expected to fail until a separate re-record pass.
 
-**dispatch.md:**
-- Can clarify a bit more that preserving human input and decisions faithfully is important (so implementation doesn't diverge from the plan)
+**Questions:**
+- For review.md, is "request changes" the right replacement for "push back"? Other options: "return for revision", "send back."
+- For plan.md, should the agent still be able to state obvious decisions (e.g. "the obvious approach is X, good to proceed?") or should it always frame everything as questions?
 
-**plan.md:**
-- "## Plan" section: not accurate. It's more about understanding the requirements and finding ambiguity or inconsistency. The main goal for the plan agent is to elicit the human's preferences for implementation via bringing up the right questions
-- "Recording Issues" section: since this applies to all agents, it should be in system.md instead (though the review agent should have emphasis)
-
-**implement.md:**
-- The "If you hit ambiguity" paragraph has been dropped: rely on review instead
-- Can overall be simplified - too many small sections. What's important is that it transitions to review when it's done
-
-**review.md:**
-- Rather than framing as gating the implementer's work, frame as evaluating the changes. It's not about the implementer doing a good/poor job, it's about whether the changes match the criteria
-- Maybe "push back" has a somewhat negative valence?
-- Should have emphasis (with different wording from system.md) on noticing issues and adding them to the board: this is part of the review task (for issues that shouldn't block landing or are unrelated)
-
-General note: VCR tests currently fail and will need re-recording after these changes. That's ok.
+# Plan
 
 # Ready
 
