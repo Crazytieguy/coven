@@ -47,6 +47,10 @@ dispatch → plan → dispatch → [human answers] → dispatch → implement ×
 
 # Ready
 
+## P1: Investigate follow-up messages vs. next tag — what wins?
+
+When a coven session outputs a `<next>` tag but also has follow-up messages queued, what wins? Is the continuation agent spawned?
+
 # Done
 
 - P2: Fix parent auto-continue during fork (kill parent CLI before fork children run, respawn with reintegration message after)
