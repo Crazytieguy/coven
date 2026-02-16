@@ -2,6 +2,10 @@
 
 # Ready
 
+## P1: Mark a session to wait for user input when it finishes
+
+Would be nice to be able to mark a session as "when it finishes, wait for user input instead of continuing" (I find myself queueing a follow up to tell the model to wait for user input, which is awkward). Relevant for ralph and worker.
+
 ## P2: Parent session may auto-continue during fork execution
 
 When the parent outputs `<fork>`, coven runs fork children then sends the reintegration message back. While fork children are running, the parent CLI is idle — if an async task completes, the parent auto-continues and may change state before receiving the expected fork results.
