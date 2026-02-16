@@ -199,7 +199,8 @@ impl<W: Write> Renderer<W> {
     // --- Session lifecycle ---
 
     pub fn render_help(&mut self) {
-        let help = ":N view message · type to steer · Alt+Enter follow up · Ctrl+D exit";
+        let help =
+            ":N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit";
         queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();
         self.out.flush().ok();
     }

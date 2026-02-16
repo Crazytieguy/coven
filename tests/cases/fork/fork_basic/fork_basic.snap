@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 Session 75c7b5d3-ddfa-41a5-81dc-2db496a9ba5f (claude-haiku-4-5-20251001)
 
 [1] Thinking...

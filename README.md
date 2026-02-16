@@ -34,7 +34,7 @@ coven init && coven worker                 # orchestration
 
 ### `coven [PROMPT]`
 
-Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), and message inspection (`:N` to view message N).
+Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), message inspection (`:N` to view message N), and wait-for-input marking (Ctrl+W, for ralph/worker).
 
 ### `coven ralph <PROMPT>`
 

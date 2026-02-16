@@ -26,6 +26,8 @@ pub enum InputAction {
     EndSession,
     /// User wants to drop into native Claude TUI.
     Interactive,
+    /// User pressed Ctrl+W to toggle wait-for-input after session completes.
+    WaitRequested,
 }
 
 /// Simple line editor for user input in raw mode.
@@ -341,6 +343,7 @@ impl InputHandler {
             KeyCode::Char('c') if ctrl => InputAction::Interrupt,
             KeyCode::Char('d') if ctrl => InputAction::EndSession,
             KeyCode::Char('o') if ctrl => InputAction::Interactive,
+            KeyCode::Char('w') if ctrl => InputAction::WaitRequested,
             KeyCode::Char(c) => {
                 // Activate and buffer the character, but don't redraw yet.
                 // The caller will call begin_input_line() to set up a fresh

@@ -405,6 +405,7 @@ async fn run_phase_with_wait<W: Write>(
             result_text,
             cost,
             session_id,
+            wait_requested,
         } = run_phase_session(
             &phase_prompt,
             worktree_path,
@@ -421,6 +422,31 @@ async fn run_phase_with_wait<W: Write>(
         ctx.total_cost += cost;
         ctx.renderer
             .write_raw(&format!("  Total cost: ${:.2}\r\n", ctx.total_cost));
+
+        // User pressed Ctrl+W — wait for input before parsing/following transition.
+        if wait_requested {
+            ctx.renderer.write_raw("\x07");
+            ctx.renderer.write_raw("\r\n[waiting for user input]\r\n");
+            let sid = session_id
+                .as_deref()
+                .context("no session ID for wait resume")?;
+            let Some(user_text) = event_loop::wait_for_interrupt_input(
+                ctx.input,
+                ctx.renderer,
+                ctx.io,
+                ctx.vcr,
+                sid,
+                Some(worktree_path),
+                extra_args,
+            )
+            .await?
+            else {
+                return Ok(None);
+            };
+            phase_prompt = user_text;
+            phase_resume = session_id;
+            continue;
+        }
 
         let Some(transition) = parse_transition_with_retry(
             &result_text,
@@ -531,6 +557,7 @@ async fn parse_transition_with_retry<W: Write>(
             result_text: retry_text,
             cost: retry_cost,
             session_id: retry_sid,
+            ..
         } = run_phase_session(
             &retry_prompt,
             worktree_path,
@@ -604,6 +631,7 @@ async fn wait_for_transition_input<W: Write>(
             result_text,
             cost,
             session_id: new_sid,
+            ..
         } = run_phase_session(
             &text,
             worktree_path,
@@ -755,6 +783,7 @@ enum PhaseOutcome {
         result_text: String,
         cost: f64,
         session_id: Option<String>,
+        wait_requested: bool,
     },
     Exited,
 }
@@ -808,6 +837,7 @@ async fn run_phase_session<W: Write>(
                     result_text,
                     cost: state.total_cost_usd,
                     session_id: state.session_id.clone(),
+                    wait_requested: state.wait_requested,
                 });
             }
             SessionOutcome::Interrupted => {

@@ -345,6 +345,14 @@ async fn handle_session_key_event<W: Write>(
                 input.activate();
             }
         }
+        InputAction::WaitRequested => {
+            state.wait_requested = !state.wait_requested;
+            if state.wait_requested {
+                renderer.write_raw("\r\n[will wait for input after this turn]\r\n");
+            } else {
+                renderer.write_raw("\r\n[wait cancelled]\r\n");
+            }
+        }
         InputAction::Interactive | InputAction::None => {}
     }
     Ok(LoopAction::Continue)
@@ -613,7 +621,7 @@ async fn wait_for_text_input<W: Write>(
                         renderer.begin_input_line();
                         input.redraw(renderer.writer());
                     }
-                    InputAction::None => {}
+                    InputAction::WaitRequested | InputAction::None => {}
                 }
             }
             IoEvent::Claude(AppEvent::ProcessExit(_)) => return Ok(None),

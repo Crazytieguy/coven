@@ -19,7 +19,7 @@ Add tasks to brief.md and commit. Run `coven worker` to start.
 Workers will post questions to board.md — answer in brief.md.
 
 --- worker_a ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 
 Worker started: cool-maple-27 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/cool-maple-27)
 
@@ -344,7 +344,7 @@ Transition: sleep — waiting for new commits...
 Removing worktree...
 
 --- worker_b ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 
 Worker started: fresh-eagle-82 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/fresh-eagle-82)
 

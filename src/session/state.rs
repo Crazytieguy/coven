@@ -9,6 +9,10 @@ pub struct SessionState {
     /// so the separator doesn't appear between the follow-up message
     /// and Claude's response.
     pub suppress_next_separator: bool,
+    /// User pressed Ctrl+W to request waiting for input after this session
+    /// completes, instead of auto-continuing (ralph next iteration, worker
+    /// next agent transition).
+    pub wait_requested: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

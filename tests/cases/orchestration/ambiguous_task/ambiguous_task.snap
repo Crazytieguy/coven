@@ -19,7 +19,7 @@ Add tasks to brief.md and commit. Run `coven worker` to start.
 Workers will post questions to board.md — answer in brief.md.
 
 --- worker ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 
 Worker started: brave-brook-38 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/brave-brook-38)
 

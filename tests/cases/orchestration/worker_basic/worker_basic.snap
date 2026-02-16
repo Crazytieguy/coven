@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+D exit
+:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 
 Worker started: agile-stream-41 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-worker_basic-worktrees/coven-vcr-worker_basic/agile-stream-41)
 
