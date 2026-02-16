@@ -77,21 +77,13 @@ pub async fn run_session<W: Write>(
                 if input.is_active() && state.status == SessionStatus::Running {
                     locals.event_buffer.push(app_event);
                 } else {
-                    match process_claude_event(
-                        app_event,
-                        state,
-                        renderer,
-                        runner,
-                        &mut locals,
-                        vcr,
-                    )
-                    .await?
+                    match process_claude_event(app_event, state, renderer, runner, &mut locals, vcr)
+                        .await?
                     {
                         EventResult::Continue => {}
                         EventResult::Fork(tasks) => {
                             let fork_cfg = locals.fork_config.as_ref();
-                            execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg)
-                                .await?;
+                            execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg).await?;
                         }
                         EventResult::End(outcome) => return Ok(outcome),
                     }
@@ -130,10 +122,8 @@ pub async fn run_session<W: Write>(
                                 LoopAction::Return(outcome) => return Ok(outcome),
                                 LoopAction::Fork(tasks) => {
                                     let fork_cfg = locals.fork_config.as_ref();
-                                    execute_fork(
-                                        tasks, state, renderer, runner, io, vcr, fork_cfg,
-                                    )
-                                    .await?;
+                                    execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg)
+                                        .await?;
                                 }
                                 _ => {}
                             }
@@ -314,9 +304,7 @@ async fn handle_session_key_event<W: Write>(
             // Completed is intentionally not special-cased here: if the session
             // completed during the flush, state is WaitingForInput and the match
             // below will send the user's text as a follow-up.
-            if let Some(action) =
-                handle_flush_result(flush, state, renderer, runner, vcr).await?
-            {
+            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
                 if matches!(action, LoopAction::Fork(_)) {
                     // Fork was detected in buffered events. Queue the user's
                     // text as a follow-up — it will be sent after the fork
@@ -361,9 +349,7 @@ async fn handle_session_key_event<W: Write>(
                     result_text: result_text.clone(),
                 }));
             }
-            if let Some(action) =
-                handle_flush_result(flush, state, renderer, runner, vcr).await?
-            {
+            if let Some(action) = handle_flush_result(flush, state, renderer, runner, vcr).await? {
                 return Ok(action);
             }
             if state.status == SessionStatus::WaitingForInput {
