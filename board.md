@@ -1,26 +1,20 @@
 # Blocked
 
-# Plan
-
 ## P1: Further agent prompt revisions (dispatch + review)
 
-dispatch.md: "Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`." — should mostly defer to the human rather than deciding. Can simplify.
+History audit (14 commits, 84c8993→5bbdd89): both requested changes were already implemented in the previous P1. The brief was written after the implementation landed, quoting text that had already been changed. No decisions were lost — earlier proposals (e.g. "preserve human's reasoning" sentence, review incidental issues note) were refined away during planning rounds, not dropped accidentally.
 
-review.md "improve and land" section: can be shorter. Maybe just:
-```
-**Improve and land** if the approach is sound:
-- Fix quality issues
-- Simplify, dry
-- Clean up redundant, or inconsistent comments
-- Check against project guidelines
-- Commit
-```
-
-Also look at the board.md and brief.md history to get full context — some decisions for this issue may have been lost along the way.
+Current state:
+- **dispatch.md**: "Use your judgement..." → already replaced with "Move the issue to `# Plan` unless the human explicitly says to proceed."
+- **review.md**: "Improve and land" section already has the exact shorter text from the brief.
 
 **Decisions:**
-- Previous audit found existing text already replaced, but human wants further simplification
 - "Strengthen dispatch prompt" issue dropped — subsumed by this
+
+**Questions:**
+- Both specific changes you asked for are already in place. Should this move to Done, or are there additional simplifications you want? (If so, what specifically — the current dispatch prompt is 44 lines, the review is 46.)
+
+# Plan
 
 # Ready
 
