@@ -2,27 +2,15 @@
 
 # Plan
 
-## P1: Further agent prompt revisions (dispatch + review)
+## P1: Improve dispatch.md explanation of blocked transitions and brief/board history checking
 
-Human says there ARE still changes needed. Look at board.md and brief.md git history for full context on decisions that may have been lost.
-
-**Decisions:**
-- "Strengthen dispatch prompt" issue dropped — subsumed by this
-- dispatch.md: the "Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`." text should be simplified to mostly defer to the human rather than deciding
-- review.md "improve and land" section should be shortened to:
-  ```
-  **Improve and land** if the approach is sound:
-  - Fix quality issues
-  - Simplify, dry
-  - Clean up redundant, or inconsistent comments
-  - Check against project guidelines
-  - Commit
-  ```
+dispatch.md needs a bit more explanation on when to move from blocked to plan vs. from blocked to ready (human approves the plan). And also explain a bit more about checking the git log for brief.md history vs. board.md history.
 
 # Ready
 
 # Done
 
+- P1: Further agent prompt revisions (dispatch + review)
 - P1: Revise agent prompts based on restructuring feedback
 
 - P1: Agent restructuring — split main into plan + implement
