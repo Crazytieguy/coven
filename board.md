@@ -1,22 +1,25 @@
 # Blocked
 
-# Blocked
+# Plan
 
 ## P1: Further agent prompt revisions (dispatch + review)
 
-Both changes requested here were already implemented in the previous P1 ("Revise agent prompts based on restructuring feedback"):
+dispatch.md: "I'm noticing I also don't love 'Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`.'. It should mostly defer to the human rather than deciding. Can simplify"
 
-1. **dispatch.md** — the old "Use your judgement on where to move the issue..." text is already replaced with: "Move the issue to `# Plan` unless the human explicitly says to proceed."
-2. **review.md** — the "improve and land" section already has exactly the shorter text from the brief.
+review.md "improve and land" section: can be shorter. Maybe just:
+```
+**Improve and land** if the approach is sound:
+- Fix quality issues
+- Simplify, dry
+- Clean up redundant, or inconsistent comments
+- Check against project guidelines
+- Commit
+```
 
-Audited full board.md + brief.md history (14 commits across the multi-round planning process). All decisions were implemented — nothing was lost.
+Also look at the board.md and brief.md history to get full context — some decisions for this issue may have been lost along the way.
 
-This issue appears to have been created from stale brief content that was already consumed.
-
-**Questions:**
-- Should this move straight to Done, or are there additional dispatch/review changes you want?
-
-# Plan
+**Decisions:**
+- "Strengthen dispatch prompt" issue is dropped — subsumed by this work
 
 # Ready
 
