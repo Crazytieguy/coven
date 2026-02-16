@@ -1,7 +1,16 @@
 # Brief
 
-dispatch.md change: just tell it to preserve **Decisions** and human input verbatim, no need to complicate it. Please re-draft
-"Your job is exploration, not implementation" is still not accurate. Please redraft: the goal is to identify important decisions, ambiguities, tradeoffs, inconsistencies, and surface them for review. Questions can also be expanded a bit.  Can also remove the "if the path forward is straightforward" thing, that was just a measure for reducing the likelihood the old main agent proceeds to implementation
-Implement agent: it doesn't transition to dispatch and so it never needs to land, and it also doesn't need to delete scratch.md. These are for the review agent. Simplify even further.
-review: I like refer back. "The implementer made" not needed: make it about the changes, not the implementer. "Fix any quality issues": let's make it a bit more about quality. Mention dry, redundant or inconsistent comments. And also generically maybe "project guidelines", so it adapts to the CLAUDE.md guidelines. Otherwise good
-Plan agent "even when obvious" - I'd reframe to "only one viable option" if the decision is important (so it doesn't document trivial decisions)
+dispatch.md: I'm noticing I also don't love "Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`.". It should mostly defer to the human rather than deciding. Can simplify
+review "improve and land" section: can be shorter. Maybe just:
+```
+**Improve and land** if the approach is sound:
+- Fix quality issues
+- Simplify, dry
+- Clean up redundant, or inconsistent comments
+- Check against project guidelines
+- Commit
+```
+Also I feel like maybe some decisions for this issue were lost along the way. Look at the board.md and brief.md history to get full context.
+Good go go!
+
+The "Strengthen dispatch prompt" issue can be dropped - subsumed by the agent prompt revisions
