@@ -12,11 +12,13 @@ Dispatch runs with max_concurrency 1 — you're holding a lock that blocks other
 
 ## Sync
 
-The human works asynchronously — the brief may be stale. Check when the brief was last updated relative to board activity, and use your judgement: brief items that have already been addressed on the board don't need new entries.
+The human works asynchronously — the brief may be stale. Compare when `brief.md` was last modified versus when `board.md` was last modified to detect new brief content. If the board was updated more recently than the brief, the brief has likely already been processed. Use your judgement: brief items that have already been addressed on the board don't need new entries.
 
 For new brief items, create a board entry under `# Plan`. Copy the task description from the brief faithfully — often verbatim — rather than summarizing or rephrasing. Add priority (default P1).
 
-If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions. Move the issue to `# Plan` unless the human explicitly says to proceed.
+If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions. Then move the issue based on what the human said:
+- **Blocked → Ready**: the human approves the plan (e.g. "looks good", "proceed", "go ahead") — the issue is ready for implementation.
+- **Blocked → Plan**: the human answers questions or gives direction but doesn't approve a plan — the plan agent needs to re-plan with the new information.
 
 Only clean up the Done section when explicitly requested in `brief.md`.
 
