@@ -10,11 +10,10 @@ Draft wording for each prompt revision. VCR re-recording waits until end of impl
 
 ### dispatch.md
 
-One change in Sync — add "verbatim" to the brief-answers paragraph:
-
-> If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions. Use your judgement…
-
-Also simplify the "use your judgement on where to move the issue" paragraph — should mostly defer to the human rather than the agent deciding.
+Two changes in Sync:
+1. Add "verbatim" to the brief-answers paragraph:
+   > If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions.
+2. Simplify the "Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`." — should mostly defer to the human rather than the agent deciding.
 
 ### plan.md
 
@@ -58,7 +57,7 @@ If more work remains, transition to implement again to continue. When done, tran
 
 ### review.md
 
-Rename section to "Evaluate". Use "refer back." Make it about the changes. Shorter "improve and land":
+Rename section to "Evaluate". Use "refer back." Make it about the changes:
 
 ```
 ## Evaluate
@@ -75,7 +74,7 @@ To refer back: `git reset --hard <main-worktree-branch>` to discard the implemen
 **Improve and land** if the approach is sound:
 - Fix quality issues
 - Simplify, dry
-- Clean up redundant or inconsistent comments
+- Clean up redundant, or inconsistent comments
 - Check against project guidelines
 - Commit
 ```
@@ -93,10 +92,11 @@ If you notice unrelated problems (bugs, tech debt, improvements) while working, 
 ```
 
 **Decisions:**
-- All prior decisions preserved (review term "refer back", plan reframing, implement simplification, Recording Issues to system.md).
-- dispatch.md: simplify the "use your judgement" move-issue paragraph — defer to human rather than agent deciding.
-- review.md: shorter "improve and land" list per human's wording.
-- "Strengthen dispatch prompt" issue dropped — subsumed by these revisions.
+- All feedback incorporated including latest brief changes
+- dispatch.md: add "verbatim" + simplify issue-movement paragraph to defer to human
+- review.md "improve and land": shorter version per brief feedback
+- Check brief.md and board.md git history during implementation to ensure no decisions were lost along the way
+- P2 "Strengthen dispatch prompt" dropped — subsumed by this issue
 
 # Done
 
