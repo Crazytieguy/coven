@@ -2,9 +2,9 @@
 
 # Ready
 
-## P2: Fork children may confuse model with async task completions
+## P2: Parent session may auto-continue during fork execution
 
-Fork children use `close_input()` + `wait()` (not `kill()`) after their Result. If a fork child had a pending async task, the CLI could auto-continue after the Result. The child's model would be confused — it was promised fork results in the next message but instead gets an async task notification. Low priority since fork children are short-lived sub-sessions that rarely use background tasks.
+When the parent outputs `<fork>`, coven runs fork children then sends the reintegration message back. While fork children are running, the parent CLI is idle — if an async task completes, the parent auto-continues and may change state before receiving the expected fork results.
 
 # Done
 
