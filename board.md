@@ -47,12 +47,9 @@ dispatch → plan → dispatch → [human answers] → dispatch → implement ×
 
 # Ready
 
-## P1: Investigate follow-up messages vs. next tag — what wins?
-
-When a coven session outputs a `<next>` tag but also has follow-up messages queued, what wins? Is the continuation agent spawned?
-
 # Done
 
+- P1: Investigate follow-up messages vs. next tag (findings below)
 - P2: Fix parent auto-continue during fork (kill parent CLI before fork children run, respawn with reintegration message after)
 - P1: Fix invisible claude sessions (kill CLI after Result in worker/ralph to prevent async task continuations)
 - P1: Coordinate worker sleep — if one dispatch sleeps, others should too
@@ -69,3 +66,15 @@ When a coven session outputs a `<next>` tag but also has follow-up messages queu
 - P1: wait-for-user prompt final revision
 - P2: scratch.md: should clarify that it's gitignored
 - P1: Mark a session to wait for user input when it finishes
+
+---
+
+### Investigation: follow-up messages vs. `<next>` tag
+
+**Answer: follow-ups win. The `<next>` transition is silently dropped.**
+
+When a Result event arrives in `event_loop.rs`, `classify_claude_event` (line 250) checks priority: Fork > Followup > Completed. `<next>` tags are never parsed at the event loop layer — they're just part of `result_text` passed through to the caller (worker/ralph).
+
+The problem: `result_text` is overwritten on every Result event (line 257: `locals.result_text.clone_from(&result.result)`). So if a follow-up is queued when the first Result arrives, the follow-up is sent, Claude responds with a new Result, and the original `result_text` (containing the `<next>` tag) is replaced. The worker then parses the new result_text — which has no `<next>` tag — and `parse_transition_with_retry` either fails or prompts the model to retry.
+
+In practice this is unlikely in worker mode (the human doesn't interact much), but it's a real race condition if the user types a follow-up right as the agent is finishing. Same issue exists with `<break>` tags in ralph and `<fork>` tags generally — though fork is checked at the event loop layer so it would be caught on the first Result before the follow-up is sent.
