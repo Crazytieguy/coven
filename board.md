@@ -1,10 +1,18 @@
 # Blocked
 
-# Plan
-
 ## P1: Improve dispatch.md explanation of blocked transitions and brief/board history checking
 
 dispatch.md needs a bit more explanation on when to move from blocked to plan vs. from blocked to ready (human approves the plan). And also explain a bit more about checking the git log for brief.md history vs. board.md history.
+
+**Decisions:**
+- Add explicit blocked → ready transition: when human approves a plan, move to Ready (currently the text only says "move to Plan unless the human explicitly says to proceed" without explaining what "proceed" means)
+- Add blocked → plan transition for when human answers questions but doesn't approve — the plan agent needs to re-plan with the new info
+- Add a brief note on using `git log` to compare last commits touching `brief.md` vs. `board.md` to detect new brief content
+
+**Questions:**
+- Should the brief history check be prescriptive (suggest specific git commands like `git log -1 brief.md`) or just conceptual (explain the goal, let the model figure out the commands)?
+
+# Plan
 
 # Ready
 
