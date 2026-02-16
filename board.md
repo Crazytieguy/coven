@@ -1,22 +1,22 @@
 # Blocked
 
-# Plan
+# Blocked
 
 ## P1: Further agent prompt revisions (dispatch + review)
 
-dispatch.md: Simplify the "Use your judgement on where to move the issue" language — should mostly defer to human rather than deciding.
+Both changes requested here were already implemented in the previous P1 ("Revise agent prompts based on restructuring feedback"):
 
-review "improve and land" section: can be shorter. Suggested text:
-```
-**Improve and land** if the approach is sound:
-- Fix quality issues
-- Simplify, dry
-- Clean up redundant, or inconsistent comments
-- Check against project guidelines
-- Commit
-```
+1. **dispatch.md** — the old "Use your judgement on where to move the issue..." text is already replaced with: "Move the issue to `# Plan` unless the human explicitly says to proceed."
+2. **review.md** — the "improve and land" section already has exactly the shorter text from the brief.
 
-Also check board.md and brief.md history — some decisions for this issue may have been lost along the way.
+Audited full board.md + brief.md history (14 commits across the multi-round planning process). All decisions were implemented — nothing was lost.
+
+This issue appears to have been created from stale brief content that was already consumed.
+
+**Questions:**
+- Should this move straight to Done, or are there additional dispatch/review changes you want?
+
+# Plan
 
 # Ready
 
