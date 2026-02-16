@@ -11,21 +11,20 @@ In VCR recordings (priority_dispatch), haiku sometimes puts new brief items dire
 **Questions:**
 - Good to proceed?
 
+# Plan
+
 ## P1: Revise agent prompts based on restructuring feedback
+
+Needs detailed drafting of proposed prompt changes for human review.
 
 **Decisions:**
 - **system.md:** Add a "Recording Issues" section (moved from individual agents). All agents get the instruction; review.md gets additional emphasis with its own wording.
 - **dispatch.md:** Add a note about preserving the human's decisions and intent faithfully when incorporating brief answers into board entries — not just task descriptions, but the reasoning behind decisions.
-- **plan.md:** Rewrite the "Plan" section. Current framing ("exploration and decision-making") positions the agent as the decision-maker. Reframe: the agent explores to find ambiguity, surfaces trade-offs, and asks the right questions to elicit the human's preferences. "Decisions" in the board entry are things the agent proposes for human approval, not unilateral choices.
+- **plan.md:** Rewrite the "Plan" section. Current framing ("exploration and decision-making") positions the agent as the decision-maker. Reframe: the agent explores to find ambiguity, surfaces trade-offs, and asks the right questions to elicit the human's preferences. "Decisions" in the board entry are things the agent proposes for human approval, not unilateral choices. The agent should still document important decisions even when the choice is obvious (not as questions, but as stated decisions the human can push back on). This sets expectations for implementation.
 - **implement.md:** Simplify. Merge "Continuation" into "Implement", remove "Recording Issues" (now in system.md). Three sections: Orient, Implement, Rules. Key message: follow the plan, commit incrementally, transition to review when done.
-- **review.md:** Reframe from "judge/gate" to "evaluate the changes against the plan." Replace "push back" with "request changes." Add emphasis on noticing incidental issues and recording them on the board as part of the review task (distinct wording from system.md).
-- **VCR re-recording** not part of this task — tests are expected to fail until a separate re-record pass.
-
-**Questions:**
-- For review.md, is "request changes" the right replacement for "push back"? Other options: "return for revision", "send back."
-- For plan.md, should the agent still be able to state obvious decisions (e.g. "the obvious approach is X, good to proceed?") or should it always frame everything as questions?
-
-# Plan
+- **review.md:** Reframe from "judge/gate" to "evaluate the changes against the plan." Replace "push back" with a better term — "request changes" isn't right because changes are discarded, not revised; it's sending back to the human. Propose at least 5 alternatives. Add emphasis on noticing incidental issues and recording them on the board as part of the review task (distinct wording from system.md).
+- **VCR re-recording** is part of this task but should wait until the end of implementation. Don't block on getting tests to pass before implementing prompt changes.
+- **Detail level:** Prompts are sensitive — the plan must propose specific wording changes (draft the actual prompt text) so the human can evaluate before approving.
 
 # Ready
 
