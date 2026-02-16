@@ -13,6 +13,28 @@ In VCR recordings (priority_dispatch), haiku sometimes puts new brief items dire
 
 # Plan
 
+## P1: Revise agent prompts based on restructuring feedback
+
+Comments from the brief on each agent prompt:
+
+**dispatch.md:**
+- Can clarify a bit more that preserving human input and decisions faithfully is important (so implementation doesn't diverge from the plan)
+
+**plan.md:**
+- "## Plan" section: not accurate. It's more about understanding the requirements and finding ambiguity or inconsistency. The main goal for the plan agent is to elicit the human's preferences for implementation via bringing up the right questions
+- "Recording Issues" section: since this applies to all agents, it should be in system.md instead (though the review agent should have emphasis)
+
+**implement.md:**
+- The "If you hit ambiguity" paragraph has been dropped: rely on review instead
+- Can overall be simplified - too many small sections. What's important is that it transitions to review when it's done
+
+**review.md:**
+- Rather than framing as gating the implementer's work, frame as evaluating the changes. It's not about the implementer doing a good/poor job, it's about whether the changes match the criteria
+- Maybe "push back" has a somewhat negative valence?
+- Should have emphasis (with different wording from system.md) on noticing issues and adding them to the board: this is part of the review task (for issues that shouldn't block landing or are unrelated)
+
+General note: VCR tests currently fail and will need re-recording after these changes. That's ok.
+
 # Ready
 
 # Done
