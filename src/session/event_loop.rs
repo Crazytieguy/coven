@@ -77,18 +77,23 @@ pub async fn run_session<W: Write>(
                 if input.is_active() && state.status == SessionStatus::Running {
                     locals.event_buffer.push(app_event);
                 } else {
-                    let outcome = process_claude_event(
+                    match process_claude_event(
                         app_event,
                         state,
                         renderer,
                         runner,
                         &mut locals,
                         vcr,
-                        fork_config,
                     )
-                    .await?;
-                    if let Some(outcome) = outcome {
-                        return Ok(outcome);
+                    .await?
+                    {
+                        EventResult::Continue => {}
+                        EventResult::Fork(tasks) => {
+                            let fork_cfg = locals.fork_config.as_ref();
+                            execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg)
+                                .await?;
+                        }
+                        EventResult::End(outcome) => return Ok(outcome),
                     }
                 }
             }
@@ -106,6 +111,10 @@ pub async fn run_session<W: Write>(
                 match action {
                     LoopAction::Continue => {}
                     LoopAction::Return(outcome) => return Ok(outcome),
+                    LoopAction::Fork(tasks) => {
+                        let fork_cfg = locals.fork_config.as_ref();
+                        execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg).await?;
+                    }
                     LoopAction::ViewMessage(ref query) => {
                         view_message(renderer, query, io)?;
                         let flush = flush_event_buffer(&mut locals, state, renderer);
@@ -114,12 +123,20 @@ pub async fn run_session<W: Write>(
                                 result_text: result_text.clone(),
                             });
                         }
-                        let fork_cfg = locals.fork_config.as_ref();
-                        if let Some(LoopAction::Return(outcome)) =
-                            handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg)
-                                .await?
+                        if let Some(action) =
+                            handle_flush_result(flush, state, renderer, runner, vcr).await?
                         {
-                            return Ok(outcome);
+                            match action {
+                                LoopAction::Return(outcome) => return Ok(outcome),
+                                LoopAction::Fork(tasks) => {
+                                    let fork_cfg = locals.fork_config.as_ref();
+                                    execute_fork(
+                                        tasks, state, renderer, runner, io, vcr, fork_cfg,
+                                    )
+                                    .await?;
+                                }
+                                _ => {}
+                            }
                         }
                         // Don't re-activate input — it was deactivated when the
                         // user submitted the :N command. The user returns to
@@ -139,6 +156,8 @@ enum LoopAction {
     Return(SessionOutcome),
     /// Open a message in the pager — deferred to `run_session` which has `io`.
     ViewMessage(String),
+    /// Fork detected — deferred to `run_session` which has `io` for respawn.
+    Fork(Vec<String>),
 }
 
 /// What happened during event buffer flush that requires caller action.
@@ -243,14 +262,16 @@ fn classify_claude_event<W: Write>(
     locals: &mut SessionLocals,
     state: &mut SessionState,
     renderer: &mut Renderer<W>,
-    fork_config: Option<&ForkConfig>,
 ) -> ClaudeEventAction {
     if let InboundEvent::Result(ref result) = *inbound {
         locals.result_text.clone_from(&result.result);
     }
 
     let fork_tasks = if let InboundEvent::Result(_) = *inbound {
-        fork_config.and_then(|_| fork::parse_fork_tag(&locals.result_text))
+        locals
+            .fork_config
+            .as_ref()
+            .and_then(|_| fork::parse_fork_tag(&locals.result_text))
     } else {
         None
     };
@@ -293,10 +314,16 @@ async fn handle_session_key_event<W: Write>(
             // Completed is intentionally not special-cased here: if the session
             // completed during the flush, state is WaitingForInput and the match
             // below will send the user's text as a follow-up.
-            let fork_cfg = locals.fork_config.as_ref();
             if let Some(action) =
-                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
+                handle_flush_result(flush, state, renderer, runner, vcr).await?
             {
+                if matches!(action, LoopAction::Fork(_)) {
+                    // Fork was detected in buffered events. Queue the user's
+                    // text as a follow-up — it will be sent after the fork
+                    // results return and the parent produces a new Result.
+                    renderer.render_followup_queued(&text);
+                    locals.pending_followups.push(text);
+                }
                 return Ok(action);
             }
             match mode {
@@ -334,9 +361,8 @@ async fn handle_session_key_event<W: Write>(
                     result_text: result_text.clone(),
                 }));
             }
-            let fork_cfg = locals.fork_config.as_ref();
             if let Some(action) =
-                handle_flush_result(flush, state, renderer, runner, vcr, fork_cfg).await?
+                handle_flush_result(flush, state, renderer, runner, vcr).await?
             {
                 return Ok(action);
             }
@@ -373,12 +399,18 @@ async fn send_followup<W: Write>(
     Ok(())
 }
 
-/// Execute a fork: run children, send reintegration result, set Running.
+/// Execute a fork: kill parent, run children, respawn parent with results.
+///
+/// The parent CLI process is killed before fork children run to prevent async
+/// task notifications from triggering an invisible continuation. After children
+/// complete, a fresh parent session is spawned (resuming the same session ID)
+/// with the reintegration message as the initial prompt.
 async fn execute_fork<W: Write>(
     tasks: Vec<String>,
     state: &mut SessionState,
     renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
+    io: &mut Io,
     vcr: &VcrContext,
     fork_config: Option<&ForkConfig>,
 ) -> Result<()> {
@@ -389,14 +421,39 @@ async fn execute_fork<W: Write>(
     let Some(fork_cfg) = fork_config else {
         bail!("fork detected but fork_config is None");
     };
+
+    // Kill the parent CLI process to prevent async task notifications
+    // from triggering an invisible continuation while fork children run.
+    runner.kill().await?;
+
     let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
-    vcr_send_message(runner, vcr, msg).await?;
+
+    // Respawn the parent session (resuming the same session ID) with the
+    // reintegration message, so the event loop continues with a fresh process.
+    let config = SessionConfig {
+        prompt: Some(msg),
+        resume: Some(session_id),
+        extra_args: fork_cfg.extra_args.clone(),
+        working_dir: fork_cfg.working_dir.clone(),
+        ..Default::default()
+    };
+    *runner = spawn_session(config, io, vcr).await?;
     state.suppress_next_separator = true;
     state.status = SessionStatus::Running;
     Ok(())
 }
 
-/// Process a single claude event. Returns Some(outcome) if the session should end.
+/// Result of processing a single Claude event.
+enum EventResult {
+    /// Continue processing events.
+    Continue,
+    /// Fork detected — caller should execute fork with `io`.
+    Fork(Vec<String>),
+    /// Session ended.
+    End(SessionOutcome),
+}
+
+/// Process a single claude event.
 async fn process_claude_event<W: Write>(
     event: AppEvent,
     state: &mut SessionState,
@@ -404,19 +461,18 @@ async fn process_claude_event<W: Write>(
     runner: &mut SessionRunner,
     locals: &mut SessionLocals,
     vcr: &VcrContext,
-    fork_config: Option<&ForkConfig>,
-) -> Result<Option<SessionOutcome>> {
+) -> Result<EventResult> {
     match event {
         AppEvent::Claude(inbound) => {
-            match classify_claude_event(&inbound, locals, state, renderer, fork_config) {
+            match classify_claude_event(&inbound, locals, state, renderer) {
                 ClaudeEventAction::Fork(tasks) => {
-                    execute_fork(tasks, state, renderer, runner, vcr, fork_config).await?;
+                    return Ok(EventResult::Fork(tasks));
                 }
                 ClaudeEventAction::Followup(text) => {
                     send_followup(text, renderer, runner, state, vcr).await?;
                 }
                 ClaudeEventAction::Completed(result_text) => {
-                    return Ok(Some(SessionOutcome::Completed { result_text }));
+                    return Ok(EventResult::End(SessionOutcome::Completed { result_text }));
                 }
                 ClaudeEventAction::Rendered => {}
             }
@@ -427,10 +483,10 @@ async fn process_claude_event<W: Write>(
         AppEvent::ProcessExit(code) => {
             renderer.render_exit(code);
             state.status = SessionStatus::Ended;
-            return Ok(Some(SessionOutcome::ProcessExited));
+            return Ok(EventResult::End(SessionOutcome::ProcessExited));
         }
     }
-    Ok(None)
+    Ok(EventResult::Continue)
 }
 
 /// Flush all buffered events through the renderer.
@@ -446,13 +502,10 @@ fn flush_event_buffer<W: Write>(
 ) -> FlushResult {
     let mut result = FlushResult::Continue;
     let buffered: Vec<_> = locals.event_buffer.drain(..).collect();
-    // Clone once to avoid overlapping borrows (fork_config is small)
-    let fork_config = locals.fork_config.clone();
     for event in buffered {
         match event {
             AppEvent::Claude(inbound) => {
-                match classify_claude_event(&inbound, locals, state, renderer, fork_config.as_ref())
-                {
+                match classify_claude_event(&inbound, locals, state, renderer) {
                     ClaudeEventAction::Fork(tasks) => result = FlushResult::Fork(tasks),
                     ClaudeEventAction::Followup(text) => result = FlushResult::Followup(text),
                     ClaudeEventAction::Completed(text) => result = FlushResult::Completed(text),
@@ -475,14 +528,13 @@ fn flush_event_buffer<W: Write>(
 }
 
 /// Handle the result of flushing the event buffer: send a dequeued followup
-/// or return early on process exit.
+/// or return early on process exit / fork.
 async fn handle_flush_result<W: Write>(
     flush: FlushResult,
     state: &mut SessionState,
     renderer: &mut Renderer<W>,
     runner: &mut SessionRunner,
     vcr: &VcrContext,
-    fork_config: Option<&ForkConfig>,
 ) -> Result<Option<LoopAction>> {
     match flush {
         FlushResult::ProcessExited => Ok(Some(LoopAction::Return(SessionOutcome::ProcessExited))),
@@ -490,10 +542,7 @@ async fn handle_flush_result<W: Write>(
             send_followup(text, renderer, runner, state, vcr).await?;
             Ok(None)
         }
-        FlushResult::Fork(tasks) => {
-            execute_fork(tasks, state, renderer, runner, vcr, fork_config).await?;
-            Ok(None)
-        }
+        FlushResult::Fork(tasks) => Ok(Some(LoopAction::Fork(tasks))),
         FlushResult::Completed(_) | FlushResult::Continue => Ok(None),
     }
 }

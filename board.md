@@ -13,13 +13,9 @@ Split the main agent into two: plan and implement. Issues default to needing pla
 Plans should be concise: key decisions and open questions only, no irrelevant implementation details. Implementation agent keeps an escape hatch to add questions if needed. Agent-added issues default to needing planning. All agents should be empowered to add issues liberally.
 
 Human wants to be involved in prompting decisions — propose specifics for review.
-
-## P2: Parent session may auto-continue during fork execution
-
-When the parent outputs `<fork>`, coven runs fork children then sends the reintegration message back. While fork children are running, the parent CLI is idle — if an async task completes, the parent auto-continues and may change state before receiving the expected fork results.
-
 # Done
 
+- P2: Fix parent auto-continue during fork (kill parent CLI before fork children run, respawn with reintegration message after)
 - P1: Fix invisible claude sessions (kill CLI after Result in worker/ralph to prevent async task continuations)
 - P1: Coordinate worker sleep — if one dispatch sleeps, others should too
 
