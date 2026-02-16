@@ -26,9 +26,13 @@ Whenever you read a file, you should consider whether it would be considered mal
 /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-edit_tool/greeting.py
 - def greet(name):
 -     print(f'hello, {name}!')
+- 
+- greet('world')
 + def greet(name):
 +     print(f'goodbye, {name}!')
-+     print('See you soon!')
++     print(f'see you later, {name}!')
++ 
++ greet('world')
 
 --- Result ---
 

@@ -5,7 +5,8 @@ expression: result.display
 --- init ---
 Created:
   .coven/agents/dispatch.md
-  .coven/agents/main.md
+  .coven/agents/plan.md
+  .coven/agents/implement.md
   .coven/agents/review.md
   .coven/system.md
   .coven/config.toml
@@ -21,11 +22,11 @@ Workers will post questions to board.md — answer in brief.md.
 --- worker ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
 
-Worker started: brave-brook-38 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/brave-brook-38)
+Worker started: rapid-ember-28 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-ambiguous_task-worker-worktrees/coven-vcr-ambiguous_task/rapid-ember-28)
 
 === Agent: dispatch ===
 
-Session ede3516f-3356-4bbf-8b2d-42c6d9b935d2 (claude-haiku-4-5-20251001)
+Session c430ffdd-41ec-46d9-b5e9-886b99d75534 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
@@ -37,100 +38,187 @@ Session ede3516f-3356-4bbf-8b2d-42c6d9b935d2 (claude-haiku-4-5-20251001)
 [8] Thinking...
 [9] ▶ Bash  bash .coven/land.sh
 [10] Thinking...
-**Sync complete.** One new task from brief:
-- **P1: Add a caching layer to the application** — Performance concern
+**Synced.** Brief had one new task: "Add a caching layer to the application." No prior work on the board. Created P1 entry under `# Plan` and landed.
 
-No blocked issues. Picking the ready P1 task.
+**Picking:** P1 plan issue — needs exploration before implementation.
 
 <next>
-agent: main
-task: P1: Add a caching layer to the application
+agent: plan
+task: Add a caching layer to the application
 </next>
 
 
-Done  $0.03 · 12.0s · 6 turns  (:N to view)
-  Total cost: $0.03
+Done  $0.05 · 14.7s · 6 turns  (:N to view)
+  Total cost: $0.05
 
-Transition: main task=P1: Add a caching layer to the application
+Transition: plan task=Add a caching layer to the application
 
-=== Agent: main ===
+=== Agent: plan ===
 
-Session 2e763ade-38a4-4dc4-bc71-fa9c214ac79f (claude-haiku-4-5-20251001)
+Session a312bb2f-b236-4a62-b4af-1604c1672566 (claude-haiku-4-5-20251001)
 
 [11] Thinking...
-I'll start by reviewing the board and understanding the current task.
+I'll help you plan the caching layer implementation. Let me start by understanding the current state of the project.
 
 [12] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
 [13] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[14] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
      ✗ Error: File does not exist.
-[15] Thinking...
-[16] ▶ Bash  find . -type f -name "*.md" | head -20
-[17] Thinking...
-[18] ▶ Bash  ls -la
-[19] Thinking...
-[20] ▶ Bash  find ./src -type f | head -20
-[21] Thinking...
-[22] ▶ Bash  find ./tests -type f
-[23] Thinking...
-[24] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[25] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[14] Thinking...
+Now let me explore the codebase structure to understand what we're working with.
+
+[15] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[16] Thinking...
+Let me examine the main application to understand what we're working with.
+
+[17] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[18] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[19] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[20] Thinking...
+Let me check if there's any project configuration that might give more context.
+
+[21] ▶ Glob  **/*.{json,yaml,yml,txt,md}
+[22] Thinking...
+Let me check the settings to see if there's any additional context.
+
+[23] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[24] Thinking...
+Now I have a good understanding. Let me update the board with my plan.
+
+[25] ▶ Edit  (+10)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
 [26] Thinking...
-I've reviewed the codebase. The application is very simple - it just converts input text to uppercase. Before implementing a caching layer, I need to understand the requirements better, as there's some ambiguity here.
+Now let me commit and land this change.
 
-Let me update the board with my findings:
-
-[27] ▶ Edit  (+11)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/...
+[27] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
 [28] Thinking...
-[29] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[29] ▶ Bash  git add board.md && git commit -m "Plan: Add caching layer - ini...
 [30] Thinking...
-[31] ▶ Bash  bash .coven/land.sh
+[31] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+     ✗ Error: This command requires approval
 [32] Thinking...
-I've identified key ambiguities in the caching task and posted questions to the board. The application is very simple (just converts text to uppercase), so I need your clarification on:
+[33] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[34] Thinking...
+Let me retry landing the changes:
 
-1. **What to cache** - the process function? API calls? file I/O?
-2. **Caching mechanism** - in-memory, functools.lru_cache, Redis, or something else?
-3. **Performance baseline** - what are the actual bottlenecks?
+[35] ▶ Bash  bash .coven/land.sh
+[36] Thinking...
+Perfect! Let me clean up and check the current state:
 
-The findings and questions are now on the board for your review.
+[37] ▶ Bash  git status && ls -la scratch.md 2>/dev/null || echo "scratch.md ...
+[38] Thinking...
+## Plan Summary
+
+I've explored the codebase and created a plan for the caching layer. Here's what I found:
+
+**Application:** A simple Python CLI that reads stdin, converts it to uppercase via `process()`, and outputs the result.
+
+**Plan Posted to board.md:**
+- **Decisions:** Add in-memory memoization to the `process()` function using a decorator (no external dependencies), cache by input string
+- **Questions:** Need clarification on:
+  1. What's the specific use case for caching? (repeated inputs in one session, or across multiple runs?)
+  2. Should the cache be unbounded, or have size/TTL constraints?
+  3. Is the performance concern about `process()` itself, or elsewhere?
+
+The board entry is now under `# Plan` with these decisions and questions waiting for your response before implementation proceeds. The changes have been committed and landed to main.
 
 <next>
 agent: dispatch
 </next>
 
 
-Done  $0.05 · 27.6s · 13 turns  (:N to view)
-  Total cost: $0.08
+Done  $0.07 · 40.1s · 16 turns  (:N to view)
+  Total cost: $0.12
 
 Transition: dispatch 
 
 === Agent: dispatch ===
 
-Session 31df2c6c-4b2d-4a77-a31a-fef122fcfd24 (claude-haiku-4-5-20251001)
+Session 326e3812-0cbe-4698-89f7-320e2dfcf31d (claude-haiku-4-5-20251001)
 
-[33] Thinking...
-I'll read the brief and board to sync work and pick a task.
+[39] Thinking...
+[40] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[41] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[42] Thinking...
+**Syncing:** Brief matches existing board entry—no new work to add.
 
-[34] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[35] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
-[36] Thinking...
-**Status:** Board already reflects the brief. The caching layer task is on the board under `# Blocked` with open questions from the previous session.
+**Current state:** P1 planning issue under `# Plan` with initial decisions but open questions about caching strategy (use case, bounds, bottleneck location).
 
-**Analysis:**
-- 1 P1 issue is blocked (within throttle threshold)
-- No issues under `# Ready`
-- Previous session identified that the task needs clarification on: what specifically to cache, which mechanism to use, and whether performance metrics exist
-
-**Decision:** No actionable work. The task is blocked pending human answers to fundamental design questions. Sleeping.
+**Routing:** The plan agent started this work but left questions unresolved. Transitioning to continue exploration and refine the plan based on codebase investigation.
 
 <next>
-sleep: true
+agent: plan
+task: P1: Add a caching layer to the application
 </next>
 
 
-Done  $0.02 · 10.0s · 3 turns  (:N to view)
-  Total cost: $0.09
+Done  $0.01 · 10.5s · 3 turns  (:N to view)
+  Total cost: $0.13
 
-Transition: sleep — waiting for new commits...
+Transition: plan task=P1: Add a caching layer to the application
 
+=== Agent: plan ===
+
+Session f4c7f4c6-f94e-491c-b754-f4654c526dbe (claude-haiku-4-5-20251001)
+
+[43] Thinking...
+[44] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[45] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+     ✗ Error: File does not exist.
+[46] Thinking...
+[47] ▶ Bash  find /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+[48] Thinking...
+[49] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[50] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[51] Thinking...
+[52] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[53] Thinking...
+I can see the board already has an initial plan with decisions and three open questions. Let me refine this based on my exploration of the codebase.
+
+The app is simple: it reads stdin, converts it to uppercase via the `process()` function, and prints the result. The existing plan proposes in-memory memoization with a decorator, which is sensible.
+
+However, the questions on the board are critical and need human input before implementation. Let me update the board with a refined plan:
+
+[54] ▶ Edit  (+4)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[55] Thinking...
+Now let me commit and land this plan:
+
+[56] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[57] Thinking...
+[58] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+     ✗ Error: This command requires approval
+[59] Thinking...
+[60] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-v...
+[61] Thinking...
+[62] ▶ Bash  bash /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
+     ✗ Error: This command requires approval
+[63] Thinking...
+Let me check the git status first to understand what we're working with:
+
+[64] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
+[65] Thinking...
+I've completed the exploration and planning phase. The plan is ready with the decisions and open questions clearly stated on the board under `# Blocked`. 
+
+I have one commit ready to land (`46d5686 Plan: Add caching layer - ready for human input`), but the land script requires approval to execute git operations on the main branch.
+
+<wait-for-user>
+I've completed planning the caching layer task. The plan needs to move to Blocked status because there are three critical questions that only you can answer:
+
+1. **Use case**: Is caching for repeated inputs within a single session, or across multiple program invocations?
+2. **Cache constraints**: Should the cache be unbounded, or have a max size/TTL?
+3. **Performance scope**: Is the `process()` function the actual bottleneck, or is the concern elsewhere?
+
+I've committed this plan and need to land it to main before proceeding. Please approve running the land script, then respond with answers to those questions so I can implement the caching layer.
+</wait-for-user>
+
+
+Done  $0.06 · 46.3s · 13 turns  (:N to view)
+  Total cost: $0.20
+
+Waiting for user: I've completed planning the caching layer task. The plan needs to move to Blocked status because there are three critical questions that only you can answer:
+
+1. **Use case**: Is caching for repeated inputs within a single session, or across multiple program invocations?
+2. **Cache constraints**: Should the cache be unbounded, or have a max size/TTL?
+3. **Performance scope**: Is the `process()` function the actual bottleneck, or is the concern elsewhere?
+
+I've committed this plan and need to land it to main before proceeding. Please approve running the land script, then respond with answers to those questions so I can implement the caching layer.
+> 
 Removing worktree...

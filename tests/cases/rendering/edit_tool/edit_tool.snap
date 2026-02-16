@@ -3,15 +3,15 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
-Session 16766c3f-445b-45d1-935c-f13ef73c85c9 (claude-haiku-4-5-20251001)
+Session f32addb8-01b9-4ca0-9df1-eadf6641c410 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [3] Thinking...
 [4] ▶ Edit  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/co...
 [5] Thinking...
-Done! Changed the greeting from 'hello' to 'goodbye' and added a farewell line "See you soon!". The function now prints both messages when called.
+Done! I've changed the greeting from 'hello' to 'goodbye' and added a farewell line "see you later, {name}!". The file now prints both the goodbye greeting and the farewell message.
 
 
-Done  $0.03 · 6.6s · 3 turns  (:N to view)
+Done  $0.01 · 6.7s · 3 turns  (:N to view)
 >

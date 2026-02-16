@@ -27,11 +27,17 @@ Short description.
 **Questions:**
 - Something needing human input
 
-# Ready
+# Plan
 
 ## P2: Another issue
 
-Ready to work on.
+Needs exploration before implementation.
+
+# Ready
+
+## P1: Planned issue
+
+Plan approved, ready to implement.
 
 # Done
 
@@ -39,16 +45,19 @@ Ready to work on.
 - P2: Another completed issue
 ```
 
-- H1 sections: `# Blocked`, `# Ready`, `# Done`
+- H1 sections: `# Blocked`, `# Plan`, `# Ready`, `# Done`
 - H2 per issue with priority in title
 - Issues under `# Blocked` need human input — no work should happen on them until the human responds
-- Issues under `# Ready` are available to pick up
+- Issues under `# Plan` need exploration — the plan agent will investigate and post a plan
+- Issues under `# Ready` have an approved plan — the implement agent picks them up
 - Completed issues move to `# Done` as a single-line list item
 
 ## Lifecycle
 
+Planning separates exploration from execution. The human reviews plans before implementation begins, catching misunderstandings early — before code is written rather than after.
+
 ```
-dispatch → main × N → review → dispatch → sleep
+dispatch → plan → dispatch → [human answers] → dispatch → implement × N → review → dispatch
 ```
 
 ## Rules

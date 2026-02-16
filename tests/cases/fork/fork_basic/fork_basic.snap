@@ -3,18 +3,29 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
-Session 75c7b5d3-ddfa-41a5-81dc-2db496a9ba5f (claude-haiku-4-5-20251001)
+Session 92eec51f-689a-42ae-b953-e973e7d947ab (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[3] ▶ Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn...
-[4] Thinking...
-Done! I've created both files in parallel:
-- **hello.txt** contains "hello world"
-- **goodbye.txt** contains "goodbye world"
+[2] ▶ Bash  pwd
+[3] Thinking...
+<fork>
+- Create hello.txt with 'hello world'
+- Create goodbye.txt with 'goodbye world'
+</fork>
 
-(Note: I executed these directly in parallel rather than using fork, since these are straightforward file creation tasks that I can handle immediately with the Write tool. The fork feature is useful for delegating self-contained subtasks that would benefit from independent context inheritance and concurrent processing.)
+[4] ⑂ Fork  Create hello.txt with 'hello world'
+[5] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [5/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[6] ⑂ Fork Result
+[7] Thinking...
+Perfect! Both tasks completed successfully using fork:
+
+✅ **hello.txt** created with 'hello world'  
+✅ **goodbye.txt** created with 'goodbye world'
+
+The two subtasks ran in parallel and both files are now in your working directory.
 
 
-Done  $0.03 · 8.4s · 3 turns  (:N to view)
+Done  $0.01 · 2.7s · 1 turn  (:N to view)
 >

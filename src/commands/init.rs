@@ -9,7 +9,8 @@ use crate::agents::AGENTS_DIR;
 use crate::vcr::VcrContext;
 
 const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
-const MAIN_PROMPT: &str = include_str!("../../.coven/agents/main.md");
+const PLAN_PROMPT: &str = include_str!("../../.coven/agents/plan.md");
+const IMPLEMENT_PROMPT: &str = include_str!("../../.coven/agents/implement.md");
 const REVIEW_PROMPT: &str = include_str!("../../.coven/agents/review.md");
 const LAND_SCRIPT: &str = include_str!("../../.coven/land.sh");
 const SYSTEM_DOC: &str = include_str!("../../.coven/system.md");
@@ -26,8 +27,12 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
         content: DISPATCH_PROMPT,
     },
     TemplateFile {
-        path: "main.md",
-        content: MAIN_PROMPT,
+        path: "plan.md",
+        content: PLAN_PROMPT,
+    },
+    TemplateFile {
+        path: "implement.md",
+        content: IMPLEMENT_PROMPT,
     },
     TemplateFile {
         path: "review.md",
@@ -58,6 +63,8 @@ Workers read this file but never edit it.
 
 const BOARD_TEMPLATE: &str = "\
 # Blocked
+
+# Plan
 
 # Ready
 

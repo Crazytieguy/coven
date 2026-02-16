@@ -21,7 +21,7 @@ Review the implementation for board issue: **{{task}}**
 
 ## Judge: Land or Push Back
 
-The main agent implements but doesn't land. Your job is to decide whether the work is ready.
+The implement agent builds but doesn't land. Your job is to decide whether the work is ready.
 
 **Push back** (discard work and post to board) if:
 - The implementer made design decisions that should have been posted to the board first — e.g. chose between multiple valid approaches, interpreted ambiguous requirements, or added scope beyond what was asked
@@ -41,3 +41,7 @@ When the implementation passes review:
 2. Run `bash .coven/land.sh` — if conflicts, resolve and run again
 3. Delete `scratch.md`
 4. Transition to dispatch
+
+## Recording Issues
+
+If you notice unrelated problems (bugs, tech debt, improvements), add a new entry to `board.md` under `# Plan` with an appropriate priority. Don't stop your current work to address them.
