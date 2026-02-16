@@ -24,17 +24,4 @@ The plan has been approved — follow the decisions in the board entry.
 
 Do one focused piece of work, commit, and update `scratch.md` with what you did and what's next.
 
-## Continuation
-
-If more work remains, transition to implement again to continue.
-
-When implementation is complete, transition to review to get the work landed.
-
-## Recording Issues
-
-If you notice unrelated problems (bugs, tech debt, improvements), add a new entry to `board.md` under `# Plan` with an appropriate priority. Don't stop your current work to address them.
-
-## Rules
-
-- **Land before transitioning to dispatch.** The worktree must not be ahead of main when returning to dispatch.
-- Delete `scratch.md` on every land.
+If more work remains, transition to implement again to continue. When done, transition to review.

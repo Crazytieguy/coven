@@ -64,3 +64,7 @@ dispatch → plan → dispatch → [human answers] → dispatch → implement ×
 
 - **Land before transitioning to dispatch.** The worktree must not be ahead of main when returning to dispatch.
 - **Land via `bash .coven/land.sh`** — never `git push`. The script rebases onto main and fast-forwards.
+
+## Recording Issues
+
+If you notice unrelated problems (bugs, tech debt, improvements) while working, add a new entry to `board.md` under `# Plan` with an appropriate priority. Don't stop your current work to address them.

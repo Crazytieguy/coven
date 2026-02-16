@@ -16,7 +16,7 @@ The human works asynchronously — the brief may be stale. Check when the brief 
 
 For new brief items, create a board entry under `# Plan`. Copy the task description from the brief faithfully — often verbatim — rather than summarizing or rephrasing. Add priority (default P1).
 
-If the brief contains answers to open questions on a blocked issue, incorporate them into the entry's **Decisions** section and remove the answered questions. Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`.
+If the brief contains answers to open questions on a blocked issue, incorporate them **verbatim** into the entry's **Decisions** section and remove the answered questions. Move the issue to `# Plan` unless the human explicitly says to proceed.
 
 Only clean up the Done section when explicitly requested in `brief.md`.
 

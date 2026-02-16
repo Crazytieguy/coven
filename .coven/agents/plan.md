@@ -20,19 +20,15 @@ Plan the board issue: **{{task}}**
 
 ## Plan
 
-Your job is exploration and decision-making, not implementation. Read the issue, understand the codebase, and figure out what needs to happen.
+Your job is to identify important decisions, ambiguities, tradeoffs, and inconsistencies — and surface them for human review before implementation begins.
 
 Post a concise plan to the board entry:
-- **Decisions** — design choices you've made (approach, architecture, key trade-offs)
-- **Questions** — things only the human can answer (requirements, preferences, scope)
+- **Decisions** — design choices you've resolved. Document important decisions even when there's only one viable option. Skip trivial ones.
+- **Questions** — ambiguities, tradeoffs between valid approaches, scope questions, anything where the human's judgement matters
 
-Keep it short. The human needs to see key decisions and open questions — not implementation details they don't care about. If the path forward is obvious, say so briefly and ask "good to proceed?"
+Keep it short. The human needs to see key decisions and open questions — not implementation details they don't care about.
 
 Move the issue under `# Blocked`, commit, land, and transition to dispatch.
-
-## Recording Issues
-
-If you notice unrelated problems (bugs, tech debt, improvements), add a new entry to `board.md` under `# Plan` with an appropriate priority. Don't stop your current work to address them.
 
 ## Rules
 
