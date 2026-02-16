@@ -4,7 +4,7 @@
 
 ## P1: Further agent prompt revisions (dispatch + review)
 
-dispatch.md: "I'm noticing I also don't love 'Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`.'. It should mostly defer to the human rather than deciding. Can simplify"
+dispatch.md: "Use your judgement on where to move the issue: if it still needs exploration or has unresolved design questions, move it to `# Plan`. If the path forward is clear, move it to `# Ready`." — should mostly defer to the human rather than deciding. Can simplify.
 
 review.md "improve and land" section: can be shorter. Maybe just:
 ```
@@ -19,7 +19,8 @@ review.md "improve and land" section: can be shorter. Maybe just:
 Also look at the board.md and brief.md history to get full context — some decisions for this issue may have been lost along the way.
 
 **Decisions:**
-- "Strengthen dispatch prompt" issue is dropped — subsumed by this work
+- Previous audit found existing text already replaced, but human wants further simplification
+- "Strengthen dispatch prompt" issue dropped — subsumed by this
 
 # Ready
 
@@ -46,4 +47,3 @@ Also look at the board.md and brief.md history to get full context — some deci
 - P1: wait-for-user prompt final revision
 - P2: scratch.md: should clarify that it's gitignored
 - P1: Mark a session to wait for user input when it finishes
-
