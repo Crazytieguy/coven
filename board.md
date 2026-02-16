@@ -2,6 +2,8 @@
 
 # Plan
 
+# Ready
+
 ## P1: Revise agent prompts based on restructuring feedback
 
 Draft wording for each prompt revision. VCR re-recording waits until end of implementation.
@@ -95,8 +97,6 @@ If you notice unrelated problems (bugs, tech debt, improvements) while working, 
 - dispatch.md: simplify the "use your judgement" move-issue paragraph — defer to human rather than agent deciding.
 - review.md: shorter "improve and land" list per human's wording.
 - "Strengthen dispatch prompt" issue dropped — subsumed by these revisions.
-
-# Ready
 
 # Done
 
