@@ -359,7 +359,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --permission-mode acceptEdits
-            --allowedTools "Bash(gh pr view:*),Bash(bash .github/hooks/update-comment.sh:*),Bash(gh issue view:*),Bash(gh api repos/<owner>/<repo>/pulls/*/comments *),Bash(git push origin HEAD)"
+            --allowedTools "Bash(gh pr view:*),Bash(bash .github/hooks/update-comment.sh:*),Bash(gh issue view:*),Bash(gh api repos/${{ github.repository }}/pulls/*/comments *),Bash(git push origin HEAD)"
             --disallowedTools TodoWrite
 ```
 
@@ -375,7 +375,7 @@ jobs:
 | **Read linked issues** | Claude's PRs reference the original issue. Reading it gives Claude the full context for why the changes were made. |
 | **Per-PR/issue concurrency groups** | Each inline review comment fires a separate event. Without concurrency limits, multiple runs race on the same branch. The skip check + notification hook handle deduplication. |
 | **Filter out approvals** | `review.state != 'approved'` prevents wasting a run when a reviewer approves without actionable feedback. |
-| **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/<owner>/<repo>/pulls/*/comments` only. |
+| **`gh api` for inline review comments** | `gh pr view --json reviews` doesn't include inline comments. The `gh api` endpoint with a `--jq` filter gives compact output (path, line, body, user). Permission scoped to `repos/${{ github.repository }}/pulls/*/comments` only. |
 
 ### Dependency Caching
 
