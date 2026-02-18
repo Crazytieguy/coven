@@ -41,6 +41,9 @@ pub struct InputHandler {
     /// the start of the input line, including the prefix). Used by `redraw()`
     /// to navigate back to the beginning before reprinting.
     term_cursor_display: usize,
+    /// Whether a hint line was rendered above the current input line.
+    /// When set, `clear_input_lines` moves up one extra line to erase it.
+    has_hint_line: bool,
 }
 
 impl InputHandler {
@@ -51,6 +54,7 @@ impl InputHandler {
             active: false,
             prefix_width,
             term_cursor_display: 0,
+            has_hint_line: false,
         }
     }
 
@@ -64,6 +68,12 @@ impl InputHandler {
         self.cursor = 0;
         self.active = true;
         self.term_cursor_display = self.prefix_width;
+        self.has_hint_line = false;
+    }
+
+    /// Mark that a hint line was rendered above the current input line.
+    pub fn set_has_hint_line(&mut self) {
+        self.has_hint_line = true;
     }
 
     /// Deactivate without clearing — used after submit/cancel.
@@ -175,15 +185,20 @@ impl InputHandler {
 
     /// Clear all terminal lines occupied by the input (prefix + buffer),
     /// accounting for line wrapping at the terminal width.
+    /// Also clears the hint line above the input if one was rendered.
     fn clear_input_lines(&self, out: &mut impl Write) {
         let tw = term_width();
         // Use term_cursor_display to find which line the cursor is on,
         // then move to the start of the input region.
-        let cur_line = self.term_cursor_display / tw;
-        if cur_line > 0 {
+        let mut lines_up = self.term_cursor_display / tw;
+        // If a hint line was rendered above the input, include it in the clear.
+        if self.has_hint_line {
+            lines_up += 1;
+        }
+        if lines_up > 0 {
             queue!(
                 out,
-                cursor::MoveUp(u16::try_from(cur_line).unwrap_or(u16::MAX))
+                cursor::MoveUp(u16::try_from(lines_up).unwrap_or(u16::MAX))
             )
             .ok();
         }
