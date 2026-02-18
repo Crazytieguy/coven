@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 11d901f0-b904-4a79-ad3e-d25c1f9d24c9 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -22,5 +22,5 @@ Done! I've created `hello.py` with a "Hi, world!" greeting.
 
 
 Done  $0.01 · 4.9s · 2 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

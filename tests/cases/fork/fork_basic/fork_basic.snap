@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 92eec51f-689a-42ae-b953-e973e7d947ab (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -28,5 +28,5 @@ The two subtasks ran in parallel and both files are now in your working director
 
 
 Done  $0.01 · 2.7s · 1 turn  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

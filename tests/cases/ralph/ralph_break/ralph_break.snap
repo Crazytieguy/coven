@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt
 
 --- Iteration 1 ---
 

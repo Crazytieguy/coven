@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 26f82cba-7c59-4685-822c-9f50a99ff899 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -12,5 +12,5 @@ Done! I've created the file `hello.txt` with the content "Hello, world!".
 
 
 Done  $0.01 · 4.8s · 2 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

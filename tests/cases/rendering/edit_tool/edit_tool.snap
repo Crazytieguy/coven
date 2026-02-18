@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session f32addb8-01b9-4ca0-9df1-eadf6641c410 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -14,5 +14,5 @@ Done! I've changed the greeting from 'hello' to 'goodbye' and added a farewell l
 
 
 Done  $0.01 · 6.7s · 3 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

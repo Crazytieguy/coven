@@ -20,7 +20,7 @@ Add tasks to brief.md and commit. Run `coven worker` to start.
 Workers will post questions to board.md — answer in brief.md.
 
 --- worker ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt
 
 Worker started: quick-eagle-79 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-priority_dispatch-worker-worktrees/coven-vcr-priority_dispatch/quick-eagle-79)
 

@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 9e47f367-ffab-494b-b2d1-7e0581bc0151 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -21,5 +21,5 @@ The documentation is now available for reference. Let me know if you'd like me t
 
 
 Done  $0.01 · 5.8s · 2 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

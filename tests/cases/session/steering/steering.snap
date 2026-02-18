@@ -2,14 +2,14 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 9bc14be3-3c6d-43af-a27c-6d4d9bb2024e (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 I'll find all the Python files in this directory and read them one by one.
 
 [2] ▶ Glob  *.py
-Enter steer · Alt+Enter follow up · Esc cancel · Ctrl+C interrupt
+Enter steer · Alt+Enter follow up · :N view message · Esc cancel
 ⤷ steering: count lines instead
 [3] Thinking...
 Now I'll read each file and provide summaries:
@@ -26,5 +26,5 @@ What's the best approach for what you're looking for?
 
 
 Done  $0.01 · 6.8s · 3 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

@@ -357,7 +357,7 @@ async fn handle_session_key_event<W: Write>(
                 return Ok(action);
             }
             if state.status == SessionStatus::WaitingForInput {
-                renderer.show_prompt_with_hints();
+                renderer.show_prompt_with_hints(false);
                 input.activate();
                 input.set_has_hint_line();
             }
@@ -567,7 +567,7 @@ pub async fn wait_for_followup<W: Write>(
 ) -> Result<FollowUpAction> {
     renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
-    match wait_for_text_input(input, renderer, io, vcr).await? {
+    match wait_for_text_input(input, renderer, false, io, vcr).await? {
         Some(WaitResult::Text(text)) => {
             state.suppress_next_separator = true;
             vcr_send_message(runner, vcr, text).await?;
@@ -589,7 +589,7 @@ pub async fn wait_for_user_input<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<WaitResult>> {
-    wait_for_text_input(input, renderer, io, vcr).await
+    wait_for_text_input(input, renderer, true, io, vcr).await
 }
 
 /// Wait for user input from the interrupted state, handling Ctrl+O to open
@@ -606,7 +606,7 @@ pub async fn wait_for_interrupt_input<W: Write>(
     io.clear_event_channel();
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
     loop {
-        match wait_for_text_input(input, renderer, io, vcr).await? {
+        match wait_for_text_input(input, renderer, false, io, vcr).await? {
             Some(WaitResult::Text(text)) => return Ok(Some(text)),
             Some(WaitResult::Interactive) => {
                 open_interactive_session(Some(session_id), working_dir, extra_args, io, vcr)?;
@@ -624,12 +624,15 @@ pub async fn wait_for_interrupt_input<W: Write>(
 async fn wait_for_text_input<W: Write>(
     input: &mut InputHandler,
     renderer: &mut Renderer<W>,
+    is_first_message: bool,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<WaitResult>> {
-    renderer.show_prompt_with_hints();
+    renderer.show_prompt_with_hints(is_first_message);
     input.activate();
-    input.set_has_hint_line();
+    if !is_first_message {
+        input.set_has_hint_line();
+    }
 
     loop {
         let io_event: IoEvent = vcr
@@ -648,14 +651,18 @@ async fn wait_for_text_input<W: Write>(
                     }
                     InputAction::ViewMessage(ref query) => {
                         view_message(renderer, query, io)?;
-                        renderer.show_prompt_with_hints();
+                        renderer.show_prompt_with_hints(is_first_message);
                         input.activate();
-                        input.set_has_hint_line();
+                        if !is_first_message {
+                            input.set_has_hint_line();
+                        }
                     }
                     InputAction::Cancel => {
-                        renderer.show_prompt_with_hints();
+                        renderer.show_prompt_with_hints(is_first_message);
                         input.activate();
-                        input.set_has_hint_line();
+                        if !is_first_message {
+                            input.set_has_hint_line();
+                        }
                     }
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(None);

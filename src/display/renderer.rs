@@ -14,12 +14,12 @@ use crate::protocol::types::{RateLimitInfo, StreamEvent};
 /// Context for rendering keybinding hints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HintContext {
-    /// At startup / while Claude is streaming (user not typing).
-    Idle,
+    /// One-time startup banner. `has_wait` is true for ralph/worker.
+    Initial { has_wait: bool },
     /// User is actively typing in the input line.
     Typing,
-    /// Session completed, prompt is shown, waiting for follow-up.
-    Prompt,
+    /// Waiting for user input. `is_first_message` skips hints (Initial line covers it).
+    Prompt { is_first_message: bool },
 }
 
 /// Stores a completed message for later viewing via `:N` or `:Label[index]`.
@@ -238,15 +238,21 @@ impl<W: Write> Renderer<W> {
     /// - `Prompt`: shown when waiting for user input (session completed)
     pub fn render_hints(&mut self, context: HintContext) {
         let help = match context {
-            HintContext::Idle => {
-                ":N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit"
+            HintContext::Initial { has_wait: false } => {
+                ":N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt"
+            }
+            HintContext::Initial { has_wait: true } => {
+                ":N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt"
             }
             HintContext::Typing => {
-                "Enter steer · Alt+Enter follow up · Esc cancel · Ctrl+C interrupt"
+                "Enter steer · Alt+Enter follow up · :N view message · Esc cancel"
             }
-            HintContext::Prompt => {
-                "Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit"
-            }
+            HintContext::Prompt {
+                is_first_message: true,
+            } => return,
+            HintContext::Prompt {
+                is_first_message: false,
+            } => "Enter follow up · :N view message · Ctrl+O interactive",
         };
         queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();
         self.out.flush().ok();
@@ -255,8 +261,8 @@ impl<W: Write> Renderer<W> {
     /// Render keybinding hints, then show the `> ` input prompt.
     ///
     /// Used when entering the prompt state (session completed, waiting for user).
-    pub fn show_prompt_with_hints(&mut self) {
-        self.render_hints(HintContext::Prompt);
+    pub fn show_prompt_with_hints(&mut self, is_first_message: bool) {
+        self.render_hints(HintContext::Prompt { is_first_message });
         self.show_prompt();
     }
 

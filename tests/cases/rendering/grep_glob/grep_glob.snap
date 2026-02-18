@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session 6061e773-16da-4e84-a3b1-cd0a9a1bf835 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -25,5 +25,5 @@ The other Rust file (`src/lib.rs`) only contains a helper function `add()` and d
 
 
 Done  $0.04 · 8.6s · 5 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive
 >

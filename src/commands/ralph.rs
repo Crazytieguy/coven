@@ -109,7 +109,7 @@ pub async fn ralph<W: Write>(
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
 
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Idle);
+    renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: true });
     let system_prompt = config.system_prompt();
     if config.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());

@@ -118,7 +118,7 @@ pub async fn worker<W: Write>(
 
     let raw = RawModeGuard::acquire(vcr.is_live())?;
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Idle);
+    renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: true });
 
     let wt_str = spawn_result.worktree_path.display().to_string();
 
