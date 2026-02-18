@@ -203,6 +203,27 @@ impl<W: Write> Renderer<W> {
         &self.messages
     }
 
+    /// Return the in-progress thinking block (if any) as a temporary `StoredMessage`.
+    ///
+    /// This allows `:N` viewing of thinking blocks that are still being streamed.
+    pub fn in_progress_thinking(&self) -> Option<StoredMessage> {
+        if self.current_block == Some(BlockKind::Thinking) {
+            let content = self
+                .current_thinking
+                .as_deref()
+                .unwrap_or_default()
+                .to_string();
+            let n = self.tool_counter;
+            Some(StoredMessage {
+                label: format!("[{n}] Thinking"),
+                content,
+                result: None,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn into_messages(self) -> Vec<StoredMessage> {
         self.messages
     }
