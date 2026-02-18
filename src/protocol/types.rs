@@ -15,6 +15,8 @@ pub enum InboundEvent {
     User(UserToolResult),
     #[serde(rename = "result")]
     Result(SessionResult),
+    #[serde(rename = "rate_limit_event")]
+    RateLimit(RateLimitEvent),
 }
 
 // --- System events ---
@@ -170,6 +172,28 @@ pub struct SessionResult {
     pub result: String,
     #[serde(default, rename = "session_id")]
     _session_id: String,
+    #[serde(flatten)]
+    _extra: Value,
+}
+
+// --- Rate limit events ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitEvent {
+    pub rate_limit_info: RateLimitInfo,
+    #[serde(flatten)]
+    _extra: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RateLimitInfo {
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub rate_limit_type: String,
+    #[serde(default)]
+    pub utilization: f64,
     #[serde(flatten)]
     _extra: Value,
 }
