@@ -9,7 +9,7 @@ use unicode_width::UnicodeWidthChar;
 use super::term_width;
 use super::theme;
 use super::tool_format::{first_line, format_tool_detail, format_tool_view};
-use crate::protocol::types::StreamEvent;
+use crate::protocol::types::{RateLimitInfo, StreamEvent};
 
 /// Context for rendering keybinding hints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -823,6 +823,17 @@ impl<W: Write> Renderer<W> {
             }
             None => {}
         }
+        self.out.flush().ok();
+    }
+
+    pub fn render_rate_limit(&mut self, info: &RateLimitInfo) {
+        let msg = format!(
+            "[rate limit] {} usage at {:.0}% ({})",
+            info.rate_limit_type,
+            info.utilization * 100.0,
+            info.status,
+        );
+        queue!(self.out, Print(theme::dim().apply(msg)), Print("\r\n"),).ok();
         self.out.flush().ok();
     }
 

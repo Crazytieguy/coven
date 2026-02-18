@@ -115,4 +115,18 @@ mod tests {
         let line = r#"{"type":"result","subtype":"success","total_cost_usd":0.01,"num_turns":1,"duration_ms":100,"result":"ok","session_id":"x","unknown_field":"value","another":123}"#;
         assert!(parse_line(line).is_ok());
     }
+
+    #[test]
+    fn parse_rate_limit_event() {
+        let line = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed_warning","resetsAt":1771545600,"rateLimitType":"seven_day","utilization":0.76,"isUsingOverage":false,"surpassedThreshold":0.75},"uuid":"e79d3169-e675-4aef-9400-8403f2237090","session_id":"bb1caa74-b643-4163-ba7d-8f6749891cc3"}"#;
+        let event = parse_line(line).unwrap().unwrap();
+        match event {
+            InboundEvent::RateLimit(rl) => {
+                assert_eq!(rl.rate_limit_info.status, "allowed_warning");
+                assert_eq!(rl.rate_limit_info.rate_limit_type, "seven_day");
+                assert!((rl.rate_limit_info.utilization - 0.76).abs() < f64::EPSILON);
+            }
+            other => panic!("Expected RateLimit, got {other:?}"),
+        }
+    }
 }
