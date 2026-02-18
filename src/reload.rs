@@ -1,13 +1,14 @@
 /// Message sent to the resumed session after a reload.
-pub const RELOAD_RESUME_MESSAGE: &str = "The scaffold was reloaded. Your session has been resumed with fresh tool definitions. Continue where you left off.";
+pub const RELOAD_RESUME_MESSAGE: &str =
+    "Coven reloaded. Session resumed with fresh tool definitions. Continue where you left off.";
 
 /// Build the system prompt fragment that teaches the model about reloading.
 pub fn reload_system_prompt() -> &'static str {
-    "To reload the scaffold (restart the outer tool that wraps your session), emit a <reload> tag:\n\
+    "To reload coven and pick up new configuration, emit a <reload> tag:\n\
      <reload>reason</reload>\n\
-     This cleanly exits the current process and resumes your session with fresh tool definitions \
-     and configuration. Use this when you've updated skills, MCP servers, or other scaffold \
-     configuration and need the changes to take effect. Your conversation context is preserved."
+     This restarts coven and resumes your session with fresh tool definitions. \
+     Use this after updating skills, MCP servers, or other config. \
+     Your conversation context is preserved."
 }
 
 #[cfg(test)]

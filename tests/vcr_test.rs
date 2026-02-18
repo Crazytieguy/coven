@@ -176,7 +176,7 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
                 extra_args: claude_args,
                 show_thinking: case.display.show_thinking,
                 fork: run_config.fork,
-                reload: false,
+                reload: run_config.reload,
                 working_dir: None,
                 term_width: Some(80),
             },
@@ -379,6 +379,7 @@ vcr_test!(session / steering);
 vcr_test!(session / interrupt_resume);
 vcr_test!(session / show_thinking);
 vcr_test!(session / error_handling);
+vcr_test!(session / reload_basic);
 
 // Rendering: tool output display
 vcr_test!(rendering / tool_use);

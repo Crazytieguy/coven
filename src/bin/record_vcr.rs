@@ -342,7 +342,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
                 extra_args: claude_args,
                 show_thinking: case.display.show_thinking,
                 fork: run_config.fork,
-                reload: false,
+                reload: run_config.reload,
                 working_dir: Some(tmp_dir.clone()),
                 term_width: Some(80),
             },

@@ -13,7 +13,7 @@ pub struct ClaudeOpts {
     #[arg(long)]
     pub fork: bool,
 
-    /// Enable model-driven scaffold reload via <reload> tags.
+    /// Enable model-driven reload via <reload> tags.
     #[arg(long)]
     pub reload: bool,
 
