@@ -11,15 +11,8 @@ use cli::{Cli, Command};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Panic hook to restore terminal state
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        crossterm::terminal::disable_raw_mode().ok();
-        default_hook(info);
-    }));
-
+    install_panic_hook();
     let cli = Cli::parse();
-
     match cli.command {
         Some(Command::Init) => {
             let vcr = VcrContext::live();
@@ -57,7 +50,10 @@ async fn main() -> Result<()> {
                     break_tag,
                     no_break,
                     show_thinking: claude_opts.show_thinking,
-                    fork: claude_opts.fork,
+                    tag_flags: commands::ralph::TagFlags {
+                        fork: claude_opts.fork,
+                        reload: claude_opts.reload,
+                    },
                     extra_args: claude_opts.claude_args,
                     working_dir: None,
                     term_width: None,
@@ -86,6 +82,7 @@ async fn main() -> Result<()> {
                     extra_args: claude_opts.claude_args,
                     working_dir: None,
                     fork: claude_opts.fork,
+                    reload: claude_opts.reload,
                     term_width: None,
                 },
                 &mut io,
@@ -102,6 +99,7 @@ async fn main() -> Result<()> {
                     extra_args: cli.claude_opts.claude_args,
                     show_thinking: cli.claude_opts.show_thinking,
                     fork: cli.claude_opts.fork,
+                    reload: cli.claude_opts.reload,
                     working_dir: None,
                     term_width: None,
                 },
@@ -114,6 +112,15 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Install a panic hook that restores terminal state before printing the panic.
+fn install_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        crossterm::terminal::disable_raw_mode().ok();
+        default_hook(info);
+    }));
 }
 
 /// Create a live `Io` and `VcrContext` for production use.

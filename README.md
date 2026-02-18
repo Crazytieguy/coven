@@ -73,6 +73,7 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 - `--show-thinking` — stream thinking text inline instead of collapsing
 - `--fork` — let the model spawn parallel sub-sessions via `<fork>` tags
+- `--reload` — let the model restart the scaffold via `<reload>` tags (preserves session)
 - `-- [ARGS]` — pass extra arguments to the claude CLI (e.g. `-- --permission-mode plan`)
 
 ## Orchestration

@@ -35,6 +35,14 @@ pub enum SessionOutcome {
     Interrupted,
     /// Claude process exited unexpectedly.
     ProcessExited,
+    /// Model emitted a `<reload>` tag — caller should restart the scaffold and resume.
+    Reload { result_text: String },
+}
+
+/// Optional tag-based features enabled for a session.
+pub struct SessionFeatures<'a> {
+    pub fork_config: Option<&'a ForkConfig>,
+    pub reload_enabled: bool,
 }
 
 /// Per-session transient state for event buffering and follow-ups.
@@ -43,6 +51,7 @@ struct SessionLocals {
     pending_followups: Vec<String>,
     result_text: String,
     fork_config: Option<ForkConfig>,
+    reload_enabled: bool,
 }
 
 /// Run a single session's event loop with full input support.
@@ -59,13 +68,14 @@ pub async fn run_session<W: Write>(
     input: &mut InputHandler,
     io: &mut Io,
     vcr: &VcrContext,
-    fork_config: Option<&ForkConfig>,
+    features: &SessionFeatures<'_>,
 ) -> Result<SessionOutcome> {
     let mut locals = SessionLocals {
         event_buffer: Vec::new(),
         pending_followups: Vec::new(),
         result_text: String::new(),
-        fork_config: fork_config.cloned(),
+        fork_config: features.fork_config.cloned(),
+        reload_enabled: features.reload_enabled,
     };
 
     loop {
@@ -161,6 +171,8 @@ enum FlushResult {
     Completed(String),
     /// A fork tag was detected in a buffered Result event.
     Fork(Vec<String>),
+    /// A `<reload>` tag was detected — scaffold should restart.
+    Reload(String),
     /// The process exited during the flush.
     ProcessExited,
 }
@@ -175,6 +187,8 @@ enum ClaudeEventAction {
     Followup(String),
     /// Result with no followups — session completed.
     Completed(String),
+    /// Result with `<reload>` tag detected — scaffold should restart.
+    Reload(String),
 }
 
 /// Handle an inbound Claude event, updating session state and rendering output.
@@ -269,11 +283,21 @@ fn classify_claude_event<W: Write>(
         None
     };
 
-    let has_pending = !locals.pending_followups.is_empty() || fork_tasks.is_some();
+    let reload_detected = if let InboundEvent::Result(_) = *inbound {
+        locals.reload_enabled
+            && crate::protocol::parse::extract_tag_inner(&locals.result_text, "reload").is_some()
+    } else {
+        false
+    };
+
+    let has_pending =
+        !locals.pending_followups.is_empty() || fork_tasks.is_some() || reload_detected;
     handle_inbound(inbound, state, renderer, has_pending);
 
     if let Some(tasks) = fork_tasks {
         ClaudeEventAction::Fork(tasks)
+    } else if reload_detected {
+        ClaudeEventAction::Reload(locals.result_text.clone())
     } else if matches!(*inbound, InboundEvent::Result(_)) {
         if locals.pending_followups.is_empty() {
             ClaudeEventAction::Completed(locals.result_text.clone())
@@ -459,6 +483,9 @@ async fn process_claude_event<W: Write>(
                 ClaudeEventAction::Fork(tasks) => {
                     return Ok(EventResult::Fork(tasks));
                 }
+                ClaudeEventAction::Reload(result_text) => {
+                    return Ok(EventResult::End(SessionOutcome::Reload { result_text }));
+                }
                 ClaudeEventAction::Followup(text) => {
                     send_followup(text, renderer, runner, state, vcr).await?;
                 }
@@ -498,6 +525,7 @@ fn flush_event_buffer<W: Write>(
             AppEvent::Claude(inbound) => {
                 match classify_claude_event(&inbound, locals, state, renderer) {
                     ClaudeEventAction::Fork(tasks) => result = FlushResult::Fork(tasks),
+                    ClaudeEventAction::Reload(text) => result = FlushResult::Reload(text),
                     ClaudeEventAction::Followup(text) => result = FlushResult::Followup(text),
                     ClaudeEventAction::Completed(text) => result = FlushResult::Completed(text),
                     ClaudeEventAction::Rendered => {}
@@ -529,6 +557,9 @@ async fn handle_flush_result<W: Write>(
 ) -> Result<Option<LoopAction>> {
     match flush {
         FlushResult::ProcessExited => Ok(Some(LoopAction::Return(SessionOutcome::ProcessExited))),
+        FlushResult::Reload(result_text) => Ok(Some(LoopAction::Return(SessionOutcome::Reload {
+            result_text,
+        }))),
         FlushResult::Followup(text) => {
             send_followup(text, renderer, runner, state, vcr).await?;
             Ok(None)

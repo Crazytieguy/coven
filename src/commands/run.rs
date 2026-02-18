@@ -6,11 +6,12 @@ use anyhow::Result;
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
 use crate::fork::{self, ForkConfig};
+use crate::reload;
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, VcrContext};
 
-use crate::session::event_loop::{self, FollowUpAction, SessionOutcome};
+use crate::session::event_loop::{self, FollowUpAction, SessionFeatures, SessionOutcome};
 
 use super::{RawModeGuard, setup_display};
 
@@ -19,6 +20,7 @@ pub struct RunConfig {
     pub extra_args: Vec<String>,
     pub show_thinking: bool,
     pub fork: bool,
+    pub reload: bool,
     pub working_dir: Option<PathBuf>,
     /// Override terminal width for display truncation (used in tests).
     pub term_width: Option<usize>,
@@ -43,15 +45,23 @@ pub async fn run<W: Write>(
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
     renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: false });
 
-    let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
+    let mut append_system_prompt: Option<String> = None;
     if config.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());
+        append_system_prompt = Some(fork::fork_system_prompt().to_string());
+    }
+    if config.reload {
+        let reload_prompt = reload::reload_system_prompt();
+        append_system_prompt = Some(match append_system_prompt {
+            Some(existing) => format!("{existing}\n\n{reload_prompt}"),
+            None => reload_prompt.to_string(),
+        });
     }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 
     let base_session_cfg = SessionConfig {
         extra_args: config.extra_args.clone(),
-        append_system_prompt: fork_system_prompt,
+        append_system_prompt,
         working_dir: config.working_dir.clone(),
         ..Default::default()
     };
@@ -68,6 +78,10 @@ pub async fn run<W: Write>(
     else {
         return Ok(vec![]);
     };
+    let features = SessionFeatures {
+        fork_config: fork_config.as_ref(),
+        reload_enabled: config.reload,
+    };
     loop {
         let outcome = event_loop::run_session(
             &mut runner,
@@ -76,7 +90,7 @@ pub async fn run<W: Write>(
             ctx.input,
             ctx.io,
             ctx.vcr,
-            fork_config.as_ref(),
+            &features,
         )
         .await?;
 
@@ -149,6 +163,21 @@ async fn handle_outcome<W: Write>(
             };
             ctx.renderer.render_interrupted();
             resume_after_pause(session_id, config, base_session_cfg, runner, state, ctx).await
+        }
+        SessionOutcome::Reload { .. } => {
+            runner.kill().await?;
+            let Some(session_id) = state.session_id.take() else {
+                return Ok(false);
+            };
+            ctx.renderer.write_raw("\r\n[reloading scaffold...]\r\n");
+            let resume_cfg = base_session_cfg.resume_with(
+                reload::RELOAD_RESUME_MESSAGE.to_string(),
+                session_id.clone(),
+            );
+            *runner = event_loop::spawn_session(resume_cfg, ctx.io, ctx.vcr).await?;
+            *state = SessionState::default();
+            state.session_id = Some(session_id);
+            Ok(true)
         }
         SessionOutcome::ProcessExited => Ok(false),
     }

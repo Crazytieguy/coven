@@ -248,6 +248,13 @@ fn setup_test_dir(name: &str, case: &TestCase) -> Result<PathBuf> {
     Ok(tmp_dir)
 }
 
+/// Ensure `--model` is present in extra args, defaulting to `DEFAULT_TEST_MODEL`.
+fn ensure_model_arg(args: &mut Vec<String>) {
+    if !args.iter().any(|a| a == "--model") {
+        args.extend(["--model".to_string(), DEFAULT_TEST_MODEL.to_string()]);
+    }
+}
+
 async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     let toml_path = case_dir.join(format!("{name}.toml"));
     let vcr_path = case_dir.join(format!("{name}.vcr"));
@@ -261,31 +268,17 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     }
 
     let tmp_dir = setup_test_dir(name, &case)?;
-
-    // Set up VCR recording with trigger controller
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
-
-    // Auto-exit: inject Ctrl+D when all triggers have fired and an idle event
-    // is seen. Works across all command types — run (follow-up wait), worker
-    // (sleep), and ralph (only idles on interrupt, which means exit).
     let controller = TriggerController::new(&case.messages, term_tx)?.with_auto_exit();
     let vcr = VcrContext::record_with_triggers(controller);
     let mut io = Io::new(event_rx, term_rx);
-
-    // Run the real command function.
-    // Default to haiku for recording unless the test case specifies a model.
-    let default_model = DEFAULT_TEST_MODEL;
-
     let mut output = PrefixWriter::new(name);
 
     if case.is_worker() {
         let worker_config = case.worker.as_ref().context("worker config missing")?;
         let mut extra_args = worker_config.claude_args.clone();
-        if !extra_args.iter().any(|a| a == "--model") {
-            extra_args.extend(["--model".to_string(), default_model.to_string()]);
-        }
-        // Worker needs a worktree base directory (sibling of the test repo).
+        ensure_model_arg(&mut extra_args);
         let worktree_base = tmp_dir.with_file_name(format!("coven-vcr-{name}-worktrees"));
         std::fs::create_dir_all(&worktree_base)?;
         commands::worker::worker(
@@ -296,6 +289,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
                 extra_args,
                 working_dir: Some(tmp_dir.clone()),
                 fork: false,
+                reload: false,
                 term_width: Some(80),
             },
             &mut io,
@@ -308,9 +302,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     } else if case.is_ralph() {
         let ralph_config = case.ralph.as_ref().context("ralph config missing")?;
         let mut extra_args = ralph_config.claude_args.clone();
-        if !extra_args.iter().any(|a| a == "--model") {
-            extra_args.extend(["--model".to_string(), default_model.to_string()]);
-        }
+        ensure_model_arg(&mut extra_args);
         commands::ralph::ralph(
             commands::ralph::RalphConfig {
                 prompt: ralph_config.prompt.clone(),
@@ -318,7 +310,10 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
                 show_thinking: case.display.show_thinking,
-                fork: false,
+                tag_flags: commands::ralph::TagFlags {
+                    fork: false,
+                    reload: false,
+                },
                 extra_args,
                 working_dir: Some(tmp_dir.clone()),
                 term_width: Some(80),
@@ -340,15 +335,14 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     } else {
         let run_config = case.run.as_ref().context("run config missing")?;
         let mut claude_args = run_config.claude_args.clone();
-        if !claude_args.iter().any(|a| a == "--model") {
-            claude_args.extend(["--model".to_string(), default_model.to_string()]);
-        }
+        ensure_model_arg(&mut claude_args);
         commands::run::run(
             commands::run::RunConfig {
                 prompt: Some(run_config.prompt.clone()),
                 extra_args: claude_args,
                 show_thinking: case.display.show_thinking,
                 fork: run_config.fork,
+                reload: false,
                 working_dir: Some(tmp_dir.clone()),
                 term_width: Some(80),
             },
@@ -359,12 +353,8 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
         .await?;
     }
 
-    // Write the VCR recording
     vcr.write_recording(&vcr_path)?;
-
-    // Clean up temp dir
     std::fs::remove_dir_all(&tmp_dir).ok();
-
     Ok(())
 }
 
@@ -463,6 +453,7 @@ async fn record_multi_step(
                     extra_args,
                     working_dir: Some(tmp_dir),
                     fork: false,
+                    reload: false,
                     term_width: Some(80),
                 },
                 &mut io,
