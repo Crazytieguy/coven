@@ -286,7 +286,7 @@ async fn handle_session_outcome<W: Write>(
             let Some(session_id) = state.session_id.take() else {
                 return Ok(LoopAction::Exit);
             };
-            ctx.renderer.write_raw("\r\n[reloading scaffold...]\r\n");
+            ctx.renderer.write_raw("\r\n[reloading claude...]\r\n");
             let resume_config = session_config.resume_with(
                 reload::RELOAD_RESUME_MESSAGE.to_string(),
                 session_id.clone(),

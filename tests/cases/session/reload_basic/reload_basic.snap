@@ -1,0 +1,18 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
+Session e5b3f3b8-702a-40bc-a62a-0655a506444b (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+Hello!
+
+<reload>User requested reload</reload>
+
+
+[reloading claude...]
+
+Error  $0.00 · 0.0s · 0 turns  (:N to view)
+Enter follow up · :N view message · Ctrl+O interactive
+>

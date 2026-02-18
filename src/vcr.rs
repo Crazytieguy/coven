@@ -702,6 +702,9 @@ pub struct RunConfig {
     /// Whether to enable fork support.
     #[serde(default)]
     pub fork: bool,
+    /// Whether to enable reload support.
+    #[serde(default)]
+    pub reload: bool,
 }
 
 /// CLI configuration for ralph loop mode (mirrors coven's ralph subcommand args).

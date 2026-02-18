@@ -1,0 +1,3 @@
+[run]
+prompt = "Say 'hello', then emit a <reload> tag to reload."
+reload = true

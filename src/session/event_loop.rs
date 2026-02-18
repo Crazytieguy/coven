@@ -35,7 +35,7 @@ pub enum SessionOutcome {
     Interrupted,
     /// Claude process exited unexpectedly.
     ProcessExited,
-    /// Model emitted a `<reload>` tag — caller should restart the scaffold and resume.
+    /// Model emitted a `<reload>` tag — caller should reload claude and resume.
     Reload { result_text: String },
 }
 
@@ -171,7 +171,7 @@ enum FlushResult {
     Completed(String),
     /// A fork tag was detected in a buffered Result event.
     Fork(Vec<String>),
-    /// A `<reload>` tag was detected — scaffold should restart.
+    /// A `<reload>` tag was detected — claude should be reloaded.
     Reload(String),
     /// The process exited during the flush.
     ProcessExited,
@@ -187,7 +187,7 @@ enum ClaudeEventAction {
     Followup(String),
     /// Result with no followups — session completed.
     Completed(String),
-    /// Result with `<reload>` tag detected — scaffold should restart.
+    /// Result with `<reload>` tag detected — claude should be reloaded.
     Reload(String),
 }
 
