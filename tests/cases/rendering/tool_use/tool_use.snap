@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session 94c6eaf5-e0d1-413d-bd06-1e76c097e66f (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -16,4 +16,5 @@ Would you like me to explore what's inside any of these directories?
 
 
 Done  $0.01 · 4.4s · 2 turns  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

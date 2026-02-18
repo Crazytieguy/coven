@@ -2,10 +2,11 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session 337c9767-d192-46fa-865e-5555851f3720 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
+Enter steer · Alt+Enter follow up · Esc cancel · Ctrl+C interrupt
 [2] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [3] Thinking...
 <fork>
@@ -33,4 +34,5 @@ Got it. What's next?
 
 
 Done  $0.01 · 3.0s · 1 turn  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

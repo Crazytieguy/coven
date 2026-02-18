@@ -20,7 +20,7 @@ Add tasks to brief.md and commit. Run `coven worker` to start.
 Workers will post questions to board.md — answer in brief.md.
 
 --- worker_a ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 
 Worker started: blazing-delta-55 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_a-worktrees/coven-vcr-concurrent_workers/blazing-delta-55)
 
@@ -448,7 +448,7 @@ Transition: sleep — waiting for new commits...
 Removing worktree...
 
 --- worker_b ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 
 Worker started: crisp-spark-5 (/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vcr-concurrent_workers-worker_b-worktrees/coven-vcr-concurrent_workers/crisp-spark-5)
 
@@ -705,5 +705,6 @@ Done  $0.05 · 22.6s · 10 turns  (:N to view)
   Total cost: $0.26
 
 Waiting for user: Awaiting approval to run bash .coven/land.sh to finalize the landing process
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
 > 
 Removing worktree...

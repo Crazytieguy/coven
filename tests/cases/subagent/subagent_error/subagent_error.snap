@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session dccf4c6e-2792-4d85-9f29-bbc4f4997b2b (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -19,4 +19,5 @@ Both Read calls were executed simultaneously in a single function_calls block.
 
 
 Done  $0.02 · 7.7s · 2 turns  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

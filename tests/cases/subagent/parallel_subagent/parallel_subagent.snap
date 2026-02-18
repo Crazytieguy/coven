@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session 78a8341f-35a8-4668-994f-9d073fd51d89 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -23,4 +23,5 @@ Both files are minimal, as expected for a test project setup.
 
 
 Done  $0.05 · 8.5s · 3 turns  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>
