@@ -537,6 +537,8 @@ async fn handle_flush_result<W: Write>(
 pub enum FollowUpAction {
     /// User sent a follow-up message; continue the session.
     Sent,
+    /// User wants to drop into the native Claude TUI.
+    Interactive,
     /// User wants to end the session (Ctrl+D, Ctrl+C, etc.).
     Exit,
 }
@@ -560,19 +562,15 @@ pub async fn wait_for_followup<W: Write>(
 ) -> Result<FollowUpAction> {
     renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
-    loop {
-        match wait_for_text_input(input, renderer, io, vcr).await? {
-            Some(WaitResult::Text(text)) => {
-                state.suppress_next_separator = true;
-                vcr_send_message(runner, vcr, text).await?;
-                state.status = SessionStatus::Running;
-                return Ok(FollowUpAction::Sent);
-            }
-            Some(WaitResult::Interactive) => {
-                // Interactive not applicable in follow-up state; ignore and re-prompt.
-            }
-            None => return Ok(FollowUpAction::Exit),
+    match wait_for_text_input(input, renderer, io, vcr).await? {
+        Some(WaitResult::Text(text)) => {
+            state.suppress_next_separator = true;
+            vcr_send_message(runner, vcr, text).await?;
+            state.status = SessionStatus::Running;
+            Ok(FollowUpAction::Sent)
         }
+        Some(WaitResult::Interactive) => Ok(FollowUpAction::Interactive),
+        None => Ok(FollowUpAction::Exit),
     }
 }
 
@@ -606,7 +604,7 @@ pub async fn wait_for_interrupt_input<W: Write>(
         match wait_for_text_input(input, renderer, io, vcr).await? {
             Some(WaitResult::Text(text)) => return Ok(Some(text)),
             Some(WaitResult::Interactive) => {
-                open_interactive_session(session_id, working_dir, extra_args, io, vcr)?;
+                open_interactive_session(Some(session_id), working_dir, extra_args, io, vcr)?;
                 renderer.render_returned_from_interactive();
             }
             None => return Ok(None),
@@ -698,13 +696,18 @@ fn restore_terminal(io: &mut Io) -> Result<()> {
 /// Temporarily exits raw mode, spawns `claude --resume <session_id>` as a
 /// blocking child process, waits for it to exit, and re-enables raw mode.
 /// Pauses the background terminal reader so the child gets exclusive stdin access.
+/// Opens a native Claude TUI session. Returns the session ID used.
+///
+/// When `session_id` is `Some`, the TUI resumes that session. When `None`,
+/// a fresh session is started with a generated UUID so the caller can
+/// resume it afterwards.
 pub fn open_interactive_session(
-    session_id: &str,
+    session_id: Option<&str>,
     working_dir: Option<&Path>,
     extra_args: &[String],
     io: &mut Io,
     vcr: &VcrContext,
-) -> Result<()> {
+) -> Result<String> {
     if !vcr.is_live() {
         bail!("interactive sessions are not supported in VCR replay mode");
     }
@@ -722,7 +725,14 @@ pub fn open_interactive_session(
         .collect();
 
     let mut cmd = StdCommand::new("claude");
-    cmd.args(["--resume", session_id]);
+    let id = if let Some(id) = session_id {
+        cmd.args(["--resume", id]);
+        id.to_string()
+    } else {
+        let id = generate_uuid_v4();
+        cmd.args(["--session-id", &id]);
+        id
+    };
     cmd.args(filtered_args);
     cmd.env_remove("CLAUDECODE");
     if let Some(dir) = working_dir {
@@ -740,7 +750,27 @@ pub fn open_interactive_session(
 
     restore_terminal(io)?;
 
-    Ok(())
+    Ok(id)
+}
+
+/// Generate a random UUID v4 string.
+fn generate_uuid_v4() -> String {
+    let mut bytes = [0u8; 16];
+    rand::fill(&mut bytes);
+    // Set version (4) and variant (RFC 4122)
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!(
+        "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
+        u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+        u16::from_be_bytes([bytes[4], bytes[5]]),
+        u16::from_be_bytes([bytes[6], bytes[7]]),
+        u16::from_be_bytes([bytes[8], bytes[9]]),
+        // 6 bytes → 48-bit value
+        u64::from_be_bytes([
+            0, 0, bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ]),
+    )
 }
 
 /// Open a message in $PAGER, looked up by label query (e.g. "3" or "2/1").

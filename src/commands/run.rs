@@ -24,6 +24,13 @@ pub struct RunConfig {
     pub term_width: Option<usize>,
 }
 
+struct Ctx<'a, W: Write> {
+    input: &'a mut InputHandler,
+    renderer: &'a mut Renderer<W>,
+    io: &'a mut Io,
+    vcr: &'a VcrContext,
+}
+
 /// Run a single interactive session. Returns the stored messages for inspection.
 pub async fn run<W: Write>(
     mut config: RunConfig,
@@ -49,16 +56,15 @@ pub async fn run<W: Write>(
         ..Default::default()
     };
 
-    let Some(mut runner) = get_initial_runner(
-        config.prompt.as_deref(),
-        &base_session_cfg,
-        &mut renderer,
-        &mut input,
-        &mut state,
+    let mut ctx = Ctx {
+        input: &mut input,
+        renderer: &mut renderer,
         io,
         vcr,
-    )
-    .await?
+    };
+
+    let Some(mut runner) =
+        get_initial_runner(&config, &base_session_cfg, &mut state, &mut ctx).await?
     else {
         return Ok(vec![]);
     };
@@ -66,56 +72,25 @@ pub async fn run<W: Write>(
         let outcome = event_loop::run_session(
             &mut runner,
             &mut state,
-            &mut renderer,
-            &mut input,
-            io,
-            vcr,
+            ctx.renderer,
+            ctx.input,
+            ctx.io,
+            ctx.vcr,
             fork_config.as_ref(),
         )
         .await?;
 
-        match outcome {
-            SessionOutcome::Completed { .. } => {
-                match event_loop::wait_for_followup(
-                    &mut input,
-                    &mut renderer,
-                    &mut runner,
-                    &mut state,
-                    io,
-                    vcr,
-                )
-                .await?
-                {
-                    FollowUpAction::Sent => {}
-                    FollowUpAction::Exit => break,
-                }
-            }
-            SessionOutcome::Interrupted => {
-                runner.close_input();
-                let _ = runner.wait().await;
-                let Some(session_id) = state.session_id.take() else {
-                    break;
-                };
-                renderer.render_interrupted();
-                let Some(text) = event_loop::wait_for_interrupt_input(
-                    &mut input,
-                    &mut renderer,
-                    io,
-                    vcr,
-                    &session_id,
-                    config.working_dir.as_deref(),
-                    &config.extra_args,
-                )
-                .await?
-                else {
-                    break;
-                };
-                let session_cfg = base_session_cfg.resume_with(text, session_id.clone());
-                runner = event_loop::spawn_session(session_cfg, io, vcr).await?;
-                state = SessionState::default();
-                state.session_id = Some(session_id);
-            }
-            SessionOutcome::ProcessExited => break,
+        let resumed = handle_outcome(
+            outcome,
+            &config,
+            &base_session_cfg,
+            &mut runner,
+            &mut state,
+            &mut ctx,
+        )
+        .await?;
+        if !resumed {
+            break;
         }
     }
 
@@ -124,34 +99,150 @@ pub async fn run<W: Write>(
     Ok(renderer.into_messages())
 }
 
+/// Handle a session outcome. Returns `true` if the session was resumed.
+async fn handle_outcome<W: Write>(
+    outcome: SessionOutcome,
+    config: &RunConfig,
+    base_session_cfg: &SessionConfig,
+    runner: &mut SessionRunner,
+    state: &mut SessionState,
+    ctx: &mut Ctx<'_, W>,
+) -> Result<bool> {
+    match outcome {
+        SessionOutcome::Completed { .. } => {
+            match event_loop::wait_for_followup(
+                ctx.input,
+                ctx.renderer,
+                runner,
+                state,
+                ctx.io,
+                ctx.vcr,
+            )
+            .await?
+            {
+                FollowUpAction::Sent => Ok(true),
+                FollowUpAction::Interactive => {
+                    runner.close_input();
+                    let _ = runner.wait().await;
+                    let Some(session_id) = state.session_id.take() else {
+                        return Ok(false);
+                    };
+                    event_loop::open_interactive_session(
+                        Some(&session_id),
+                        config.working_dir.as_deref(),
+                        &config.extra_args,
+                        ctx.io,
+                        ctx.vcr,
+                    )?;
+                    ctx.renderer.render_returned_from_interactive();
+                    resume_after_pause(session_id, config, base_session_cfg, runner, state, ctx)
+                        .await
+                }
+                FollowUpAction::Exit => Ok(false),
+            }
+        }
+        SessionOutcome::Interrupted => {
+            runner.close_input();
+            let _ = runner.wait().await;
+            let Some(session_id) = state.session_id.take() else {
+                return Ok(false);
+            };
+            ctx.renderer.render_interrupted();
+            resume_after_pause(session_id, config, base_session_cfg, runner, state, ctx).await
+        }
+        SessionOutcome::ProcessExited => Ok(false),
+    }
+}
+
 /// Get the initial runner: either from prompt or by waiting for interactive input.
 /// Returns None if the user exits without submitting.
 async fn get_initial_runner<W: Write>(
-    prompt: Option<&str>,
+    config: &RunConfig,
     base_session_cfg: &SessionConfig,
-    renderer: &mut Renderer<W>,
-    input: &mut InputHandler,
     state: &mut SessionState,
-    io: &mut Io,
-    vcr: &VcrContext,
+    ctx: &mut Ctx<'_, W>,
 ) -> Result<Option<SessionRunner>> {
-    let text = if let Some(prompt) = prompt {
-        prompt.to_string()
-    } else {
-        // No session exists yet, so only Text is applicable.
-        let Some(event_loop::WaitResult::Text(text)) =
-            event_loop::wait_for_user_input(input, renderer, io, vcr).await?
-        else {
-            return Ok(None);
+    if let Some(prompt) = &config.prompt {
+        let session_cfg = SessionConfig {
+            prompt: Some(prompt.clone()),
+            ..base_session_cfg.clone()
         };
-        text
-    };
+        let runner = event_loop::spawn_session(session_cfg, ctx.io, ctx.vcr).await?;
+        state.status = SessionStatus::Running;
+        return Ok(Some(runner));
+    }
 
-    let session_cfg = SessionConfig {
-        prompt: Some(text),
-        ..base_session_cfg.clone()
+    // No prompt — wait for user input or Ctrl+O to open the native TUI.
+    match event_loop::wait_for_user_input(ctx.input, ctx.renderer, ctx.io, ctx.vcr).await? {
+        Some(event_loop::WaitResult::Text(text)) => {
+            let session_cfg = SessionConfig {
+                prompt: Some(text),
+                ..base_session_cfg.clone()
+            };
+            let runner = event_loop::spawn_session(session_cfg, ctx.io, ctx.vcr).await?;
+            state.status = SessionStatus::Running;
+            Ok(Some(runner))
+        }
+        Some(event_loop::WaitResult::Interactive) => {
+            let session_id = event_loop::open_interactive_session(
+                None,
+                config.working_dir.as_deref(),
+                &config.extra_args,
+                ctx.io,
+                ctx.vcr,
+            )?;
+            ctx.renderer.render_returned_from_interactive();
+            // The TUI created a session — wait for follow-up text to resume it.
+            // (wait_for_interrupt_input handles further Ctrl+O presses internally.)
+            let Some(text) = event_loop::wait_for_interrupt_input(
+                ctx.input,
+                ctx.renderer,
+                ctx.io,
+                ctx.vcr,
+                &session_id,
+                config.working_dir.as_deref(),
+                &config.extra_args,
+            )
+            .await?
+            else {
+                return Ok(None);
+            };
+            let session_cfg = base_session_cfg.resume_with(text, session_id.clone());
+            let runner = event_loop::spawn_session(session_cfg, ctx.io, ctx.vcr).await?;
+            state.status = SessionStatus::Running;
+            state.session_id = Some(session_id);
+            Ok(Some(runner))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Wait for user input after a pause (interrupt or interactive), then resume.
+/// Returns `true` if resumed, `false` if the user exited.
+async fn resume_after_pause<W: Write>(
+    session_id: String,
+    config: &RunConfig,
+    base_session_cfg: &SessionConfig,
+    runner: &mut SessionRunner,
+    state: &mut SessionState,
+    ctx: &mut Ctx<'_, W>,
+) -> Result<bool> {
+    let Some(text) = event_loop::wait_for_interrupt_input(
+        ctx.input,
+        ctx.renderer,
+        ctx.io,
+        ctx.vcr,
+        &session_id,
+        config.working_dir.as_deref(),
+        &config.extra_args,
+    )
+    .await?
+    else {
+        return Ok(false);
     };
-    let runner = event_loop::spawn_session(session_cfg, io, vcr).await?;
-    state.status = SessionStatus::Running;
-    Ok(Some(runner))
+    let session_cfg = base_session_cfg.resume_with(text, session_id.clone());
+    *runner = event_loop::spawn_session(session_cfg, ctx.io, ctx.vcr).await?;
+    *state = SessionState::default();
+    state.session_id = Some(session_id);
+    Ok(true)
 }
