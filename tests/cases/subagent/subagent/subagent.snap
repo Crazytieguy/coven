@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session fc830a07-8f51-4fb0-9072-99dca4d35ed5 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -13,4 +13,5 @@ The subagent has summarized the README.md: **This is a minimal test project crea
 
 
 Done  $0.02 · 5.5s · 2 turns  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

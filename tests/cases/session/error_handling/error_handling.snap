@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session 56116981-2b11-42a0-a271-a1436cad59dd (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -27,4 +27,5 @@ Done! The issue was that the test script was exiting with status code 1 (failure
 
 
 Done  $0.03 · 14.3s · 8 turns  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

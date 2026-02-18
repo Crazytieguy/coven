@@ -11,6 +11,17 @@ use super::theme;
 use super::tool_format::{first_line, format_tool_detail, format_tool_view};
 use crate::protocol::types::StreamEvent;
 
+/// Context for rendering keybinding hints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HintContext {
+    /// At startup / while Claude is streaming (user not typing).
+    Idle,
+    /// User is actively typing in the input line.
+    Typing,
+    /// Session completed, prompt is shown, waiting for follow-up.
+    Prompt,
+}
+
 /// Stores a completed message for later viewing via `:N` or `:Label[index]`.
 #[derive(Debug)]
 pub struct StoredMessage {
@@ -198,10 +209,44 @@ impl<W: Write> Renderer<W> {
 
     // --- Session lifecycle ---
 
-    pub fn render_help(&mut self) {
-        let help =
-            ":N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit";
+    /// Render context-dependent keybinding hints.
+    ///
+    /// The hint content varies based on the current interaction state:
+    /// - `Idle`: shown at startup and while Claude is streaming
+    /// - `Typing`: shown when the user activates the input line mid-stream
+    /// - `Prompt`: shown when waiting for user input (session completed)
+    pub fn render_hints(&mut self, context: HintContext) {
+        let help = match context {
+            HintContext::Idle => {
+                ":N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit"
+            }
+            HintContext::Typing => {
+                "Enter steer · Alt+Enter follow up · Esc cancel · Ctrl+C interrupt"
+            }
+            HintContext::Prompt => {
+                "Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit"
+            }
+        };
         queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();
+        self.out.flush().ok();
+    }
+
+    /// Render keybinding hints, then show the `> ` input prompt.
+    ///
+    /// Used when entering the prompt state (session completed, waiting for user).
+    pub fn show_prompt_with_hints(&mut self) {
+        self.render_hints(HintContext::Prompt);
+        self.show_prompt();
+    }
+
+    /// Render keybinding hints, ensure a new line, then show the `> ` input
+    /// prompt for mid-stream typing.
+    ///
+    /// Used when the user starts typing while Claude is still streaming.
+    pub fn begin_input_line_with_hints(&mut self) {
+        self.ensure_new_line();
+        self.render_hints(HintContext::Typing);
+        queue!(self.out, Print(theme::prompt_style().apply("> "))).ok();
         self.out.flush().ok();
     }
 

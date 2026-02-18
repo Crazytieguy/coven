@@ -2,7 +2,7 @@
 source: tests/vcr_test.rs
 expression: result.display
 ---
-:N view message · type to steer · Alt+Enter follow up · Ctrl+W wait · Ctrl+D exit
+:N view message · type to steer · Ctrl+W wait · Ctrl+C interrupt · Ctrl+D exit
 Session a2506fb8-b3e7-4633-84fd-9d5c815e2b39 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
@@ -20,4 +20,5 @@ Perfect! The fork subtask has completed successfully. The file `greeting.txt` ha
 
 
 Done  $0.01 · 2.1s · 1 turn  (:N to view)
->
+Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+>

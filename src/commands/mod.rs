@@ -46,7 +46,7 @@ impl Drop for RawModeGuard {
 /// Set up the display renderer and input handler with common configuration.
 ///
 /// Caller is responsible for acquiring raw mode (via [`RawModeGuard`]) before
-/// calling `renderer.render_help()`.
+/// calling `renderer.render_hints()`.
 pub(crate) fn setup_display<W: Write>(
     writer: W,
     term_width: Option<usize>,

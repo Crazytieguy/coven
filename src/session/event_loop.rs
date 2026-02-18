@@ -296,7 +296,7 @@ async fn handle_session_key_event<W: Write>(
     let action = input.handle_key(key_event, renderer.writer());
     match action {
         InputAction::Activated(_) => {
-            renderer.begin_input_line();
+            renderer.begin_input_line_with_hints();
             input.redraw(renderer.writer());
         }
         InputAction::Submit(text, mode) => {
@@ -353,7 +353,7 @@ async fn handle_session_key_event<W: Write>(
                 return Ok(action);
             }
             if state.status == SessionStatus::WaitingForInput {
-                renderer.show_prompt();
+                renderer.show_prompt_with_hints();
                 input.activate();
             }
         }
@@ -622,7 +622,7 @@ async fn wait_for_text_input<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<WaitResult>> {
-    renderer.show_prompt();
+    renderer.show_prompt_with_hints();
     input.activate();
 
     loop {
@@ -644,14 +644,14 @@ async fn wait_for_text_input<W: Write>(
                         view_message(renderer, query, io)?;
                     }
                     InputAction::Cancel => {
-                        renderer.show_prompt();
+                        renderer.show_prompt_with_hints();
                         input.activate();
                     }
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(None);
                     }
                     InputAction::Activated(_) => {
-                        renderer.begin_input_line();
+                        renderer.begin_input_line_with_hints();
                         input.redraw(renderer.writer());
                     }
                     InputAction::WaitRequested | InputAction::None => {}

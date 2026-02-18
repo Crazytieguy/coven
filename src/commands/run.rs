@@ -41,7 +41,7 @@ pub async fn run<W: Write>(
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     let mut state = SessionState::default();
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
-    renderer.render_help();
+    renderer.render_hints(crate::display::renderer::HintContext::Idle);
 
     let fork_system_prompt = config.fork.then(|| fork::fork_system_prompt().to_string());
     if config.fork {
