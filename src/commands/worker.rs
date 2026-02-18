@@ -21,7 +21,7 @@ use crate::vcr::{Io, IoEvent, VcrContext};
 use crate::worker_state;
 use crate::worktree::{self, SpawnOptions};
 
-use crate::session::event_loop::{self, SessionOutcome};
+use crate::session::event_loop::{self, SessionFeatures, SessionOutcome};
 
 use super::{RawModeGuard, setup_display};
 
@@ -32,6 +32,7 @@ struct PhaseContext<'a, W: Write> {
     io: &'a mut Io,
     vcr: &'a VcrContext,
     fork_config: Option<&'a ForkConfig>,
+    reload_enabled: bool,
     total_cost: f64,
 }
 
@@ -43,6 +44,7 @@ pub struct WorkerConfig {
     /// Override for the project root directory (used by test recording).
     pub working_dir: Option<PathBuf>,
     pub fork: bool,
+    pub reload: bool,
     /// Override terminal width for display truncation (used in tests).
     pub term_width: Option<usize>,
 }
@@ -148,6 +150,7 @@ pub async fn worker<W: Write>(
         io,
         vcr,
         fork_config: fork_config.as_ref(),
+        reload_enabled: config.reload,
         total_cost: 0.0,
     };
 
@@ -800,10 +803,17 @@ async fn run_phase_session<W: Write>(
     system_prompt: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<PhaseOutcome> {
-    let append_system_prompt = system_prompt.map(String::from).or_else(|| {
+    let mut append_system_prompt = system_prompt.map(String::from).or_else(|| {
         ctx.fork_config
             .map(|_| fork::fork_system_prompt().to_string())
     });
+    if ctx.reload_enabled {
+        let reload_prompt = crate::reload::reload_system_prompt();
+        append_system_prompt = Some(match append_system_prompt {
+            Some(existing) => format!("{existing}\n\n{reload_prompt}"),
+            None => reload_prompt.to_string(),
+        });
+    }
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
         extra_args: extra_args.to_vec(),
@@ -814,6 +824,10 @@ async fn run_phase_session<W: Write>(
 
     let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
     let mut state = SessionState::default();
+    let features = SessionFeatures {
+        fork_config: ctx.fork_config,
+        reload_enabled: ctx.reload_enabled,
+    };
 
     loop {
         let outcome = event_loop::run_session(
@@ -823,7 +837,7 @@ async fn run_phase_session<W: Write>(
             ctx.input,
             ctx.io,
             ctx.vcr,
-            ctx.fork_config,
+            &features,
         )
         .await?;
 
@@ -839,6 +853,19 @@ async fn run_phase_session<W: Write>(
                     session_id: state.session_id.clone(),
                     wait_requested: state.wait_requested,
                 });
+            }
+            SessionOutcome::Reload { .. } => {
+                let Some(session_id) = state.session_id.take() else {
+                    return Ok(PhaseOutcome::Exited);
+                };
+                ctx.renderer.write_raw("\r\n[reloading scaffold...]\r\n");
+                let resume_config = session_config.resume_with(
+                    crate::reload::RELOAD_RESUME_MESSAGE.to_string(),
+                    session_id.clone(),
+                );
+                runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+                state = SessionState::default();
+                state.session_id = Some(session_id);
             }
             SessionOutcome::Interrupted => {
                 let Some(session_id) = state.session_id.take() else {

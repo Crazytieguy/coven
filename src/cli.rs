@@ -13,6 +13,10 @@ pub struct ClaudeOpts {
     #[arg(long)]
     pub fork: bool,
 
+    /// Enable model-driven scaffold reload via <reload> tags.
+    #[arg(long)]
+    pub reload: bool,
+
     /// Extra arguments to pass through to claude (after --).
     #[arg(last = true)]
     pub claude_args: Vec<String>,

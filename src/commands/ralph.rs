@@ -7,14 +7,21 @@ use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
 use crate::fork::{self, ForkConfig};
 use crate::protocol::parse::extract_tag_inner;
+use crate::reload;
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
 
-use crate::session::event_loop::{self, SessionOutcome};
+use crate::session::event_loop::{self, SessionFeatures, SessionOutcome};
 use crate::transition::WAIT_FOR_USER_PROMPT;
 
 use super::{RawModeGuard, setup_display};
+
+/// Tag-based features gated by CLI flags.
+pub struct TagFlags {
+    pub fork: bool,
+    pub reload: bool,
+}
 
 pub struct RalphConfig {
     pub prompt: String,
@@ -22,7 +29,7 @@ pub struct RalphConfig {
     pub break_tag: String,
     pub no_break: bool,
     pub show_thinking: bool,
-    pub fork: bool,
+    pub tag_flags: TagFlags,
     pub extra_args: Vec<String>,
     pub working_dir: Option<PathBuf>,
     /// Override terminal width for display truncation (used in tests).
@@ -38,11 +45,15 @@ impl RalphConfig {
         } else {
             ralph_system_prompt(&self.break_tag)
         };
-        if self.fork {
+        let mut prompt = if self.tag_flags.fork {
             format!("{base}\n\n{}", fork::fork_system_prompt())
         } else {
             base
+        };
+        if self.tag_flags.reload {
+            prompt = format!("{prompt}\n\n{}", reload::reload_system_prompt());
         }
+        prompt
     }
 
     fn session_config(&self, system_prompt: &str) -> SessionConfig {
@@ -111,10 +122,18 @@ pub async fn ralph<W: Write>(
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: true });
     let system_prompt = config.system_prompt();
-    if config.fork {
+    if config.tag_flags.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());
     }
-    let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
+    let fork_config = ForkConfig::if_enabled(
+        config.tag_flags.fork,
+        &config.extra_args,
+        &config.working_dir,
+    );
+    let features = SessionFeatures {
+        fork_config: fork_config.as_ref(),
+        reload_enabled: config.tag_flags.reload,
+    };
     let session_config = config.session_config(&system_prompt);
 
     let mut ctx = Ctx {
@@ -153,7 +172,7 @@ pub async fn ralph<W: Write>(
                 ctx.input,
                 ctx.io,
                 ctx.vcr,
-                fork_config.as_ref(),
+                &features,
             )
             .await?;
             // Kill the CLI process immediately to prevent async task
@@ -261,6 +280,23 @@ async fn handle_session_outcome<W: Write>(
             else {
                 return Ok(LoopAction::Exit);
             };
+            Ok(LoopAction::Resume(Box::new(runner), new_state))
+        }
+        SessionOutcome::Reload { .. } => {
+            let Some(session_id) = state.session_id.take() else {
+                return Ok(LoopAction::Exit);
+            };
+            ctx.renderer.write_raw("\r\n[reloading scaffold...]\r\n");
+            let resume_config = session_config.resume_with(
+                reload::RELOAD_RESUME_MESSAGE.to_string(),
+                session_id.clone(),
+            );
+            let runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+            let new_state = SessionState {
+                session_id: Some(session_id),
+                ..Default::default()
+            };
+            iter.iteration_cost = 0.0;
             Ok(LoopAction::Resume(Box::new(runner), new_state))
         }
         SessionOutcome::ProcessExited => Ok(LoopAction::Exit),
