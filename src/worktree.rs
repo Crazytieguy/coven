@@ -256,10 +256,14 @@ pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
 /// Remove a worktree and delete its branch.
 ///
 /// - Runs `git worktree remove [--force] <path>`
-/// - Deletes the branch
+/// - Force-deletes the branch with `branch -D`
 ///
-/// When `force` is true, passes `--force` to `git worktree remove` and uses
-/// `branch -D` instead of `branch -d`, allowing removal of dirty worktrees.
+/// When `force` is true, passes `--force` to `git worktree remove`,
+/// allowing removal of dirty worktrees.
+///
+/// Always uses `branch -D` (force delete) because `branch -d` silently
+/// fails for branches with unmerged commits, leaving orphaned branches.
+/// Once the worktree is removed, there's no reason to keep the branch.
 ///
 /// Intended for worker shutdown, not after every land.
 pub fn remove(worktree_path: &Path, force: bool) -> Result<(), WorktreeError> {
@@ -276,8 +280,7 @@ pub fn remove(worktree_path: &Path, force: bool) -> Result<(), WorktreeError> {
     }
 
     // Delete the branch (ignore errors — branch may already be gone)
-    let delete_flag = if force { "-D" } else { "-d" };
-    let _ = git(&main_path, &["branch", delete_flag, &branch]);
+    let _ = git(&main_path, &["branch", "-D", &branch]);
 
     Ok(())
 }
@@ -699,6 +702,40 @@ mod tests {
         let branch_check = git_status(
             repo_dir.path(),
             &["show-ref", "--verify", "--quiet", "refs/heads/rm-branch"],
+        )
+        .unwrap();
+        assert!(!branch_check);
+    }
+
+    #[test]
+    fn remove_worktree_with_unmerged_commits() {
+        let repo_dir = TempDir::new().unwrap();
+        let base_dir = TempDir::new().unwrap();
+        init_repo(repo_dir.path());
+
+        let spawned = spawn(&spawn_opts(
+            repo_dir.path(),
+            base_dir.path(),
+            Some("unmerged-branch"),
+        ))
+        .unwrap();
+
+        // Make a commit in the worktree so the branch has unmerged work
+        commit_file(&spawned.worktree_path, "work.txt", "wip\n", "wip commit");
+
+        remove(&spawned.worktree_path, false).unwrap();
+
+        assert!(!spawned.worktree_path.exists());
+
+        // Branch should still be deleted despite having unmerged commits
+        let branch_check = git_status(
+            repo_dir.path(),
+            &[
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/heads/unmerged-branch",
+            ],
         )
         .unwrap();
         assert!(!branch_check);
