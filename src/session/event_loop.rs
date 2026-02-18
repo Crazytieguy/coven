@@ -791,7 +791,14 @@ fn generate_uuid_v4() -> String {
 pub fn view_message<W: Write>(renderer: &mut Renderer<W>, query: &str, io: &mut Io) -> Result<()> {
     use crate::display::renderer::format_message;
 
-    let Some(mut content) = format_message(renderer.messages(), query) else {
+    // Check completed messages first, then fall back to in-progress thinking block.
+    let mut content = if let Some(c) = format_message(renderer.messages(), query) {
+        c
+    } else if let Some(ref in_progress) = renderer.in_progress_thinking()
+        && let Some(c) = format_message(std::slice::from_ref(in_progress), query)
+    {
+        c
+    } else {
         renderer.write_raw(&format!("No message {query}\r\n"));
         return Ok(());
     };
