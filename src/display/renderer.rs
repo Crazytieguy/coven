@@ -224,7 +224,7 @@ impl<W: Write> Renderer<W> {
                 "Enter steer · Alt+Enter follow up · Esc cancel · Ctrl+C interrupt"
             }
             HintContext::Prompt => {
-                "Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit"
+                "Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit"
             }
         };
         queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();

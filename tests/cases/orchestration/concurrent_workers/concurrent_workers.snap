@@ -705,6 +705,6 @@ Done  $0.05 · 22.6s · 10 turns  (:N to view)
   Total cost: $0.26
 
 Waiting for user: Awaiting approval to run bash .coven/land.sh to finalize the landing process
-Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
 > 
 Removing worktree...
