@@ -25,7 +25,7 @@ Is there something specific about Rust you'd like to explore or discuss?
 
 
 Done  $0.01 · 4.0s · 1 turn  (:N to view)
-Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
 > How does ownership work?
 [2] Thinking...
 Rust has three core ownership rules:
@@ -62,5 +62,5 @@ Does this make sense, or would you like me to dig into a specific aspect like wh
 
 
 Done  $0.01 · 3.7s · 1 turn  (:N to view)
-Alt+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
+Enter follow up · :N view message · Ctrl+O interactive · Ctrl+D exit
 >

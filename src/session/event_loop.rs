@@ -642,6 +642,8 @@ async fn wait_for_text_input<W: Write>(
                     }
                     InputAction::ViewMessage(ref query) => {
                         view_message(renderer, query, io)?;
+                        renderer.show_prompt_with_hints();
+                        input.activate();
                     }
                     InputAction::Cancel => {
                         renderer.show_prompt_with_hints();
