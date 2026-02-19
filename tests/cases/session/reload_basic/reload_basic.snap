@@ -3,28 +3,20 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session f7246d02-4de3-4eef-941f-983f958d21a1 (claude-haiku-4-5-20251001)
+Session 97509847-5647-4727-a817-70d5b44b9a7a (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-Hello!
+The secret number is 42
 
-<reload>user requested reload</reload>
+<reload>testing memory persistence across reload</reload>
 
 [reloading claude...]
 ---
 
 [2] Thinking...
-Hello! 
-
-<reload>User requested reload</reload>
-
-[reloading claude...]
----
-
-[3] Thinking...
-Hello! I'm ready to help. What would you like me to work on?
+The secret number I said earlier was **42**.
 
 
-Done  $0.00 · 3.1s · 1 turn  (:N to view)
+Done  $0.00 · 3.0s · 1 turn  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive
 >
