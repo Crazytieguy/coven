@@ -95,6 +95,7 @@ fn ralph_system_prompt(break_tag: &str) -> String {
          {WAIT_FOR_USER_PROMPT}"
     )
 }
+
 /// Mutable I/O handles shared across the ralph loop.
 struct Ctx<'a, W: Write> {
     input: &'a mut InputHandler,

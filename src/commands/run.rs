@@ -51,11 +51,7 @@ pub async fn run<W: Write>(
         append_system_prompt = Some(fork::fork_system_prompt().to_string());
     }
     if config.reload {
-        let reload_prompt = reload::reload_system_prompt();
-        append_system_prompt = Some(match append_system_prompt {
-            Some(existing) => format!("{existing}\n\n{reload_prompt}"),
-            None => reload_prompt.to_string(),
-        });
+        reload::append_reload_prompt(&mut append_system_prompt);
     }
     let fork_config = ForkConfig::if_enabled(config.fork, &config.extra_args, &config.working_dir);
 

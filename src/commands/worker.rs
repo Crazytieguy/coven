@@ -808,11 +808,7 @@ async fn run_phase_session<W: Write>(
             .map(|_| fork::fork_system_prompt().to_string())
     });
     if ctx.reload_enabled {
-        let reload_prompt = crate::reload::reload_system_prompt();
-        append_system_prompt = Some(match append_system_prompt {
-            Some(existing) => format!("{existing}\n\n{reload_prompt}"),
-            None => reload_prompt.to_string(),
-        });
+        crate::reload::append_reload_prompt(&mut append_system_prompt);
     }
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
