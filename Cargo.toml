@@ -1,6 +1,6 @@
 [package]
 name = "coven"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2024"
 authors = ["Yoav Tzfati <yoav.tzfati@gmail.com>"]
 license = "MIT"
