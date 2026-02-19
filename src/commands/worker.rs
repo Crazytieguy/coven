@@ -858,14 +858,16 @@ async fn run_phase_session<W: Write>(
                 let Some(session_id) = state.session_id.take() else {
                     return Ok(PhaseOutcome::Exited);
                 };
-                ctx.renderer.write_raw("\r\n[reloading claude...]\r\n");
-                let resume_config = session_config.resume_with(
-                    crate::reload::RELOAD_RESUME_MESSAGE.to_string(),
-                    session_id.clone(),
-                );
-                runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
-                state = SessionState::default();
-                state.session_id = Some(session_id);
+                let (new_runner, new_state) = crate::reload::spawn_reload_session(
+                    session_id,
+                    &session_config,
+                    ctx.renderer,
+                    ctx.io,
+                    ctx.vcr,
+                )
+                .await?;
+                runner = new_runner;
+                state = new_state;
             }
             SessionOutcome::Interrupted => {
                 let Some(session_id) = state.session_id.take() else {
