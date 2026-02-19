@@ -8,8 +8,7 @@ use crate::session::state::SessionState;
 use crate::vcr::{Io, VcrContext};
 
 /// Message sent to the resumed session after a reload.
-pub const RELOAD_RESUME_MESSAGE: &str =
-    "Claude reloaded with fresh tool definitions. Continue where you left off.";
+pub const RELOAD_RESUME_MESSAGE: &str = "Claude reloaded with fresh tool definitions.";
 
 /// Build the system prompt fragment that teaches the model about reloading.
 pub fn reload_system_prompt() -> &'static str {

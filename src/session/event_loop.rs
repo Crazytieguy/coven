@@ -1,5 +1,4 @@
 use std::io::Write;
-use std::path::Path;
 use std::process::Command as StdCommand;
 
 use anyhow::{Context, Result, bail};
@@ -43,6 +42,8 @@ pub enum SessionOutcome {
 pub struct SessionFeatures<'a> {
     pub fork_config: Option<&'a ForkConfig>,
     pub reload_enabled: bool,
+    /// Base config for respawning sessions (fork reintegration, etc.).
+    pub base_config: &'a SessionConfig,
 }
 
 /// Per-session transient state for event buffering and follow-ups.
@@ -92,8 +93,7 @@ pub async fn run_session<W: Write>(
                     {
                         EventResult::Continue => {}
                         EventResult::Fork(tasks) => {
-                            let fork_cfg = locals.fork_config.as_ref();
-                            execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg).await?;
+                            execute_fork(tasks, state, renderer, runner, io, vcr, features).await?;
                         }
                         EventResult::End(outcome) => return Ok(outcome),
                     }
@@ -114,8 +114,7 @@ pub async fn run_session<W: Write>(
                     LoopAction::Continue => {}
                     LoopAction::Return(outcome) => return Ok(outcome),
                     LoopAction::Fork(tasks) => {
-                        let fork_cfg = locals.fork_config.as_ref();
-                        execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg).await?;
+                        execute_fork(tasks, state, renderer, runner, io, vcr, features).await?;
                     }
                     LoopAction::ViewMessage(ref query) => {
                         view_message(renderer, query, io)?;
@@ -131,8 +130,7 @@ pub async fn run_session<W: Write>(
                             match action {
                                 LoopAction::Return(outcome) => return Ok(outcome),
                                 LoopAction::Fork(tasks) => {
-                                    let fork_cfg = locals.fork_config.as_ref();
-                                    execute_fork(tasks, state, renderer, runner, io, vcr, fork_cfg)
+                                    execute_fork(tasks, state, renderer, runner, io, vcr, features)
                                         .await?;
                                 }
                                 _ => {}
@@ -427,13 +425,13 @@ async fn execute_fork<W: Write>(
     runner: &mut SessionRunner,
     io: &mut Io,
     vcr: &VcrContext,
-    fork_config: Option<&ForkConfig>,
+    features: &SessionFeatures<'_>,
 ) -> Result<()> {
     let session_id = state
         .session_id
         .clone()
         .context("cannot fork: no session ID yet")?;
-    let Some(fork_cfg) = fork_config else {
+    let Some(fork_cfg) = features.fork_config else {
         bail!("fork detected but fork_config is None");
     };
 
@@ -445,13 +443,7 @@ async fn execute_fork<W: Write>(
 
     // Respawn the parent session (resuming the same session ID) with the
     // reintegration message, so the event loop continues with a fresh process.
-    let config = SessionConfig {
-        prompt: Some(msg),
-        resume: Some(session_id),
-        extra_args: fork_cfg.extra_args.clone(),
-        working_dir: fork_cfg.working_dir.clone(),
-        ..Default::default()
-    };
+    let config = features.base_config.resume_with(msg, session_id);
     *runner = spawn_session(config, io, vcr).await?;
     state.suppress_next_separator = true;
     state.status = SessionStatus::Running;
@@ -631,16 +623,19 @@ pub async fn wait_for_interrupt_input<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
     session_id: &str,
-    working_dir: Option<&Path>,
-    extra_args: &[String],
+    base_config: &SessionConfig,
 ) -> Result<Option<String>> {
     io.clear_event_channel();
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
+    let interactive_config = SessionConfig {
+        resume: Some(session_id.to_string()),
+        ..base_config.clone()
+    };
     loop {
         match wait_for_text_input(input, renderer, false, io, vcr).await? {
             Some(WaitResult::Text(text)) => return Ok(Some(text)),
             Some(WaitResult::Interactive) => {
-                open_interactive_session(Some(session_id), working_dir, extra_args, io, vcr)?;
+                open_interactive_session(&interactive_config, io, vcr)?;
                 renderer.render_returned_from_interactive();
             }
             None => return Ok(None),
@@ -747,13 +742,11 @@ fn restore_terminal(io: &mut Io) -> Result<()> {
 /// Pauses the background terminal reader so the child gets exclusive stdin access.
 /// Opens a native Claude TUI session. Returns the session ID used.
 ///
-/// When `session_id` is `Some`, the TUI resumes that session. When `None`,
-/// a fresh session is started with a generated UUID so the caller can
-/// resume it afterwards.
+/// The `config` provides shared arguments (system prompt, permission mode, etc.)
+/// and optionally a `resume` session ID. When `resume` is `None`, a fresh
+/// session is started with a generated UUID so the caller can resume it afterwards.
 pub fn open_interactive_session(
-    session_id: Option<&str>,
-    working_dir: Option<&Path>,
-    extra_args: &[String],
+    config: &SessionConfig,
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<String> {
@@ -768,23 +761,21 @@ pub fn open_interactive_session(
     terminal::disable_raw_mode().context("failed to disable raw mode for interactive session")?;
     print!("\r\n[opening interactive session — exit to return]\r\n");
 
-    let filtered_args: Vec<&String> = extra_args
-        .iter()
-        .filter(|a| *a != "-p" && *a != "--output-format" && !a.starts_with("--output-format="))
-        .collect();
-
+    let args = SessionRunner::build_interactive_args(config);
     let mut cmd = StdCommand::new("claude");
-    let id = if let Some(id) = session_id {
-        cmd.args(["--resume", id]);
-        id.to_string()
+    cmd.args(&args);
+
+    // build_interactive_args handles --resume when config.resume is set.
+    // For fresh sessions (no resume), generate a UUID and pass --session-id.
+    let id = if let Some(id) = &config.resume {
+        id.clone()
     } else {
         let id = generate_uuid_v4();
         cmd.args(["--session-id", &id]);
         id
     };
-    cmd.args(filtered_args);
     cmd.env_remove("CLAUDECODE");
-    if let Some(dir) = working_dir {
+    if let Some(ref dir) = config.working_dir {
         cmd.current_dir(dir);
     }
 

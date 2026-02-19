@@ -3,36 +3,31 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session 337c9767-d192-46fa-865e-5555851f3720 (claude-haiku-4-5-20251001)
+Session cbd87c42-a7b9-4e62-ac1a-6b6b59b3aac6 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 Enter steer · Alt+Enter follow up · :N view message · Esc cancel
-[2] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
-[3] Thinking...
 <fork>
 - Create hello.txt with 'hello world'
 - Create goodbye.txt with 'goodbye world'
 </fork>
 
 ⏳ queued: x
-[4] ⑂ Fork  Create hello.txt with 'hello world'
-[5] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-  [5/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-  [5/2] Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-...
-[6] ⑂ Fork Result
-[7] Thinking...
-Both tasks completed successfully! I've delegated the creation of:
-1. **hello.txt** with content 'hello world'
-2. **goodbye.txt** with content 'goodbye world'
-
-Both files have been created in the working directory.
+[2] ⑂ Fork  Create hello.txt with 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+[5] Thinking...
+Perfect! Both tasks completed successfully:
+- ✓ Created `hello.txt` with 'hello world'
+- ✓ Created `goodbye.txt` with 'goodbye world'
 
 ⤷ follow-up: x
-[8] Thinking...
-Got it. What's next?
+[6] Thinking...
+I'm not sure what you'd like to do next. What can I help you with?
 
 
-Done  $0.01 · 3.0s · 1 turn  (:N to view)
+Done  $0.01 · 2.5s · 1 turn  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive
 >

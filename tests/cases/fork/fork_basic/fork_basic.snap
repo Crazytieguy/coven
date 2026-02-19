@@ -3,30 +3,25 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session 92eec51f-689a-42ae-b953-e973e7d947ab (claude-haiku-4-5-20251001)
+Session 47f605ef-526e-47ed-92ed-45e1012860ff (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Bash  pwd
-[3] Thinking...
 <fork>
 - Create hello.txt with 'hello world'
 - Create goodbye.txt with 'goodbye world'
 </fork>
 
-[4] ⑂ Fork  Create hello.txt with 'hello world'
-[5] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [4/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-  [5/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
-[6] ⑂ Fork Result
-[7] Thinking...
-Perfect! Both tasks completed successfully using fork:
-
-✅ **hello.txt** created with 'hello world'  
-✅ **goodbye.txt** created with 'goodbye world'
-
-The two subtasks ran in parallel and both files are now in your working directory.
+[2] ⑂ Fork  Create hello.txt with 'hello world'
+[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
+  [2/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+  [3/1] Write  (1 line)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000...
+[4] ⑂ Fork Result
+[5] Thinking...
+Perfect! Both files have been created:
+- **hello.txt** with 'hello world'
+- **goodbye.txt** with 'goodbye world'
 
 
-Done  $0.01 · 2.7s · 1 turn  (:N to view)
+Done  $0.01 · 1.4s · 1 turn  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive
 >

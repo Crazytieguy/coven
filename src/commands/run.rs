@@ -77,6 +77,7 @@ pub async fn run<W: Write>(
     let features = SessionFeatures {
         fork_config: fork_config.as_ref(),
         reload_enabled: config.reload,
+        base_config: &base_session_cfg,
     };
     loop {
         let outcome = event_loop::run_session(
@@ -92,7 +93,6 @@ pub async fn run<W: Write>(
 
         let resumed = handle_outcome(
             outcome,
-            &config,
             &base_session_cfg,
             &mut runner,
             &mut state,
@@ -112,7 +112,6 @@ pub async fn run<W: Write>(
 /// Handle a session outcome. Returns `true` if the session was resumed.
 async fn handle_outcome<W: Write>(
     outcome: SessionOutcome,
-    config: &RunConfig,
     base_session_cfg: &SessionConfig,
     runner: &mut SessionRunner,
     state: &mut SessionState,
@@ -137,16 +136,13 @@ async fn handle_outcome<W: Write>(
                     let Some(session_id) = state.session_id.take() else {
                         return Ok(false);
                     };
-                    event_loop::open_interactive_session(
-                        Some(&session_id),
-                        config.working_dir.as_deref(),
-                        &config.extra_args,
-                        ctx.io,
-                        ctx.vcr,
-                    )?;
+                    let interactive_cfg = SessionConfig {
+                        resume: Some(session_id.clone()),
+                        ..base_session_cfg.clone()
+                    };
+                    event_loop::open_interactive_session(&interactive_cfg, ctx.io, ctx.vcr)?;
                     ctx.renderer.render_returned_from_interactive();
-                    resume_after_pause(session_id, config, base_session_cfg, runner, state, ctx)
-                        .await
+                    resume_after_pause(session_id, base_session_cfg, runner, state, ctx).await
                 }
                 FollowUpAction::Exit => Ok(false),
             }
@@ -158,7 +154,7 @@ async fn handle_outcome<W: Write>(
                 return Ok(false);
             };
             ctx.renderer.render_interrupted();
-            resume_after_pause(session_id, config, base_session_cfg, runner, state, ctx).await
+            resume_after_pause(session_id, base_session_cfg, runner, state, ctx).await
         }
         SessionOutcome::Reload { .. } => {
             runner.kill().await?;
@@ -211,13 +207,8 @@ async fn get_initial_runner<W: Write>(
             Ok(Some(runner))
         }
         Some(event_loop::WaitResult::Interactive) => {
-            let session_id = event_loop::open_interactive_session(
-                None,
-                config.working_dir.as_deref(),
-                &config.extra_args,
-                ctx.io,
-                ctx.vcr,
-            )?;
+            let session_id =
+                event_loop::open_interactive_session(base_session_cfg, ctx.io, ctx.vcr)?;
             ctx.renderer.render_returned_from_interactive();
             // The TUI created a session — wait for follow-up text to resume it.
             // (wait_for_interrupt_input handles further Ctrl+O presses internally.)
@@ -227,8 +218,7 @@ async fn get_initial_runner<W: Write>(
                 ctx.io,
                 ctx.vcr,
                 &session_id,
-                config.working_dir.as_deref(),
-                &config.extra_args,
+                base_session_cfg,
             )
             .await?
             else {
@@ -248,7 +238,6 @@ async fn get_initial_runner<W: Write>(
 /// Returns `true` if resumed, `false` if the user exited.
 async fn resume_after_pause<W: Write>(
     session_id: String,
-    config: &RunConfig,
     base_session_cfg: &SessionConfig,
     runner: &mut SessionRunner,
     state: &mut SessionState,
@@ -260,8 +249,7 @@ async fn resume_after_pause<W: Write>(
         ctx.io,
         ctx.vcr,
         &session_id,
-        config.working_dir.as_deref(),
-        &config.extra_args,
+        base_session_cfg,
     )
     .await?
     else {

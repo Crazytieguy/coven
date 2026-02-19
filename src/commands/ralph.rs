@@ -131,11 +131,12 @@ pub async fn ralph<W: Write>(
         &config.extra_args,
         &config.working_dir,
     );
+    let session_config = config.session_config(&system_prompt);
     let features = SessionFeatures {
         fork_config: fork_config.as_ref(),
         reload_enabled: config.tag_flags.reload,
+        base_config: &session_config,
     };
-    let session_config = config.session_config(&system_prompt);
 
     let mut ctx = Ctx {
         input: &mut input,
@@ -236,7 +237,7 @@ async fn handle_session_outcome<W: Write>(
                 ctx.renderer.write_raw("\x07");
                 ctx.renderer.write_raw("\r\n[waiting for user input]\r\n");
                 let Some((runner, new_state)) =
-                    wait_input_and_resume(state, session_config, config, ctx).await?
+                    wait_input_and_resume(state, session_config, ctx).await?
                 else {
                     return Ok(LoopAction::Exit);
                 };
@@ -253,7 +254,7 @@ async fn handle_session_outcome<W: Write>(
                 ctx.renderer
                     .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
                 let Some((runner, new_state)) =
-                    wait_input_and_resume(state, session_config, config, ctx).await?
+                    wait_input_and_resume(state, session_config, ctx).await?
                 else {
                     return Ok(LoopAction::Exit);
                 };
@@ -277,7 +278,7 @@ async fn handle_session_outcome<W: Write>(
             iter.iteration_cost += state.total_cost_usd;
             ctx.renderer.render_interrupted();
             let Some((runner, new_state)) =
-                wait_input_and_resume(state, session_config, config, ctx).await?
+                wait_input_and_resume(state, session_config, ctx).await?
             else {
                 return Ok(LoopAction::Exit);
             };
@@ -309,7 +310,6 @@ async fn handle_session_outcome<W: Write>(
 async fn wait_input_and_resume<W: Write>(
     state: &mut SessionState,
     session_config: &SessionConfig,
-    config: &RalphConfig,
     ctx: &mut Ctx<'_, W>,
 ) -> Result<Option<(SessionRunner, SessionState)>> {
     let Some(session_id) = state.session_id.take() else {
@@ -321,8 +321,7 @@ async fn wait_input_and_resume<W: Write>(
         ctx.io,
         ctx.vcr,
         &session_id,
-        config.working_dir.as_deref(),
-        &config.extra_args,
+        session_config,
     )
     .await?
     else {

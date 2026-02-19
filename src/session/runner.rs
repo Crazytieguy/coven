@@ -112,17 +112,9 @@ impl SessionRunner {
         }
     }
 
-    /// Build the claude CLI arguments (for VCR header validation).
-    pub fn build_args(config: &SessionConfig) -> Vec<String> {
-        let mut args = vec![
-            "-p".to_string(),
-            "--output-format".to_string(),
-            "stream-json".to_string(),
-            "--verbose".to_string(),
-            "--input-format".to_string(),
-            "stream-json".to_string(),
-            "--include-partial-messages".to_string(),
-        ];
+    /// Build the args shared by both `-p` mode and interactive mode.
+    fn build_shared_args(config: &SessionConfig) -> Vec<String> {
+        let mut args = Vec::new();
 
         if let Some(ref session_id) = config.resume {
             args.push("--resume".to_string());
@@ -146,6 +138,26 @@ impl SessionRunner {
 
         args.extend(config.extra_args.iter().cloned());
         args
+    }
+
+    /// Build the claude CLI arguments for `-p` (stream-json) mode.
+    pub fn build_args(config: &SessionConfig) -> Vec<String> {
+        let mut args = vec![
+            "-p".to_string(),
+            "--output-format".to_string(),
+            "stream-json".to_string(),
+            "--verbose".to_string(),
+            "--input-format".to_string(),
+            "stream-json".to_string(),
+            "--include-partial-messages".to_string(),
+        ];
+        args.extend(Self::build_shared_args(config));
+        args
+    }
+
+    /// Build the claude CLI arguments for interactive (TUI) mode.
+    pub fn build_interactive_args(config: &SessionConfig) -> Vec<String> {
+        Self::build_shared_args(config)
     }
 
     /// Send a user message to claude's stdin.

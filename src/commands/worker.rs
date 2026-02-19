@@ -400,6 +400,13 @@ async fn run_phase_with_wait<W: Write>(
     agents: &[AgentDef],
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<Transition>> {
+    let base_config = build_phase_config(
+        worktree_path,
+        extra_args,
+        Some(system_prompt),
+        ctx.fork_config,
+        ctx.reload_enabled,
+    );
     let mut phase_prompt = initial_prompt.to_string();
     let mut phase_resume: Option<String> = None;
 
@@ -409,15 +416,7 @@ async fn run_phase_with_wait<W: Write>(
             cost,
             session_id,
             wait_requested,
-        } = run_phase_session(
-            &phase_prompt,
-            worktree_path,
-            extra_args,
-            phase_resume.as_deref(),
-            Some(system_prompt),
-            ctx,
-        )
-        .await?
+        } = run_phase_session(&phase_prompt, &base_config, phase_resume.as_deref(), ctx).await?
         else {
             return Ok(None);
         };
@@ -439,8 +438,7 @@ async fn run_phase_with_wait<W: Write>(
                 ctx.io,
                 ctx.vcr,
                 sid,
-                Some(worktree_path),
-                extra_args,
+                &base_config,
             )
             .await?
             else {
@@ -454,9 +452,7 @@ async fn run_phase_with_wait<W: Write>(
         let Some(transition) = parse_transition_with_retry(
             &result_text,
             session_id.as_deref(),
-            worktree_path,
-            extra_args,
-            Some(system_prompt),
+            &base_config,
             agents,
             ctx,
         )
@@ -479,8 +475,7 @@ async fn run_phase_with_wait<W: Write>(
                     ctx.io,
                     ctx.vcr,
                     sid,
-                    Some(worktree_path),
-                    extra_args,
+                    &base_config,
                 )
                 .await?
                 else {
@@ -532,9 +527,7 @@ const MAX_TRANSITION_RETRIES: usize = 3;
 async fn parse_transition_with_retry<W: Write>(
     result_text: &str,
     session_id: Option<&str>,
-    worktree_path: &Path,
-    extra_args: &[String],
-    system_prompt: Option<&str>,
+    base_config: &SessionConfig,
     agents: &[AgentDef],
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<Transition>> {
@@ -561,15 +554,7 @@ async fn parse_transition_with_retry<W: Write>(
             cost: retry_cost,
             session_id: retry_sid,
             ..
-        } = run_phase_session(
-            &retry_prompt,
-            worktree_path,
-            extra_args,
-            Some(&current_sid),
-            system_prompt,
-            ctx,
-        )
-        .await?
+        } = run_phase_session(&retry_prompt, base_config, Some(&current_sid), ctx).await?
         else {
             return Ok(None);
         };
@@ -587,15 +572,7 @@ async fn parse_transition_with_retry<W: Write>(
 
     // All automatic attempts failed — wait for user input instead
     // of crashing. The user can talk to the agent to fix the situation.
-    wait_for_transition_input(
-        &last_err,
-        current_sid,
-        worktree_path,
-        extra_args,
-        system_prompt,
-        ctx,
-    )
-    .await
+    wait_for_transition_input(&last_err, current_sid, base_config, ctx).await
 }
 
 /// When automatic transition parsing fails, wait for user input and retry.
@@ -604,9 +581,7 @@ async fn parse_transition_with_retry<W: Write>(
 async fn wait_for_transition_input<W: Write>(
     initial_err: &anyhow::Error,
     mut session_id: String,
-    worktree_path: &Path,
-    extra_args: &[String],
-    system_prompt: Option<&str>,
+    base_config: &SessionConfig,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<Transition>> {
     let mut last_err = format!("{initial_err}");
@@ -622,8 +597,7 @@ async fn wait_for_transition_input<W: Write>(
             ctx.io,
             ctx.vcr,
             &session_id,
-            Some(worktree_path),
-            extra_args,
+            base_config,
         )
         .await?
         else {
@@ -635,15 +609,7 @@ async fn wait_for_transition_input<W: Write>(
             cost,
             session_id: new_sid,
             ..
-        } = run_phase_session(
-            &text,
-            worktree_path,
-            extra_args,
-            Some(&session_id),
-            system_prompt,
-            ctx,
-        )
-        .await?
+        } = run_phase_session(&text, base_config, Some(&session_id), ctx).await?
         else {
             return Ok(None);
         };
@@ -791,31 +757,42 @@ enum PhaseOutcome {
     Exited,
 }
 
+/// Build a base `SessionConfig` for a worker phase (no prompt or resume).
+fn build_phase_config(
+    worktree_path: &Path,
+    extra_args: &[String],
+    system_prompt: Option<&str>,
+    fork_config: Option<&ForkConfig>,
+    reload_enabled: bool,
+) -> SessionConfig {
+    let mut append_system_prompt = system_prompt
+        .map(String::from)
+        .or_else(|| fork_config.map(|_| fork::fork_system_prompt().to_string()));
+    if reload_enabled {
+        crate::reload::append_reload_prompt(&mut append_system_prompt);
+    }
+    SessionConfig {
+        extra_args: extra_args.to_vec(),
+        append_system_prompt,
+        working_dir: Some(worktree_path.to_path_buf()),
+        ..Default::default()
+    }
+}
+
 /// Run an interactive claude session for a worker phase.
 ///
 /// If `resume` is provided, the session is resumed from the given session ID
-/// rather than starting fresh. `system_prompt` is set via `--append-system-prompt`.
+/// rather than starting fresh.
 async fn run_phase_session<W: Write>(
     prompt: &str,
-    working_dir: &Path,
-    extra_args: &[String],
+    base_config: &SessionConfig,
     resume: Option<&str>,
-    system_prompt: Option<&str>,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<PhaseOutcome> {
-    let mut append_system_prompt = system_prompt.map(String::from).or_else(|| {
-        ctx.fork_config
-            .map(|_| fork::fork_system_prompt().to_string())
-    });
-    if ctx.reload_enabled {
-        crate::reload::append_reload_prompt(&mut append_system_prompt);
-    }
     let session_config = SessionConfig {
         prompt: Some(prompt.to_string()),
-        extra_args: extra_args.to_vec(),
-        append_system_prompt,
         resume: resume.map(String::from),
-        working_dir: Some(working_dir.to_path_buf()),
+        ..base_config.clone()
     };
 
     let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
@@ -823,6 +800,7 @@ async fn run_phase_session<W: Write>(
     let features = SessionFeatures {
         fork_config: ctx.fork_config,
         reload_enabled: ctx.reload_enabled,
+        base_config: &session_config,
     };
 
     loop {
@@ -877,8 +855,7 @@ async fn run_phase_session<W: Write>(
                     ctx.io,
                     ctx.vcr,
                     &session_id,
-                    Some(working_dir),
-                    extra_args,
+                    &session_config,
                 )
                 .await?
                 else {
