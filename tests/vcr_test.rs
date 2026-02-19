@@ -63,6 +63,21 @@ fn strip_ansi(s: &str) -> String {
     result
 }
 
+/// Filter transient noise from snapshot output (e.g. rate limit warnings that
+/// vary based on the recording user's current usage).
+fn filter_snapshot_noise(s: &str) -> String {
+    let mut result: String = s
+        .lines()
+        .filter(|line| !line.starts_with("[rate limit]"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    // Preserve trailing newline if the input had one (lines() strips it).
+    if s.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
 struct TestResult {
     display: String,
     messages: Vec<StoredMessage>,
@@ -190,7 +205,7 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
 
     let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
     TestResult {
-        display: strip_ansi(&raw),
+        display: filter_snapshot_noise(&strip_ansi(&raw)),
         messages,
         views,
     }
@@ -248,7 +263,7 @@ async fn run_multi_vcr_test(theme: &str, name: &str) -> TestResult {
             let results = futures::future::join_all(futures).await;
             for (step_name, raw) in results {
                 combined_output.push_str(&format!("--- {step_name} ---\n"));
-                combined_output.push_str(&strip_ansi(&raw));
+                combined_output.push_str(&filter_snapshot_noise(&strip_ansi(&raw)));
                 combined_output.push('\n');
             }
         } else {
@@ -261,7 +276,7 @@ async fn run_multi_vcr_test(theme: &str, name: &str) -> TestResult {
             run_multi_step(&step, &vcr, show_thinking, default_model, &mut output).await;
             let raw = String::from_utf8(output).expect("Output should be valid UTF-8");
             combined_output.push_str(&format!("--- {} ---\n", step.name));
-            combined_output.push_str(&strip_ansi(&raw));
+            combined_output.push_str(&filter_snapshot_noise(&strip_ansi(&raw)));
             combined_output.push('\n');
         }
     }

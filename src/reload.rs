@@ -19,6 +19,18 @@ pub fn reload_system_prompt() -> &'static str {
      Use this after updating skills, MCP servers, or other config."
 }
 
+/// Append the reload system prompt to an optional system prompt string.
+pub fn append_reload_prompt(system_prompt: &mut Option<String>) {
+    let text = reload_system_prompt();
+    match system_prompt {
+        Some(existing) => {
+            existing.push_str("\n\n");
+            existing.push_str(text);
+        }
+        None => *system_prompt = Some(text.to_string()),
+    }
+}
+
 /// Spawn a resumed session after a reload, returning the new runner and state.
 ///
 /// Writes the `[reloading claude...]` status line, creates a resume config from

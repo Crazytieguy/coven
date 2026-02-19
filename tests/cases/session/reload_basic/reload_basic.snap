@@ -5,7 +5,6 @@ expression: result.display
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
 Session f7246d02-4de3-4eef-941f-983f958d21a1 (claude-haiku-4-5-20251001)
 
-[rate limit] seven_day usage at 91% (allowed_warning)
 [1] Thinking...
 Hello!
 
@@ -14,7 +13,6 @@ Hello!
 [reloading claude...]
 ---
 
-[rate limit] seven_day usage at 91% (allowed_warning)
 [2] Thinking...
 Hello! 
 
@@ -23,7 +21,6 @@ Hello!
 [reloading claude...]
 ---
 
-[rate limit] seven_day usage at 91% (allowed_warning)
 [3] Thinking...
 Hello! I'm ready to help. What would you like me to work on?
 
