@@ -39,13 +39,20 @@ jobs:
       - name: Check if already handled
         id: check
         run: |
-          last=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
-            --jq 'sort_by(.updated_at) | last | .user.login')
-          echo "skip=$( [ "$last" = "claude[bot]" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          last_claude_at=$(gh api "repos/$REPO/issues/$NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "claude[bot]")] | sort_by(.created_at) | last | .created_at // empty')
+          if [ -z "$last_claude_at" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          elif [ "$last_claude_at" \> "$EVENT_AT" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          EVENT_AT: ${{ github.event.review.submitted_at || github.event.comment.created_at }}
 
       - name: Checkout PR branch
         if: steps.check.outputs.skip != 'true'
