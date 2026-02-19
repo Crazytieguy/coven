@@ -286,16 +286,14 @@ async fn handle_session_outcome<W: Write>(
             let Some(session_id) = state.session_id.take() else {
                 return Ok(LoopAction::Exit);
             };
-            ctx.renderer.write_raw("\r\n[reloading claude...]\r\n");
-            let resume_config = session_config.resume_with(
-                reload::RELOAD_RESUME_MESSAGE.to_string(),
-                session_id.clone(),
-            );
-            let runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
-            let new_state = SessionState {
-                session_id: Some(session_id),
-                ..Default::default()
-            };
+            let (runner, new_state) = reload::spawn_reload_session(
+                session_id,
+                session_config,
+                ctx.renderer,
+                ctx.io,
+                ctx.vcr,
+            )
+            .await?;
             iter.iteration_cost = 0.0;
             Ok(LoopAction::Resume(Box::new(runner), new_state))
         }

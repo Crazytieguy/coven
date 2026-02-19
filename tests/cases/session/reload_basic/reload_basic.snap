@@ -3,16 +3,31 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session e5b3f3b8-702a-40bc-a62a-0655a506444b (claude-haiku-4-5-20251001)
+Session f7246d02-4de3-4eef-941f-983f958d21a1 (claude-haiku-4-5-20251001)
 
+[rate limit] seven_day usage at 91% (allowed_warning)
 [1] Thinking...
 Hello!
 
-<reload>User requested reload</reload>
-
+<reload>user requested reload</reload>
 
 [reloading claude...]
+---
 
-Error  $0.00 · 0.0s · 0 turns  (:N to view)
+[rate limit] seven_day usage at 91% (allowed_warning)
+[2] Thinking...
+Hello! 
+
+<reload>User requested reload</reload>
+
+[reloading claude...]
+---
+
+[rate limit] seven_day usage at 91% (allowed_warning)
+[3] Thinking...
+Hello! I'm ready to help. What would you like me to work on?
+
+
+Done  $0.00 · 3.1s · 1 turn  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive
 >
