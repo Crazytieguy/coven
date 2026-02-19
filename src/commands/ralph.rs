@@ -132,10 +132,21 @@ pub async fn ralph<W: Write>(
         &config.working_dir,
     );
     let session_config = config.session_config(&system_prompt);
+    let mut watched_tags = vec!["wait-for-user".to_string()];
+    if !config.no_break {
+        watched_tags.push(config.break_tag.clone());
+    }
+    if config.tag_flags.fork {
+        watched_tags.push("fork".to_string());
+    }
+    if config.tag_flags.reload {
+        watched_tags.push("reload".to_string());
+    }
     let features = SessionFeatures {
         fork_config: fork_config.as_ref(),
         reload_enabled: config.tag_flags.reload,
         base_config: &session_config,
+        watched_tags,
     };
 
     let mut ctx = Ctx {

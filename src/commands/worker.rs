@@ -797,10 +797,18 @@ async fn run_phase_session<W: Write>(
 
     let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
     let mut state = SessionState::default();
+    let mut watched_tags = vec!["next".to_string(), "wait-for-user".to_string()];
+    if ctx.fork_config.is_some() {
+        watched_tags.push("fork".to_string());
+    }
+    if ctx.reload_enabled {
+        watched_tags.push("reload".to_string());
+    }
     let features = SessionFeatures {
         fork_config: ctx.fork_config,
         reload_enabled: ctx.reload_enabled,
         base_config: &session_config,
+        watched_tags,
     };
 
     loop {

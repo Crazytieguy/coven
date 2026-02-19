@@ -74,10 +74,18 @@ pub async fn run<W: Write>(
     else {
         return Ok(vec![]);
     };
+    let mut watched_tags = Vec::new();
+    if config.fork {
+        watched_tags.push("fork".to_string());
+    }
+    if config.reload {
+        watched_tags.push("reload".to_string());
+    }
     let features = SessionFeatures {
         fork_config: fork_config.as_ref(),
         reload_enabled: config.reload,
         base_config: &base_session_cfg,
+        watched_tags,
     };
     loop {
         let outcome = event_loop::run_session(

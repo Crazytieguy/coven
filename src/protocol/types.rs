@@ -121,10 +121,7 @@ pub struct AssistantMessageBody {
 #[serde(tag = "type")]
 pub enum AssistantContentBlock {
     #[serde(rename = "text")]
-    Text {
-        #[serde(rename = "text")]
-        _text: String,
-    },
+    Text { text: String },
     #[serde(rename = "tool_use")]
     ToolUse {
         id: String,

@@ -44,6 +44,10 @@ pub struct SessionFeatures<'a> {
     pub reload_enabled: bool,
     /// Base config for respawning sessions (fork reintegration, etc.).
     pub base_config: &'a SessionConfig,
+    /// Tags to watch for in non-final assistant messages (e.g. `"reload"`, `"fork"`).
+    /// If any of these appear in a message that also contains tool calls, the model
+    /// receives a warning via stdin that the tag will be ignored.
+    pub watched_tags: Vec<String>,
 }
 
 /// Per-session transient state for event buffering and follow-ups.
@@ -53,6 +57,9 @@ struct SessionLocals {
     result_text: String,
     fork_config: Option<ForkConfig>,
     reload_enabled: bool,
+    watched_tags: Vec<String>,
+    /// Warning to send when a special tag is found in a non-final assistant message.
+    tag_warning: Option<String>,
 }
 
 /// Run a single session's event loop with full input support.
@@ -77,6 +84,8 @@ pub async fn run_session<W: Write>(
         result_text: String::new(),
         fork_config: features.fork_config.cloned(),
         reload_enabled: features.reload_enabled,
+        watched_tags: features.watched_tags.clone(),
+        tag_warning: None,
     };
 
     loop {
@@ -119,6 +128,7 @@ pub async fn run_session<W: Write>(
                     LoopAction::ViewMessage(ref query) => {
                         view_message(renderer, query, io)?;
                         let flush = flush_event_buffer(&mut locals, state, renderer);
+                        send_tag_warning(&mut locals, runner, vcr).await?;
                         if let FlushResult::Completed(ref result_text) = flush {
                             return Ok(SessionOutcome::Completed {
                                 result_text: result_text.clone(),
@@ -292,6 +302,45 @@ fn classify_claude_event<W: Write>(
         !locals.pending_followups.is_empty() || fork_tasks.is_some() || reload_detected;
     handle_inbound(inbound, state, renderer, has_pending);
 
+    // Check for special tags in non-final assistant messages (messages with tool calls).
+    // These tags are only processed in Result events, so they'd be silently ignored.
+    if let InboundEvent::Assistant(ref msg) = *inbound
+        && msg.parent_tool_use_id.is_none()
+        && !locals.watched_tags.is_empty()
+    {
+        let has_tool_use = msg
+            .message
+            .content
+            .iter()
+            .any(|b| matches!(b, AssistantContentBlock::ToolUse { .. }));
+        if has_tool_use {
+            let found: Vec<&str> = locals
+                .watched_tags
+                .iter()
+                .filter(|tag| {
+                    msg.message.content.iter().any(|b| {
+                        matches!(b, AssistantContentBlock::Text { text }
+                            if crate::protocol::parse::extract_tag_inner(text, tag).is_some())
+                    })
+                })
+                .map(String::as_str)
+                .collect();
+            if !found.is_empty() {
+                let tags_str: String = found
+                    .iter()
+                    .map(|t| format!("<{t}>"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                locals.tag_warning = Some(format!(
+                    "[system] Warning: {tags_str} found in a message that also contains tool \
+                     calls. Special tags are only processed in your final text response \
+                     (without tool calls) and will be ignored here. To use them, output them \
+                     in a response with no tool calls."
+                ));
+            }
+        }
+    }
+
     if let Some(tasks) = fork_tasks {
         ClaudeEventAction::Fork(tasks)
     } else if reload_detected {
@@ -327,6 +376,7 @@ async fn handle_session_key_event<W: Write>(
         }
         InputAction::Submit(text, mode) => {
             let flush = flush_event_buffer(locals, state, renderer);
+            send_tag_warning(locals, runner, vcr).await?;
             // Completed is intentionally not special-cased here: if the session
             // completed during the flush, state is WaitingForInput and the match
             // below will send the user's text as a follow-up.
@@ -370,6 +420,7 @@ async fn handle_session_key_event<W: Write>(
         }
         InputAction::Cancel => {
             let flush = flush_event_buffer(locals, state, renderer);
+            send_tag_warning(locals, runner, vcr).await?;
             if let FlushResult::Completed(ref result_text) = flush {
                 return Ok(LoopAction::Return(SessionOutcome::Completed {
                     result_text: result_text.clone(),
@@ -395,6 +446,18 @@ async fn handle_session_key_event<W: Write>(
         InputAction::Interactive | InputAction::None => {}
     }
     Ok(LoopAction::Continue)
+}
+
+/// Send a pending tag warning (if any) to the running session via stdin.
+async fn send_tag_warning(
+    locals: &mut SessionLocals,
+    runner: &mut SessionRunner,
+    vcr: &VcrContext,
+) -> Result<()> {
+    if let Some(warning) = locals.tag_warning.take() {
+        vcr_send_message(runner, vcr, warning).await?;
+    }
+    Ok(())
 }
 
 /// Send a follow-up message: render indicator, suppress separator, send, set Running.
@@ -471,7 +534,11 @@ async fn process_claude_event<W: Write>(
 ) -> Result<EventResult> {
     match event {
         AppEvent::Claude(inbound) => {
-            match classify_claude_event(&inbound, locals, state, renderer) {
+            let action = classify_claude_event(&inbound, locals, state, renderer);
+            if let Some(warning) = locals.tag_warning.take() {
+                vcr_send_message(runner, vcr, warning).await?;
+            }
+            match action {
                 ClaudeEventAction::Fork(tasks) => {
                     return Ok(EventResult::Fork(tasks));
                 }
