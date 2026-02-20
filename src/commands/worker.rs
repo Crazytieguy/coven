@@ -520,12 +520,14 @@ fn build_system_prompt(
         prompt.push_str("\n\n");
     }
     prompt.push_str(transition_prompt);
-    prompt.push_str(worker_status_section);
     let _ = write!(prompt, "\n\nMain worktree branch: {main_worktree_branch}");
     if fork_config.is_some() {
         prompt.push_str("\n\n");
         prompt.push_str(fork::fork_system_prompt());
     }
+    // Worker status is dynamic (changes as other workers start/stop), so it
+    // goes last to maximise the cacheable prefix for the Claude API.
+    prompt.push_str(worker_status_section);
     prompt
 }
 
