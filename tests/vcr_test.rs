@@ -124,6 +124,7 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
                 working_dir: None,
                 fork: false,
                 reload: false,
+                no_wait: false,
                 term_width: Some(80),
             },
             &mut io,
@@ -146,6 +147,7 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
                 iterations: 10,
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
+                no_wait: ralph_config.no_wait,
                 show_thinking: case.display.show_thinking,
                 tag_flags: coven::commands::ralph::TagFlags {
                     fork: false,
@@ -320,6 +322,7 @@ async fn run_multi_step(
                     working_dir: None,
                     fork: false,
                     reload: false,
+                    no_wait: false,
                     term_width: Some(80),
                 },
                 &mut io,
@@ -415,6 +418,7 @@ vcr_test!(fork / fork_single);
 
 // Ralph: loop mode
 vcr_test!(ralph / ralph_break);
+vcr_test!(ralph / ralph_no_wait);
 
 // Orchestration: worker, init, status, gc
 vcr_test!(orchestration / worker_basic);

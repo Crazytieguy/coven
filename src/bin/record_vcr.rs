@@ -290,6 +290,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
                 working_dir: Some(tmp_dir.clone()),
                 fork: false,
                 reload: false,
+                no_wait: false,
                 term_width: Some(80),
             },
             &mut io,
@@ -309,6 +310,7 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
                 iterations: 10, // safety limit for recording
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
+                no_wait: ralph_config.no_wait,
                 show_thinking: case.display.show_thinking,
                 tag_flags: commands::ralph::TagFlags {
                     fork: false,
@@ -454,6 +456,7 @@ async fn record_multi_step(
                     working_dir: Some(tmp_dir),
                     fork: false,
                     reload: false,
+                    no_wait: false,
                     term_width: Some(80),
                 },
                 &mut io,
