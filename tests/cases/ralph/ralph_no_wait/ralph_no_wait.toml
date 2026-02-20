@@ -1,0 +1,7 @@
+[ralph]
+prompt = "Check TODO.md for unchecked tasks. If any exist, do the next one and mark it done. If all tasks are done, stop."
+break_tag = "break"
+no_wait = true
+
+[files]
+"TODO.md" = "# Tasks\n- [ ] Create a hello.py that prints 'hi'\n- [ ] Create a README.md with the title 'My Project'\n"

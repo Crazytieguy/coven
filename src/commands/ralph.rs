@@ -28,6 +28,7 @@ pub struct RalphConfig {
     pub iterations: u32,
     pub break_tag: String,
     pub no_break: bool,
+    pub no_wait: bool,
     pub show_thinking: bool,
     pub tag_flags: TagFlags,
     pub extra_args: Vec<String>,
@@ -43,7 +44,7 @@ impl RalphConfig {
              filesystem persists."
                 .to_string()
         } else {
-            ralph_system_prompt(&self.break_tag)
+            ralph_system_prompt(&self.break_tag, self.no_wait)
         };
         let mut prompt = if self.tag_flags.fork {
             format!("{base}\n\n{}", fork::fork_system_prompt())
@@ -82,18 +83,27 @@ fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
 }
 
 /// Build the ralph system prompt for the given break tag.
-fn ralph_system_prompt(break_tag: &str) -> String {
-    format!(
+fn ralph_system_prompt(break_tag: &str, no_wait: bool) -> String {
+    let tag_count = if no_wait {
+        "A special tag controls"
+    } else {
+        "Two special tags control"
+    };
+    let mut prompt = format!(
         "You are running in a multi-iteration loop. Each iteration starts a fresh session \
          but the filesystem persists. The loop is designed to run many iterations — each \
          one you do a small piece of work, then end your response normally. The next \
          iteration starts automatically.\n\n\
-         Two special tags control the loop:\n\n\
+         {tag_count} the loop:\n\n\
          `<{break_tag}>reason</{break_tag}>` — **ends the loop permanently.** Use only when \
          you have exhausted all available work and another iteration would accomplish nothing \
-         new. The loop stops and does not resume.\n\n\
-         {WAIT_FOR_USER_PROMPT}"
-    )
+         new. The loop stops and does not resume."
+    );
+    if !no_wait {
+        prompt.push_str("\n\n");
+        prompt.push_str(WAIT_FOR_USER_PROMPT);
+    }
+    prompt
 }
 
 /// Mutable I/O handles shared across the ralph loop.
@@ -121,7 +131,9 @@ pub async fn ralph<W: Write>(
     let _raw = RawModeGuard::acquire(vcr.is_live())?;
 
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: true });
+    renderer.render_hints(crate::display::renderer::HintContext::Initial {
+        has_wait: !config.no_wait,
+    });
     let system_prompt = config.system_prompt();
     if config.tag_flags.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());
@@ -132,7 +144,10 @@ pub async fn ralph<W: Write>(
         &config.working_dir,
     );
     let session_config = config.session_config(&system_prompt);
-    let mut watched_tags = vec!["wait-for-user".to_string()];
+    let mut watched_tags = Vec::new();
+    if !config.no_wait {
+        watched_tags.push("wait-for-user".to_string());
+    }
     if !config.no_break {
         watched_tags.push(config.break_tag.clone());
     }
@@ -257,8 +272,9 @@ async fn handle_session_outcome<W: Write>(
             }
 
             // Check for wait-for-user before break tag (user input takes precedence).
-            if let Some(reason) =
-                crate::protocol::parse::extract_tag_inner(&result_text, "wait-for-user")
+            if !config.no_wait
+                && let Some(reason) =
+                    crate::protocol::parse::extract_tag_inner(&result_text, "wait-for-user")
             {
                 let reason = reason.trim();
                 ctx.renderer.write_raw("\x07");

@@ -45,6 +45,7 @@ Loop Claude with fresh sessions — filesystem state persists between iterations
 | `--iterations N` | Max iterations (0 = infinite, default) |
 | `--break-tag TAG` | Custom break tag (default: `break`) |
 | `--no-break` | Disable break detection (requires `--iterations`) |
+| `--no-wait` | Disable `<wait-for-user>` tag detection |
 
 ### `coven worker`
 
@@ -54,6 +55,7 @@ Orchestration worker: generic agent loop. Creates a git worktree, runs agents th
 |------|-------------|
 | `--branch NAME` | Worktree branch name (random if omitted) |
 | `--worktree-base DIR` | Base directory for worktrees (default: `~/.coven/worktrees`) |
+| `--no-wait` | Disable `<wait-for-user>` tag detection |
 
 ### `coven init`
 

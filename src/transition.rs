@@ -79,7 +79,7 @@ pub fn parse_transition(text: &str) -> Result<Transition> {
 ///
 /// This text is injected into every agent session via `--append-system-prompt`.
 /// It teaches the agent the `<next>` tag syntax and lists all available agents.
-pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
+pub fn format_transition_system_prompt(agents: &[AgentDef], no_wait: bool) -> String {
     let mut out = String::new();
 
     out.push_str("# Transition Protocol\n\n");
@@ -95,9 +95,11 @@ pub fn format_transition_system_prompt(agents: &[AgentDef]) -> String {
     out.push_str("## Sleep (no actionable work)\n\n");
     out.push_str("<next>\nsleep: true\n</next>\n\n");
 
-    out.push_str("## Wait for user\n\n");
-    out.push_str(WAIT_FOR_USER_PROMPT);
-    out.push_str("\n\n");
+    if !no_wait {
+        out.push_str("## Wait for user\n\n");
+        out.push_str(WAIT_FOR_USER_PROMPT);
+        out.push_str("\n\n");
+    }
 
     out.push_str("## Available Agents\n\n");
 
@@ -370,7 +372,7 @@ issue: issues/fix-scroll-bug.md
             make_agent("dispatch", "Chooses the next task", vec![]),
             make_agent("plan", "Plans work", vec![]),
         ];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         // All agents listed (including dispatch)
         assert!(prompt.contains("### dispatch"));
         assert!(prompt.contains("### plan"));
@@ -387,7 +389,7 @@ issue: issues/fix-scroll-bug.md
                 required: true,
             }],
         )];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         assert!(prompt.contains("`issue`"));
         assert!(prompt.contains("(required)"));
         assert!(prompt.contains("The issue file"));
@@ -396,7 +398,7 @@ issue: issues/fix-scroll-bug.md
     #[test]
     fn system_prompt_shows_no_args() {
         let agents = vec![make_agent("audit", "Reviews code quality", vec![])];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         assert!(prompt.contains("No arguments."));
     }
 
@@ -414,7 +416,7 @@ issue: issues/fix-scroll-bug.md
             ),
             make_agent("audit", "Reviews code", vec![]),
         ];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         assert!(prompt.contains("agent: plan\nissue: <Path to issue>"));
         assert!(prompt.contains("agent: audit"));
         assert!(prompt.contains("sleep: true"));
@@ -422,14 +424,14 @@ issue: issues/fix-scroll-bug.md
 
     #[test]
     fn system_prompt_empty_agents() {
-        let prompt = format_transition_system_prompt(&[]);
+        let prompt = format_transition_system_prompt(&[], false);
         assert!(prompt.contains("No agents configured."));
     }
 
     #[test]
     fn system_prompt_contains_protocol() {
         let agents = vec![make_agent("plan", "Plans work", vec![])];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         assert!(prompt.contains("# Transition Protocol"));
         assert!(prompt.contains("<next>"));
         assert!(prompt.contains("</next>"));
@@ -477,9 +479,20 @@ issue: issues/fix-scroll-bug.md
     #[test]
     fn system_prompt_documents_wait_for_user() {
         let agents = vec![make_agent("plan", "Plans work", vec![])];
-        let prompt = format_transition_system_prompt(&agents);
+        let prompt = format_transition_system_prompt(&agents, false);
         assert!(prompt.contains("wait-for-user"));
         assert!(prompt.contains("pauses the session"));
+    }
+
+    #[test]
+    fn system_prompt_no_wait_excludes_wait_for_user() {
+        let agents = vec![make_agent("plan", "Plans work", vec![])];
+        let prompt = format_transition_system_prompt(&agents, true);
+        assert!(!prompt.contains("wait-for-user"));
+        assert!(!prompt.contains("pauses the session"));
+        // Other sections should still be present
+        assert!(prompt.contains("# Transition Protocol"));
+        assert!(prompt.contains("### plan"));
     }
 
     #[test]

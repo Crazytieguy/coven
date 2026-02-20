@@ -45,6 +45,7 @@ pub struct WorkerConfig {
     pub working_dir: Option<PathBuf>,
     pub fork: bool,
     pub reload: bool,
+    pub no_wait: bool,
     /// Override terminal width for display truncation (used in tests).
     pub term_width: Option<usize>,
 }
@@ -120,7 +121,9 @@ pub async fn worker<W: Write>(
 
     let raw = RawModeGuard::acquire(vcr.is_live())?;
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: true });
+    renderer.render_hints(crate::display::renderer::HintContext::Initial {
+        has_wait: !config.no_wait,
+    });
 
     let wt_str = spawn_result.worktree_path.display().to_string();
 
@@ -317,7 +320,8 @@ async fn run_agent_chain<W: Write>(
         let mut merged_args = agent_def.frontmatter.claude_args.clone();
         merged_args.extend(config.extra_args.iter().cloned());
 
-        let transition_prompt = transition::format_transition_system_prompt(&agent_defs);
+        let transition_prompt =
+            transition::format_transition_system_prompt(&agent_defs, config.no_wait);
         let all_workers = ctx
             .vcr
             .call(
@@ -361,6 +365,7 @@ async fn run_agent_chain<W: Write>(
             &merged_args,
             &system_prompt,
             &agent_defs,
+            config.no_wait,
             ctx,
         )
         .await?;
@@ -398,6 +403,7 @@ async fn run_phase_with_wait<W: Write>(
     extra_args: &[String],
     system_prompt: &str,
     agents: &[AgentDef],
+    no_wait: bool,
     ctx: &mut PhaseContext<'_, W>,
 ) -> Result<Option<Transition>> {
     let base_config = build_phase_config(
@@ -463,26 +469,37 @@ async fn run_phase_with_wait<W: Write>(
 
         match transition {
             Transition::WaitForUser { reason } => {
-                ctx.renderer.write_raw("\x07");
-                ctx.renderer
-                    .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
                 let sid = session_id
                     .as_deref()
                     .context("no session ID for wait-for-user resume")?;
-                let Some(user_text) = event_loop::wait_for_interrupt_input(
-                    ctx.input,
-                    ctx.renderer,
-                    ctx.io,
-                    ctx.vcr,
-                    sid,
-                    &base_config,
-                )
-                .await?
-                else {
-                    return Ok(None);
-                };
-                phase_prompt = user_text;
-                phase_resume = session_id;
+                if no_wait {
+                    // --no-wait: skip waiting, re-prompt for a valid transition.
+                    ctx.renderer.write_raw(&format!(
+                        "\r\nIgnoring wait-for-user ({reason}) — re-prompting\r\n"
+                    ));
+                    phase_prompt = "The <wait-for-user> tag is disabled. You must output a <next> \
+                         transition to hand off to another agent, or <next> with sleep: true \
+                         if no work is available."
+                        .to_string();
+                } else {
+                    ctx.renderer.write_raw("\x07");
+                    ctx.renderer
+                        .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
+                    let Some(user_text) = event_loop::wait_for_interrupt_input(
+                        ctx.input,
+                        ctx.renderer,
+                        ctx.io,
+                        ctx.vcr,
+                        sid,
+                        &base_config,
+                    )
+                    .await?
+                    else {
+                        return Ok(None);
+                    };
+                    phase_prompt = user_text;
+                }
+                phase_resume = Some(sid.to_string());
             }
             other => return Ok(Some(other)),
         }

@@ -60,6 +60,10 @@ pub enum Command {
         #[arg(long)]
         no_break: bool,
 
+        /// Disable <wait-for-user> tag detection (model cannot pause for human input).
+        #[arg(long)]
+        no_wait: bool,
+
         #[command(flatten)]
         claude_opts: ClaudeOpts,
     },
@@ -86,6 +90,10 @@ pub enum Command {
         /// Base directory for worktrees. Default: ~/.coven/worktrees.
         #[arg(long)]
         worktree_base: Option<PathBuf>,
+
+        /// Disable <wait-for-user> tag detection (model cannot pause for human input).
+        #[arg(long)]
+        no_wait: bool,
 
         #[command(flatten)]
         claude_opts: ClaudeOpts,

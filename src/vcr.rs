@@ -715,6 +715,9 @@ pub struct RalphConfig {
     /// Tag that signals loop completion.
     #[serde(default = "default_break_tag")]
     pub break_tag: String,
+    /// Disable <wait-for-user> tag detection.
+    #[serde(default)]
+    pub no_wait: bool,
     /// Extra arguments to pass through to claude.
     #[serde(default)]
     pub claude_args: Vec<String>,

@@ -12,31 +12,28 @@ use cli::{Cli, Command};
 #[tokio::main]
 async fn main() -> Result<()> {
     install_panic_hook();
-    let cli = Cli::parse();
+    run(Cli::parse()).await
+}
+
+async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Some(Command::Init) => {
             let vcr = VcrContext::live();
-            commands::init::init(
-                &vcr,
-                &mut std::io::stdout(),
-                &mut std::io::stdin().lock(),
-                None,
-            )
-            .await?;
+            let stdout = &mut std::io::stdout();
+            commands::init::init(&vcr, stdout, &mut std::io::stdin().lock(), None).await?;
         }
         Some(Command::Status) => {
-            let vcr = VcrContext::live();
-            commands::status::status(&vcr, None, &mut std::io::stdout()).await?;
+            commands::status::status(&VcrContext::live(), None, &mut std::io::stdout()).await?;
         }
         Some(Command::Gc { force }) => {
-            let vcr = VcrContext::live();
-            commands::gc::gc(&vcr, force, None, &mut std::io::stdout()).await?;
+            commands::gc::gc(&VcrContext::live(), force, None, &mut std::io::stdout()).await?;
         }
         Some(Command::Ralph {
             prompt,
             iterations,
             break_tag,
             no_break,
+            no_wait,
             claude_opts,
         }) => {
             if no_break && iterations == 0 {
@@ -49,6 +46,7 @@ async fn main() -> Result<()> {
                     iterations,
                     break_tag,
                     no_break,
+                    no_wait,
                     show_thinking: claude_opts.show_thinking,
                     tag_flags: commands::ralph::TagFlags {
                         fork: claude_opts.fork,
@@ -67,12 +65,10 @@ async fn main() -> Result<()> {
         Some(Command::Worker {
             branch,
             worktree_base,
+            no_wait,
             claude_opts,
         }) => {
-            let base = match worktree_base {
-                Some(b) => b,
-                None => default_worktree_base()?,
-            };
+            let base = worktree_base.map_or_else(default_worktree_base, Ok)?;
             let (mut io, vcr) = create_live_io();
             commands::worker::worker(
                 commands::worker::WorkerConfig {
@@ -83,6 +79,7 @@ async fn main() -> Result<()> {
                     working_dir: None,
                     fork: claude_opts.fork,
                     reload: claude_opts.reload,
+                    no_wait,
                     term_width: None,
                 },
                 &mut io,
