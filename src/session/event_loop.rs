@@ -500,9 +500,10 @@ async fn execute_fork<W: Write>(
         bail!("fork detected but fork_config is None");
     };
 
-    // Kill the parent CLI process to prevent async task notifications
-    // from triggering an invisible continuation while fork children run.
-    runner.kill().await?;
+    // Shut down the parent gracefully so it can save the final message
+    // (with fork tags) to the session file before fork children run.
+    // The timeout prevents invisible continuations from async tasks.
+    runner.shutdown().await?;
 
     let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
 

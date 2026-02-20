@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -183,10 +184,31 @@ impl SessionRunner {
         }
     }
 
-    /// Kill the claude process. No-op on stubs.
+    /// Kill the claude process immediately (SIGKILL). No-op on stubs.
     pub async fn kill(&mut self) -> Result<()> {
         if let Some(child) = &mut self.child {
             child.kill().await?;
+        }
+        Ok(())
+    }
+
+    /// Gracefully shut down the claude process.
+    ///
+    /// Closes stdin to signal EOF, then waits briefly for the process to exit
+    /// (so it can save session state). Falls back to SIGKILL if the process
+    /// doesn't exit within the timeout.
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.close_input();
+        if let Some(child) = &mut self.child {
+            match tokio::time::timeout(Duration::from_secs(2), child.wait()).await {
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => return Err(e.into()),
+                Err(_) => {
+                    // Timed out — force-kill to prevent invisible continuations
+                    // from async task notifications.
+                    child.kill().await?;
+                }
+            }
         }
         Ok(())
     }

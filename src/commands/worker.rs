@@ -840,9 +840,10 @@ async fn run_phase_session<W: Write>(
         )
         .await?;
 
-        // Kill the CLI process immediately to prevent async task
-        // notifications from triggering an invisible continuation.
-        runner.kill().await?;
+        // Shut down gracefully, giving claude time to save the final
+        // message to the session file. The timeout prevents invisible
+        // continuations from async task notifications.
+        runner.shutdown().await?;
 
         match outcome {
             SessionOutcome::Completed { result_text } => {

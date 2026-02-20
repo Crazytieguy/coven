@@ -165,7 +165,7 @@ async fn handle_outcome<W: Write>(
             resume_after_pause(session_id, base_session_cfg, runner, state, ctx).await
         }
         SessionOutcome::Reload { .. } => {
-            runner.kill().await?;
+            runner.shutdown().await?;
             let Some(session_id) = state.session_id.take() else {
                 return Ok(false);
             };
