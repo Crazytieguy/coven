@@ -84,20 +84,22 @@ fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
 
 /// Build the ralph system prompt for the given break tag.
 fn ralph_system_prompt(break_tag: &str, no_wait: bool) -> String {
-    let tag_count = if no_wait {
-        "A special tag controls"
-    } else {
-        "Two special tags control"
-    };
     let mut prompt = format!(
-        "You are running in a multi-iteration loop. Each iteration starts a fresh session \
-         but the filesystem persists. The loop is designed to run many iterations — each \
-         one you do a small piece of work, then end your response normally. The next \
-         iteration starts automatically.\n\n\
-         {tag_count} the loop:\n\n\
-         `<{break_tag}>reason</{break_tag}>` — **ends the loop permanently.** Use only when \
-         you have exhausted all available work and another iteration would accomplish nothing \
-         new. The loop stops and does not resume."
+        "You are running in a multi-iteration loop where each iteration is a fresh Claude \
+         session, but the filesystem persists between iterations. When your response ends \
+         normally (without special tags), the next iteration starts automatically — this is \
+         the expected default.\n\n\
+         The loop exists to complete the user's ENTIRE request, which may take many \
+         iterations. Each iteration should make progress, then finish normally. Finishing a \
+         response is NOT finishing the task — the next iteration continues where you left \
+         off.\n\n\
+         `<{break_tag}>reason</{break_tag}>` — **permanently ends the loop.** Only use it when:\n\
+         1. Everything the user asked for is fully complete\n\
+         2. You have verified no remaining work exists\n\
+         3. Another iteration would accomplish nothing new\n\n\
+         Do NOT use `<{break_tag}>` just because you completed work in this iteration — \
+         there may be more to do. When in doubt, finish without `<{break_tag}>` and let the \
+         next iteration reassess."
     );
     if !no_wait {
         prompt.push_str("\n\n");
