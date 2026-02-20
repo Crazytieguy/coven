@@ -34,7 +34,7 @@ coven init && coven worker                 # orchestration
 
 ### `coven [PROMPT]`
 
-Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), message inspection (`:N` to view message N), and wait-for-input marking (Ctrl+W, for ralph/worker).
+Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), message inspection (`:N` to view message N), wait-for-input marking (Ctrl+W, for ralph/worker), native TUI access (Ctrl+O), and end session (Ctrl+D).
 
 ### `coven ralph <PROMPT>`
 
@@ -59,7 +59,7 @@ Orchestration worker: generic agent loop. Creates a git worktree, runs agents th
 
 ### `coven init`
 
-Set up orchestration for a project — creates `.coven/` config, agent prompts, `brief.md`, and `board.md`.
+Set up orchestration for a project — creates `.coven/` directory (config, agent prompts, system doc, land script), `brief.md`, and `board.md`.
 
 ### `coven status` / `coven gc`
 
@@ -80,7 +80,7 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 ## Orchestration
 
-`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: dispatch reads `brief.md` (human tasks) and `board.md` (agent-managed issues), then hands off to a main agent that implements, reviews, and lands. Agents chain via `<next>` transitions. See `.coven/system.md` after init for details.
+`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: dispatch reads `brief.md` (human tasks) and `board.md` (agent-managed issues), then chains through plan, implement, and review agents via `<next>` transitions. See `.coven/system.md` after init for details.
 
 ## License
 
