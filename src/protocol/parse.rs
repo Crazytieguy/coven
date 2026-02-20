@@ -125,6 +125,19 @@ mod tests {
                 assert_eq!(rl.rate_limit_info.status, "allowed_warning");
                 assert_eq!(rl.rate_limit_info.rate_limit_type, "seven_day");
                 assert!((rl.rate_limit_info.utilization - 0.76).abs() < f64::EPSILON);
+                assert!(rl.rate_limit_info.is_warning());
+            }
+            other => panic!("Expected RateLimit, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rate_limit_is_warning() {
+        let line = r#"{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","utilization":0.0},"uuid":"a","session_id":"b"}"#;
+        let event = parse_line(line).unwrap().unwrap();
+        match event {
+            InboundEvent::RateLimit(rl) => {
+                assert!(!rl.rate_limit_info.is_warning());
             }
             other => panic!("Expected RateLimit, got {other:?}"),
         }

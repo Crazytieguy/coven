@@ -195,6 +195,12 @@ pub struct RateLimitInfo {
     _extra: Value,
 }
 
+impl RateLimitInfo {
+    pub fn is_warning(&self) -> bool {
+        self.status.contains("warning")
+    }
+}
+
 // --- Outbound messages ---
 
 #[derive(Debug, Clone, Serialize)]

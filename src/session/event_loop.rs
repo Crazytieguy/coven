@@ -265,7 +265,9 @@ fn handle_inbound<W: Write>(
             }
         }
         InboundEvent::RateLimit(rl) => {
-            renderer.render_rate_limit(&rl.rate_limit_info);
+            if rl.rate_limit_info.is_warning() {
+                renderer.render_rate_limit(&rl.rate_limit_info);
+            }
         }
     }
 }
