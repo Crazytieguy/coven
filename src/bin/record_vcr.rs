@@ -6,6 +6,7 @@ use tokio::sync::{Semaphore, mpsc};
 use tokio::task::LocalSet;
 
 use coven::commands;
+use coven::session::runner::find_session_file;
 use coven::vcr::{DEFAULT_TEST_MODEL, Io, MultiStep, TestCase, TriggerController, VcrContext};
 
 /// Writes to stderr with a `[prefix] ` prepended to each line.
@@ -356,7 +357,52 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     }
 
     vcr.write_recording(&vcr_path)?;
+
+    // Post-recording: verify session files were saved.
+    verify_session_files(&vcr_path, name)?;
+
     std::fs::remove_dir_all(&tmp_dir).ok();
+    Ok(())
+}
+
+/// Extract session IDs from a VCR recording by scanning for result events
+/// that contain a `session_id` field.
+fn extract_session_ids(vcr_path: &Path) -> Result<Vec<String>> {
+    let content = std::fs::read_to_string(vcr_path)?;
+    let mut ids = Vec::new();
+    for line in content.lines() {
+        let entry: serde_json::Value = serde_json::from_str(line)?;
+        if let Some(result) = entry.get("result")
+            && let Some(ok) = result.get("Ok")
+            && let Some(claude) = ok.get("Claude").and_then(|c| c.get("Claude"))
+            && claude.get("type").and_then(|t| t.as_str()) == Some("result")
+            && let Some(id) = claude.get("session_id").and_then(|s| s.as_str())
+            && !ids.contains(&id.to_string())
+        {
+            ids.push(id.to_string());
+        }
+    }
+    Ok(ids)
+}
+
+/// After recording, verify that session files were saved for all sessions
+/// in the recording. Logs results but does not fail the recording.
+fn verify_session_files(vcr_path: &Path, name: &str) -> Result<()> {
+    let session_ids = extract_session_ids(vcr_path)?;
+    for id in &session_ids {
+        match find_session_file(id) {
+            Ok(Some(path)) => {
+                let meta = std::fs::metadata(&path)?;
+                eprintln!("  Session file for {name} ({id}): {} bytes", meta.len());
+            }
+            Ok(None) => {
+                eprintln!("  WARNING: session file NOT found for {name} ({id})");
+            }
+            Err(e) => {
+                eprintln!("  WARNING: session file check failed for {name}: {e}");
+            }
+        }
+    }
     Ok(())
 }
 

@@ -204,8 +204,8 @@ pub async fn ralph<W: Write>(
             )
             .await?;
             // The event loop has received the Result event (turn complete).
-            // Kill the process to prevent async task notifications from
-            // triggering an invisible continuation.
+            // Shut down gracefully: close stdin and wait for the process to
+            // exit (saving session state). Falls back to SIGKILL on timeout.
             runner.shutdown().await?;
 
             match handle_session_outcome(

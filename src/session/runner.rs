@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -195,14 +196,19 @@ impl SessionRunner {
     ///
     /// Callers must ensure the event loop has already received a `Result`
     /// event (confirming the turn is complete) before calling this. Closes
-    /// stdin and kills the process immediately to prevent the assistant from
-    /// starting a new turn (e.g., from async task notifications).
+    /// stdin and waits for the process to exit so it can persist session
+    /// state. Falls back to SIGKILL if the process doesn't exit within
+    /// the timeout (e.g., an async task notification triggered a new turn).
     pub async fn shutdown(&mut self) -> Result<()> {
         self.close_input();
         if let Some(child) = &mut self.child {
-            // kill() sends SIGKILL and waits for the process to exit.
-            // The process may have already exited after stdin close.
-            child.kill().await.ok();
+            match tokio::time::timeout(Duration::from_secs(5), child.wait()).await {
+                Ok(_) => {} // Process exited — session state saved.
+                Err(_) => {
+                    // Timeout — kill to prevent invisible continuation.
+                    child.kill().await.ok();
+                }
+            }
         }
         Ok(())
     }
@@ -259,6 +265,33 @@ impl SessionRunner {
 pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter()
         .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
+}
+
+/// Find the claude session file for the given session ID.
+///
+/// Searches `~/.claude/projects/*/sessions/` for a file whose stem matches
+/// the session ID. Returns the file path if found.
+pub fn find_session_file(session_id: &str) -> Result<Option<PathBuf>> {
+    let home = std::env::var("HOME").context("HOME not set")?;
+    let base = Path::new(&home).join(".claude/projects");
+    if !base.exists() {
+        return Ok(None);
+    }
+    for project_entry in std::fs::read_dir(&base)? {
+        let project_dir = project_entry?.path();
+        let sessions_dir = project_dir.join("sessions");
+        if !sessions_dir.exists() {
+            continue;
+        }
+        for entry in std::fs::read_dir(&sessions_dir)? {
+            let path = entry?.path();
+            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            if stem == session_id {
+                return Ok(Some(path));
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[cfg(test)]
