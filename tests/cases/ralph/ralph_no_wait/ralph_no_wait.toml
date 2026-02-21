@@ -1,5 +1,5 @@
 [ralph]
-prompt = "Check TODO.md for unchecked tasks. If any exist, do the next one and mark it done. If all tasks are done, stop."
+prompt = "Check TODO.md for unchecked tasks. Complete one and mark it done."
 break_tag = "break"
 no_wait = true
 
