@@ -15,11 +15,11 @@ I'll check TODO.md for unchecked tasks.
 [3] Thinking...
 I found two unchecked tasks. I'll do the first one - create a hello.py that prints 'hi'.
 
-[4] ▶ Write  (1 line)  /tmp/coven-vcr-ralph_continue/hello.py
+[4] ▶ Write  (+1)  /tmp/coven-vcr-ralph_continue/hello.py
 [5] Thinking...
 Now I'll mark the task as done in TODO.md:
 
-[6] ▶ Edit  /tmp/coven-vcr-ralph_continue/TODO.md
+[6] ▶ Edit  (+1/-1)  /tmp/coven-vcr-ralph_continue/TODO.md
 [7] Thinking...
 Done! I've completed the first task:
 - Created `hello.py` with `print('hi')`
@@ -40,9 +40,9 @@ Session 5dac9680-69ab-4202-aa93-78ae1b40d431 (claude-haiku-4-5-20251001)
 [10] Thinking...
 I found an unchecked task in TODO.md: "Create a README.md with the title 'My Project'". Let me create that file and then mark the task as done.
 
-[11] ▶ Write  (1 line)  /tmp/coven-vcr-ralph_continue/README.md
+[11] ▶ Write  (+1)  /tmp/coven-vcr-ralph_continue/README.md
 [12] Thinking...
-[13] ▶ Edit  /tmp/coven-vcr-ralph_continue/TODO.md
+[13] ▶ Edit  (+1/-1)  /tmp/coven-vcr-ralph_continue/TODO.md
 [14] Thinking...
 Done! I created README.md with the title "My Project" and marked the task as complete in TODO.md. All tasks are now checked.
 
