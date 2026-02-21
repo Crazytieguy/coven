@@ -18,8 +18,10 @@ pub enum InputAction {
     Submit(String, InputMode),
     /// User wants to view a message (e.g. ":3", ":2/1", ":Bash", ":Edit[-1]").
     ViewMessage(String),
-    /// User cancelled input (Escape).
+    /// User cancelled input (Escape with text in buffer).
     Cancel,
+    /// User dismissed the prompt (Escape on empty buffer).
+    Dismiss,
     /// User pressed Ctrl-C.
     Interrupt,
     /// User pressed Ctrl-D.
@@ -334,9 +336,14 @@ impl InputHandler {
 
             KeyCode::Enter => self.handle_enter(event, out),
             KeyCode::Esc => {
+                let was_empty = self.buffer.is_empty();
                 self.deactivate();
                 self.clear_input_lines(out);
-                InputAction::Cancel
+                if was_empty {
+                    InputAction::Dismiss
+                } else {
+                    InputAction::Cancel
+                }
             }
 
             _ => InputAction::None,

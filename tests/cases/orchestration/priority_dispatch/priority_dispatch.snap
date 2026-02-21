@@ -401,6 +401,6 @@ Done  $0.02 · 10.4s · 4 turns  (:N to view)
   Total cost: $0.27
 
 Waiting for user: Need permission to read brief.md and board.md to sync work and pick a task
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 > 
 Removing worktree...

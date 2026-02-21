@@ -9,7 +9,7 @@ Session f8027909-8121-4350-a53e-1e6c37b9ae45 (claude-haiku-4-5-20251001)
 [2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 
 [interrupted — Ctrl+O to open interactive]
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 > Continue where you left off
 ---
 
@@ -20,5 +20,5 @@ The file **hello.txt** says: **"Hello from the test file!"**
 
 
 Done  $0.01 · 3.5s · 2 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

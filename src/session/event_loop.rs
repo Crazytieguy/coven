@@ -420,7 +420,7 @@ async fn handle_session_key_event<W: Write>(
         InputAction::EndSession => {
             runner.close_input();
         }
-        InputAction::Cancel => {
+        InputAction::Cancel | InputAction::Dismiss => {
             let flush = flush_event_buffer(locals, state, renderer);
             send_tag_warning(locals, runner, vcr).await?;
             if let FlushResult::Completed(ref result_text) = flush {
@@ -646,6 +646,17 @@ pub enum WaitResult {
     Text(String),
     /// User wants to drop into the native Claude TUI.
     Interactive,
+    /// User dismissed the wait prompt (Escape on empty buffer).
+    Dismissed,
+}
+
+/// Result from `wait_for_dismissable_input` — like `Option<String>` but
+/// distinguishes "user dismissed the wait" from "user exited entirely".
+pub enum WaitInterruptResult {
+    /// User submitted text.
+    Text(String),
+    /// User dismissed the wait (Escape on empty buffer).
+    Dismissed,
 }
 
 /// Show a prompt and wait for user to type a follow-up or exit.
@@ -667,7 +678,7 @@ pub async fn wait_for_followup<W: Write>(
             Ok(FollowUpAction::Sent)
         }
         Some(WaitResult::Interactive) => Ok(FollowUpAction::Interactive),
-        None => Ok(FollowUpAction::Exit),
+        Some(WaitResult::Dismissed) | None => Ok(FollowUpAction::Exit),
     }
 }
 
@@ -686,6 +697,7 @@ pub async fn wait_for_user_input<W: Write>(
 
 /// Wait for user input from the interrupted state, handling Ctrl+O to open
 /// an interactive session. Returns the resume text, or None to exit.
+/// Escape-dismiss is treated as exit (returns None).
 pub async fn wait_for_interrupt_input<W: Write>(
     input: &mut InputHandler,
     renderer: &mut Renderer<W>,
@@ -694,6 +706,36 @@ pub async fn wait_for_interrupt_input<W: Write>(
     session_id: &str,
     base_config: &SessionConfig,
 ) -> Result<Option<String>> {
+    match wait_for_input_inner(input, renderer, io, vcr, session_id, base_config).await? {
+        Some(WaitInterruptResult::Text(text)) => Ok(Some(text)),
+        Some(WaitInterruptResult::Dismissed) | None => Ok(None),
+    }
+}
+
+/// Like `wait_for_interrupt_input`, but distinguishes "user dismissed the
+/// wait" (Escape on empty buffer) from "user exited" (Ctrl+C / Ctrl+D).
+/// Used for Ctrl+W waits where dismiss means "proceed without input."
+pub async fn wait_for_dismissable_input<W: Write>(
+    input: &mut InputHandler,
+    renderer: &mut Renderer<W>,
+    io: &mut Io,
+    vcr: &VcrContext,
+    session_id: &str,
+    base_config: &SessionConfig,
+) -> Result<Option<WaitInterruptResult>> {
+    wait_for_input_inner(input, renderer, io, vcr, session_id, base_config).await
+}
+
+/// Shared implementation for `wait_for_interrupt_input` and
+/// `wait_for_dismissable_input`.
+async fn wait_for_input_inner<W: Write>(
+    input: &mut InputHandler,
+    renderer: &mut Renderer<W>,
+    io: &mut Io,
+    vcr: &VcrContext,
+    session_id: &str,
+    base_config: &SessionConfig,
+) -> Result<Option<WaitInterruptResult>> {
     io.clear_event_channel();
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
     let interactive_config = SessionConfig {
@@ -702,10 +744,13 @@ pub async fn wait_for_interrupt_input<W: Write>(
     };
     loop {
         match wait_for_text_input(input, renderer, false, io, vcr).await? {
-            Some(WaitResult::Text(text)) => return Ok(Some(text)),
+            Some(WaitResult::Text(text)) => return Ok(Some(WaitInterruptResult::Text(text))),
             Some(WaitResult::Interactive) => {
                 open_interactive_session(&interactive_config, io, vcr)?;
                 renderer.render_returned_from_interactive();
+            }
+            Some(WaitResult::Dismissed) => {
+                return Ok(Some(WaitInterruptResult::Dismissed));
             }
             None => return Ok(None),
         }
@@ -758,6 +803,9 @@ async fn wait_for_text_input<W: Write>(
                         if !is_first_message {
                             input.set_has_hint_line();
                         }
+                    }
+                    InputAction::Dismiss => {
+                        return Ok(Some(WaitResult::Dismissed));
                     }
                     InputAction::Interrupt | InputAction::EndSession => {
                         return Ok(None);

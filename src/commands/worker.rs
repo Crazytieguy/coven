@@ -432,13 +432,14 @@ async fn run_phase_with_wait<W: Write>(
             .write_raw(&format!("  Total cost: ${:.2}\r\n", ctx.total_cost));
 
         // User pressed Ctrl+W — wait for input before parsing/following transition.
+        // Escape dismisses the wait and falls through to transition parsing.
         if wait_requested {
             ctx.renderer.write_raw("\x07");
             ctx.renderer.write_raw("\r\n[waiting for user input]\r\n");
             let sid = session_id
                 .as_deref()
                 .context("no session ID for wait resume")?;
-            let Some(user_text) = event_loop::wait_for_interrupt_input(
+            match event_loop::wait_for_dismissable_input(
                 ctx.input,
                 ctx.renderer,
                 ctx.io,
@@ -447,12 +448,17 @@ async fn run_phase_with_wait<W: Write>(
                 &base_config,
             )
             .await?
-            else {
-                return Ok(None);
-            };
-            phase_prompt = user_text;
-            phase_resume = session_id;
-            continue;
+            {
+                Some(event_loop::WaitInterruptResult::Text(user_text)) => {
+                    phase_prompt = user_text;
+                    phase_resume = session_id;
+                    continue;
+                }
+                Some(event_loop::WaitInterruptResult::Dismissed) => {
+                    // Fall through to parse transitions from the last result.
+                }
+                None => return Ok(None),
+            }
         }
 
         let Some(transition) = parse_transition_with_retry(

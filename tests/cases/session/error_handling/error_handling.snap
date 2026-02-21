@@ -27,5 +27,5 @@ Done! The issue was that the test script was exiting with status code 1 (failure
 
 
 Done  $0.03 · 14.3s · 8 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

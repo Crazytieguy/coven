@@ -252,7 +252,7 @@ impl<W: Write> Renderer<W> {
             } => return,
             HintContext::Prompt {
                 is_first_message: false,
-            } => "Enter follow up · :N view message · Ctrl+O interactive",
+            } => "Enter follow up · :N view message · Ctrl+O interactive · Esc skip",
         };
         queue!(self.out, Print(theme::dim().apply(help)), Print("\r\n")).ok();
         self.out.flush().ok();
