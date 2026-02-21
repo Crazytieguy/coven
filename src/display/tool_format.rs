@@ -95,31 +95,16 @@ pub fn format_tool_detail(name: &str, input: &Value) -> String {
             let path = get_str(input, "file_path").unwrap_or_default();
             let old_lines = get_str(input, "old_string").map_or(0, |s| s.lines().count());
             let new_lines = get_str(input, "new_string").map_or(0, |s| s.lines().count());
-            let added = new_lines.saturating_sub(old_lines);
-            let removed = old_lines.saturating_sub(new_lines);
-            if added > 0 || removed > 0 {
-                let diff = if added > 0 {
-                    format!("+{added}")
-                } else {
-                    format!("-{removed}")
-                };
-                format!("({diff})  {path}")
+            if old_lines > 0 || new_lines > 0 {
+                format!("(+{new_lines}/-{old_lines})  {path}")
             } else {
                 path.to_string()
             }
         }
         "Write" => {
             let path = get_str(input, "file_path").unwrap_or_default();
-            let lines = get_str(input, "content").map(|c| {
-                let count = c.lines().count();
-                if count == 1 {
-                    "(1 line)".to_string()
-                } else {
-                    format!("({count} lines)")
-                }
-            });
-            match lines {
-                Some(l) => format!("{l}  {path}"),
+            match get_str(input, "content").map(|c| c.lines().count()) {
+                Some(count) => format!("(+{count})  {path}"),
                 None => path.to_string(),
             }
         }
@@ -181,7 +166,7 @@ mod tests {
             "old_string": "line1\nline2\nline3",
             "new_string": "line1"
         });
-        assert_eq!(format_tool_detail("Edit", &input), "(-2)  /src/main.rs");
+        assert_eq!(format_tool_detail("Edit", &input), "(+1/-3)  /src/main.rs");
     }
 
     #[test]
@@ -191,7 +176,7 @@ mod tests {
             "file_path": "/hello.txt",
             "content": "single line\n"
         });
-        assert_eq!(format_tool_detail("Write", &input), "(1 line)  /hello.txt");
+        assert_eq!(format_tool_detail("Write", &input), "(+1)  /hello.txt");
     }
 
     #[test]
