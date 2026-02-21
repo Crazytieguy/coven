@@ -473,15 +473,33 @@ impl<W: Write> Renderer<W> {
             text = extract_result_text(block);
         }
 
-        // Deregister completed subagent (tool_use_id in message content)
-        if let Some(tool_use_id) = msg_content_block
+        // Deregister completed subagent (tool_use_id in message content).
+        // If this is a subagent result, attach it to the Task tool's own
+        // StoredMessage (by tool_number) instead of the last message.
+        let subagent = msg_content_block
             .and_then(|b| b.get("tool_use_id"))
             .and_then(Value::as_str)
-        {
-            self.active_subagents.remove(tool_use_id);
-        }
+            .and_then(|id| self.active_subagents.remove(id));
 
-        self.apply_tool_result(&text, is_error);
+        if let Some(sa) = subagent {
+            if !text.is_empty() {
+                let prefix = format!("[{}] ", sa.tool_number);
+                if let Some(msg) = self
+                    .messages
+                    .iter_mut()
+                    .find(|m| m.label.starts_with(&prefix))
+                {
+                    msg.result = Some(text.clone());
+                }
+            }
+            if is_error {
+                self.render_error_line(&text);
+            } else {
+                self.close_tool_line();
+            }
+        } else {
+            self.apply_tool_result(&text, is_error);
+        }
         self.out.flush().ok();
     }
 
