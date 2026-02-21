@@ -73,9 +73,13 @@ pub fn format_tool_view(tool_name: &str, input: &Value) -> Option<String> {
         }
         "Task" => {
             let desc = get_str(input, "description")?;
-            match get_str(input, "subagent_type") {
-                Some(agent_type) => Some(format!("[{agent_type}] {desc}")),
-                None => Some(desc.to_string()),
+            let header = match get_str(input, "subagent_type") {
+                Some(agent_type) => format!("[{agent_type}] {desc}"),
+                None => desc.to_string(),
+            };
+            match get_str(input, "prompt") {
+                Some(prompt) => Some(format!("{header}\n\n{prompt}")),
+                None => Some(header),
             }
         }
         _ => None,
