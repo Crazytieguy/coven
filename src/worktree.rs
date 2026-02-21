@@ -204,7 +204,6 @@ pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeEntry>, WorktreeEr
 /// - Rsyncs gitignored files from main repo to worktree
 /// - Worktree location: `<base_path>/<project>/<branch>/`
 pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
-    // Validate git repo
     if !git_status(options.repo_path, &["rev-parse", "--git-dir"])? {
         return Err(WorktreeError::NotGitRepo);
     }
@@ -214,7 +213,6 @@ pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
         None => generate_branch_name(),
     };
 
-    // Check branch doesn't already exist
     if git_status(
         options.repo_path,
         &[
@@ -227,7 +225,6 @@ pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
         return Err(WorktreeError::BranchExists(branch));
     }
 
-    // Find main worktree to get project name
     let (main_path, _) = find_main_worktree(options.repo_path)?;
     let project = main_path
         .file_name()
@@ -236,15 +233,12 @@ pub fn spawn(options: &SpawnOptions<'_>) -> Result<SpawnResult, WorktreeError> {
 
     let worktree_path = options.base_path.join(project).join(&branch);
 
-    // Create parent directory
     std::fs::create_dir_all(options.base_path.join(project))
         .map_err(|e| WorktreeError::GitCommand(format!("failed to create directory: {e}")))?;
 
-    // Create worktree with new branch (from the main repo)
     let wt_str = path_str(&worktree_path)?;
     git(&main_path, &["worktree", "add", "-b", &branch, wt_str])?;
 
-    // Copy gitignored files via rsync
     rsync_ignored(&main_path, &worktree_path)?;
 
     Ok(SpawnResult {
