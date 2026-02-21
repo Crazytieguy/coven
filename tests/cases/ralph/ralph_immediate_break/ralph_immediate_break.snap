@@ -1,0 +1,28 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt
+
+--- Iteration 1 ---
+
+Session 911e5e84-6a54-438e-8ca7-0e7ef37caa23 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+I'll check the TODO.md file for any unchecked tasks.
+
+[2] ▶ Read  /tmp/coven-vcr-ralph_immediate_break/TODO.md
+[3] Thinking...
+All tasks in TODO.md are already checked and completed:
+- ✅ Create a hello.py that prints 'hi'
+- ✅ Create a README.md with the title 'My Project'
+
+Since there are no unchecked tasks remaining, I'm stopping here.
+
+<break>All TODO tasks are completed</break>
+
+
+Done  $0.01 · 3.5s · 2 turns  (:N to view)
+  Total cost: $0.01
+
+Loop complete (1 iteration): All TODO tasks are completed

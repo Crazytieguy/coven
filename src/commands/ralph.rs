@@ -40,8 +40,8 @@ pub struct RalphConfig {
 impl RalphConfig {
     fn system_prompt(&self) -> String {
         let base = if self.no_break {
-            "You are running in a loop where each iteration starts a fresh session but the \
-             filesystem persists."
+            "After you respond, a new session will start with the same prompt and the \
+             filesystem as you left it. This repeats automatically."
                 .to_string()
         } else {
             ralph_system_prompt(&self.break_tag, self.no_wait)
@@ -85,21 +85,13 @@ fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
 /// Build the ralph system prompt for the given break tag.
 fn ralph_system_prompt(break_tag: &str, no_wait: bool) -> String {
     let mut prompt = format!(
-        "You are running in a multi-iteration loop where each iteration is a fresh Claude \
-         session, but the filesystem persists between iterations. When your response ends \
-         normally (without special tags), the next iteration starts automatically — this is \
-         the expected default.\n\n\
-         The loop exists to complete the user's ENTIRE request, which may take many \
-         iterations. Each iteration should make progress, then finish normally. Finishing a \
-         response is NOT finishing the task — the next iteration continues where you left \
-         off.\n\n\
-         `<{break_tag}>reason</{break_tag}>` — **permanently ends the loop.** Only use it when:\n\
-         1. Everything the user asked for is fully complete\n\
-         2. You have verified no remaining work exists\n\
-         3. Another iteration would accomplish nothing new\n\n\
-         Do NOT use `<{break_tag}>` just because you completed work in this iteration — \
-         there may be more to do. When in doubt, finish without `<{break_tag}>` and let the \
-         next iteration reassess."
+        "After you respond, a new session will start with the same prompt and the filesystem \
+         as you left it. This repeats automatically — no special action is needed to continue.\n\n\
+         `<{break_tag}>reason</{break_tag}>` permanently ends the loop. Before using it, \
+         consider: if a new session received the same prompt and looked at the current state of \
+         the project, would it find something worth doing? If yes, don't break — finishing your \
+         current work doesn't mean the next session has nothing to do. If no, use `<{break_tag}>` \
+         to stop. When in doubt, let the loop continue."
     );
     if !no_wait {
         prompt.push_str("\n\n");

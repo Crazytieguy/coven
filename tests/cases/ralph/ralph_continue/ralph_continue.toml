@@ -1,0 +1,6 @@
+[ralph]
+prompt = "Check TODO.md for unchecked tasks. If any exist, do exactly one and mark it done. Do not do more than one task per session."
+break_tag = "break"
+
+[files]
+"TODO.md" = "# Tasks\n- [ ] Create a hello.py that prints 'hi'\n- [ ] Create a README.md with the title 'My Project'\n"
