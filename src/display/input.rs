@@ -92,11 +92,9 @@ impl InputHandler {
     fn word_boundary_left(&self) -> usize {
         let chars: Vec<char> = self.buffer.chars().collect();
         let mut i = self.cursor;
-        // Skip whitespace
         while i > 0 && chars[i - 1].is_whitespace() {
             i -= 1;
         }
-        // Skip word characters
         while i > 0 && !chars[i - 1].is_whitespace() {
             i -= 1;
         }
@@ -108,11 +106,9 @@ impl InputHandler {
         let chars: Vec<char> = self.buffer.chars().collect();
         let len = chars.len();
         let mut i = self.cursor;
-        // Skip word characters
         while i < len && !chars[i].is_whitespace() {
             i += 1;
         }
-        // Skip whitespace
         while i < len && chars[i].is_whitespace() {
             i += 1;
         }
@@ -257,7 +253,6 @@ impl InputHandler {
             KeyCode::Char('d') if ctrl => InputAction::EndSession,
             KeyCode::Char('o') if ctrl => InputAction::Interactive,
 
-            // Cursor movement
             KeyCode::Left if ctrl || alt => {
                 self.move_cursor(self.word_boundary_left(), out);
                 InputAction::None
@@ -299,7 +294,6 @@ impl InputHandler {
                 InputAction::None
             }
 
-            // Deletion
             KeyCode::Backspace if alt => {
                 let t = self.word_boundary_left();
                 self.delete_range(t, self.cursor, out);
@@ -328,19 +322,16 @@ impl InputHandler {
                 InputAction::None
             }
 
-            // Character insertion
             KeyCode::Char(c) => {
                 self.insert_char(c, out);
                 InputAction::None
             }
 
-            // Backspace
             KeyCode::Backspace if self.cursor > 0 => {
                 self.delete_range(self.cursor - 1, self.cursor, out);
                 InputAction::None
             }
 
-            // Submit / cancel
             KeyCode::Enter => self.handle_enter(event, out),
             KeyCode::Esc => {
                 self.deactivate();

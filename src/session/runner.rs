@@ -80,7 +80,6 @@ impl SessionRunner {
         let stderr = child.stderr.take().context("stderr should be piped")?;
         let mut stdin = child.stdin.take().context("stdin should be piped")?;
 
-        // Send initial prompt if provided
         if let Some(prompt) = config.prompt {
             let msg = format_user_message(&prompt)?;
             stdin

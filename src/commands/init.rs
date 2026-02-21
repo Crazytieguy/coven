@@ -118,7 +118,6 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         created.push(format!("{COVEN_DIR}/land.sh"));
     }
 
-    // Create brief.md and board.md at project root
     for (name, initial_content) in [("brief.md", BRIEF_TEMPLATE), ("board.md", BOARD_TEMPLATE)] {
         let path = project_root.join(name);
         if path.exists() {
@@ -129,7 +128,6 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         }
     }
 
-    // Ensure scratch.md is gitignored
     let gitignore_path = project_root.join(".gitignore");
     let gitignore_content = if gitignore_path.exists() {
         fs::read_to_string(&gitignore_path).context("failed to read .gitignore")?

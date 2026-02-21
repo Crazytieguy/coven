@@ -19,8 +19,6 @@ pub enum InboundEvent {
     RateLimit(RateLimitEvent),
 }
 
-// --- System events ---
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "subtype")]
 pub enum SystemEvent {
@@ -44,8 +42,6 @@ pub struct InitEvent {
     #[serde(default, rename = "tools")]
     _tools: Vec<Value>,
 }
-
-// --- Stream events (raw API streaming) ---
 
 /// Wrapper for a stream event. The `event` field contains the actual API event payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,8 +94,6 @@ pub struct Delta {
     _extra: Value,
 }
 
-// --- Assistant message (complete) ---
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessage {
     pub message: AssistantMessageBody,
@@ -137,8 +131,6 @@ pub enum AssistantContentBlock {
     Other,
 }
 
-// --- User (tool result) ---
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserToolResult {
     /// Tool result — can be an object (regular tools), array (MCP tools), or string (errors).
@@ -152,8 +144,6 @@ pub struct UserToolResult {
     #[serde(flatten)]
     _extra: Value,
 }
-
-// --- Result ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionResult {
@@ -172,8 +162,6 @@ pub struct SessionResult {
     #[serde(flatten)]
     _extra: Value,
 }
-
-// --- Rate limit events ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitEvent {
@@ -200,8 +188,6 @@ impl RateLimitInfo {
         self.status.contains("warning")
     }
 }
-
-// --- Outbound messages ---
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OutboundMessage {
