@@ -112,8 +112,7 @@ pub async fn run<W: Write>(
         }
     }
 
-    runner.close_input();
-    let _ = runner.wait().await;
+    runner.shutdown().await?;
     Ok(renderer.into_messages())
 }
 
@@ -139,8 +138,7 @@ async fn handle_outcome<W: Write>(
             {
                 FollowUpAction::Sent => Ok(true),
                 FollowUpAction::Interactive => {
-                    runner.close_input();
-                    let _ = runner.wait().await;
+                    runner.shutdown().await?;
                     let Some(session_id) = state.session_id.take() else {
                         return Ok(false);
                     };
