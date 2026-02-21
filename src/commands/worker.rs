@@ -840,9 +840,9 @@ async fn run_phase_session<W: Write>(
         )
         .await?;
 
-        // Shut down gracefully, giving claude time to save the final
-        // message to the session file. The timeout prevents invisible
-        // continuations from async task notifications.
+        // The event loop has received the Result event (turn complete).
+        // Kill the process to prevent async task notifications from
+        // triggering an invisible continuation.
         runner.shutdown().await?;
 
         match outcome {

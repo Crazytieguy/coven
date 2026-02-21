@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 
 use crate::event::AppEvent;
 use crate::protocol::emit::format_user_message;
@@ -49,10 +47,6 @@ impl SessionConfig {
 pub struct SessionRunner {
     child: Option<Child>,
     stdin: Option<ChildStdin>,
-    /// Handle to the background stdout reader task. When this completes,
-    /// the process has closed stdout (which happens after session state
-    /// is persisted). Used by `shutdown()` to detect save completion.
-    reader_handle: Option<JoinHandle<()>>,
 }
 
 impl SessionRunner {
@@ -101,12 +95,11 @@ impl SessionRunner {
         }
 
         // Spawn stdout reader task (also collects stderr on exit)
-        let reader_handle = Self::spawn_reader(stdout, stderr, event_tx);
+        Self::spawn_reader(stdout, stderr, event_tx);
 
         Ok(Self {
             child: Some(child),
             stdin: Some(stdin),
-            reader_handle: Some(reader_handle),
         })
     }
 
@@ -116,7 +109,6 @@ impl SessionRunner {
         Self {
             child: None,
             stdin: None,
-            reader_handle: None,
         }
     }
 
@@ -199,34 +191,18 @@ impl SessionRunner {
         Ok(())
     }
 
-    /// Gracefully shut down the claude process.
+    /// Shut down the claude process after the current turn has completed.
     ///
-    /// Closes stdin to signal EOF, then waits for the stdout reader task to
-    /// finish. The reader completes when the CLI closes stdout, which happens
-    /// after session state has been persisted — so stdout closing is a
-    /// reliable signal that the session was saved. A generous timeout is kept
-    /// as a safety net for pathological cases (e.g., async task notifications
-    /// triggering an unexpected new turn after the result event).
+    /// Callers must ensure the event loop has already received a `Result`
+    /// event (confirming the turn is complete) before calling this. Closes
+    /// stdin and kills the process immediately to prevent the assistant from
+    /// starting a new turn (e.g., from async task notifications).
     pub async fn shutdown(&mut self) -> Result<()> {
         self.close_input();
-
-        // Wait for the stdout reader to finish. Once stdout closes, the CLI
-        // has finished all output including persisting session state.
-        let timed_out = if let Some(handle) = self.reader_handle.take() {
-            tokio::time::timeout(Duration::from_secs(30), handle)
-                .await
-                .is_err()
-        } else {
-            false
-        };
-
         if let Some(child) = &mut self.child {
-            if timed_out {
-                child.kill().await?;
-            }
-            // Reap the child process. After stdout closes the process has
-            // typically already exited, so this returns near-instantly.
-            let _ = child.wait().await;
+            // kill() sends SIGKILL and waits for the process to exit.
+            // The process may have already exited after stdin close.
+            child.kill().await.ok();
         }
         Ok(())
     }
@@ -235,7 +211,7 @@ impl SessionRunner {
         stdout: ChildStdout,
         stderr: ChildStderr,
         event_tx: mpsc::UnboundedSender<AppEvent>,
-    ) -> JoinHandle<()> {
+    ) {
         // Collect stderr in the background so it doesn't block the process.
         let stderr_handle = tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
@@ -275,7 +251,7 @@ impl SessionRunner {
             }
 
             let _ = event_tx.send(AppEvent::ProcessExit(None));
-        })
+        });
     }
 }
 

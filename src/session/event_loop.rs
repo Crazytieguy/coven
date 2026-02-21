@@ -500,9 +500,9 @@ async fn execute_fork<W: Write>(
         bail!("fork detected but fork_config is None");
     };
 
-    // Shut down the parent gracefully so it can save the final message
-    // (with fork tags) to the session file before fork children run.
-    // The timeout prevents invisible continuations from async tasks.
+    // The event loop has received the Result event (turn complete, with
+    // fork tags). Kill the parent before fork children run to prevent
+    // async task notifications from triggering an invisible continuation.
     runner.shutdown().await?;
 
     let msg = fork::run_fork(&session_id, tasks, fork_cfg, renderer, vcr).await?;
