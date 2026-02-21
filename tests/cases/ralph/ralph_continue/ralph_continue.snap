@@ -1,0 +1,68 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt
+
+--- Iteration 1 ---
+
+Session 3adba9a3-3cdc-4708-94f2-b7168a06b556 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+I'll check TODO.md for unchecked tasks.
+
+[2] ▶ Read  /tmp/coven-vcr-ralph_continue/TODO.md
+[3] Thinking...
+I found two unchecked tasks. I'll do the first one - create a hello.py that prints 'hi'.
+
+[4] ▶ Write  (1 line)  /tmp/coven-vcr-ralph_continue/hello.py
+[5] Thinking...
+Now I'll mark the task as done in TODO.md:
+
+[6] ▶ Edit  /tmp/coven-vcr-ralph_continue/TODO.md
+[7] Thinking...
+Done! I've completed the first task:
+- Created `hello.py` with `print('hi')`
+- Marked it as done in TODO.md
+
+One task remains unchecked: Create a README.md with the title 'My Project'
+
+
+Done  $0.02 · 6.7s · 4 turns  (:N to view)
+  Total cost: $0.02
+
+--- Iteration 2 ---
+
+Session 5dac9680-69ab-4202-aa93-78ae1b40d431 (claude-haiku-4-5-20251001)
+
+[8] Thinking...
+[9] ▶ Read  /tmp/coven-vcr-ralph_continue/TODO.md
+[10] Thinking...
+I found an unchecked task in TODO.md: "Create a README.md with the title 'My Project'". Let me create that file and then mark the task as done.
+
+[11] ▶ Write  (1 line)  /tmp/coven-vcr-ralph_continue/README.md
+[12] Thinking...
+[13] ▶ Edit  /tmp/coven-vcr-ralph_continue/TODO.md
+[14] Thinking...
+Done! I created README.md with the title "My Project" and marked the task as complete in TODO.md. All tasks are now checked.
+
+
+Done  $0.02 · 5.7s · 4 turns  (:N to view)
+  Total cost: $0.03
+
+--- Iteration 3 ---
+
+Session 5e37b791-f6cf-45c1-8736-d526a768ae8c (claude-haiku-4-5-20251001)
+
+[15] Thinking...
+[16] ▶ Read  /tmp/coven-vcr-ralph_continue/TODO.md
+[17] Thinking...
+All tasks in TODO.md are already checked off. There are no unchecked tasks to complete.
+
+<break>No unchecked tasks remaining</break>
+
+
+Done  $0.01 · 3.2s · 2 turns  (:N to view)
+  Total cost: $0.05
+
+Loop complete (3 iterations): No unchecked tasks remaining

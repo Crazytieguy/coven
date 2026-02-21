@@ -419,6 +419,8 @@ vcr_test!(fork / fork_single);
 // Ralph: loop mode
 vcr_test!(ralph / ralph_break);
 vcr_test!(ralph / ralph_no_wait);
+vcr_test!(ralph / ralph_continue);
+vcr_test!(ralph / ralph_immediate_break);
 
 // Orchestration: worker, init, status, gc
 vcr_test!(orchestration / worker_basic);
