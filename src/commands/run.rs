@@ -238,7 +238,7 @@ async fn get_initial_runner<W: Write>(
             state.session_id = Some(session_id);
             Ok(Some(runner))
         }
-        None => Ok(None),
+        Some(event_loop::WaitResult::Dismissed) | None => Ok(None),
     }
 }
 

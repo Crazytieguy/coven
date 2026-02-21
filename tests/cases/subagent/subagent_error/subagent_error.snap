@@ -19,5 +19,5 @@ Both Read calls were executed simultaneously in a single function_calls block.
 
 
 Done  $0.02 · 7.7s · 2 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

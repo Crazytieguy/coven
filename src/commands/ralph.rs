@@ -252,17 +252,21 @@ async fn handle_session_outcome<W: Write>(
                 .write_raw(&format!("  Total cost: ${:.2}\r\n", iter.total_cost));
 
             // User pressed Ctrl+W — wait for input before continuing.
+            // Escape dismisses the wait and falls through to tag processing.
             if state.wait_requested {
                 state.wait_requested = false;
                 ctx.renderer.write_raw("\x07");
                 ctx.renderer.write_raw("\r\n[waiting for user input]\r\n");
-                let Some((runner, new_state)) =
-                    wait_input_and_resume(state, session_config, ctx).await?
-                else {
-                    return Ok(LoopAction::Exit);
-                };
-                iter.iteration_cost = 0.0;
-                return Ok(LoopAction::Resume(Box::new(runner), new_state));
+                match wait_input_and_resume(state, session_config, ctx).await? {
+                    WaitResumeAction::Resume(runner, new_state) => {
+                        iter.iteration_cost = 0.0;
+                        return Ok(LoopAction::Resume(runner, new_state));
+                    }
+                    WaitResumeAction::Dismissed => {
+                        // Fall through to tag processing below.
+                    }
+                    WaitResumeAction::Exit => return Ok(LoopAction::Exit),
+                }
             }
 
             // Check for wait-for-user before break tag (user input takes precedence).
@@ -274,13 +278,16 @@ async fn handle_session_outcome<W: Write>(
                 ctx.renderer.write_raw("\x07");
                 ctx.renderer
                     .write_raw(&format!("\r\nWaiting for user: {reason}\r\n"));
-                let Some((runner, new_state)) =
-                    wait_input_and_resume(state, session_config, ctx).await?
-                else {
-                    return Ok(LoopAction::Exit);
-                };
-                iter.iteration_cost = 0.0;
-                return Ok(LoopAction::Resume(Box::new(runner), new_state));
+                match wait_input_and_resume(state, session_config, ctx).await? {
+                    WaitResumeAction::Resume(runner, new_state) => {
+                        iter.iteration_cost = 0.0;
+                        return Ok(LoopAction::Resume(runner, new_state));
+                    }
+                    WaitResumeAction::Dismissed => {
+                        // Fall through to break tag check below.
+                    }
+                    WaitResumeAction::Exit => return Ok(LoopAction::Exit),
+                }
             }
 
             if let Some(reason) = config.scan_break(&result_text) {
@@ -298,12 +305,12 @@ async fn handle_session_outcome<W: Write>(
             state.wait_requested = false;
             iter.iteration_cost += state.total_cost_usd;
             ctx.renderer.render_interrupted();
-            let Some((runner, new_state)) =
-                wait_input_and_resume(state, session_config, ctx).await?
-            else {
-                return Ok(LoopAction::Exit);
-            };
-            Ok(LoopAction::Resume(Box::new(runner), new_state))
+            match wait_input_and_resume(state, session_config, ctx).await? {
+                WaitResumeAction::Resume(runner, new_state) => {
+                    Ok(LoopAction::Resume(runner, new_state))
+                }
+                WaitResumeAction::Dismissed | WaitResumeAction::Exit => Ok(LoopAction::Exit),
+            }
         }
         SessionOutcome::Reload { .. } => {
             let Some(session_id) = state.session_id.take() else {
@@ -324,19 +331,29 @@ async fn handle_session_outcome<W: Write>(
     }
 }
 
+/// What to do after waiting for user input at a pause point.
+enum WaitResumeAction {
+    /// User provided text — resume with a new session.
+    Resume(Box<SessionRunner>, SessionState),
+    /// User dismissed the wait (Escape) — proceed without resuming.
+    Dismissed,
+    /// User exited (Ctrl+C / Ctrl+D).
+    Exit,
+}
+
 /// Wait for user input and spawn a resumed session.
 ///
-/// Takes the `session_id` from `state`; returns `None` if no session ID is
-/// available or the user exited without providing input.
+/// Takes the `session_id` from `state`. On `Dismissed`, the session ID is
+/// restored so the caller can fall through to further processing.
 async fn wait_input_and_resume<W: Write>(
     state: &mut SessionState,
     session_config: &SessionConfig,
     ctx: &mut Ctx<'_, W>,
-) -> Result<Option<(SessionRunner, SessionState)>> {
+) -> Result<WaitResumeAction> {
     let Some(session_id) = state.session_id.take() else {
-        return Ok(None);
+        return Ok(WaitResumeAction::Exit);
     };
-    let Some(text) = event_loop::wait_for_interrupt_input(
+    match event_loop::wait_for_dismissable_input(
         ctx.input,
         ctx.renderer,
         ctx.io,
@@ -345,16 +362,22 @@ async fn wait_input_and_resume<W: Write>(
         session_config,
     )
     .await?
-    else {
-        return Ok(None);
-    };
-    let resume_config = session_config.resume_with(text, session_id.clone());
-    let runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
-    let new_state = SessionState {
-        session_id: Some(session_id),
-        ..Default::default()
-    };
-    Ok(Some((runner, new_state)))
+    {
+        Some(event_loop::WaitInterruptResult::Text(text)) => {
+            let resume_config = session_config.resume_with(text, session_id.clone());
+            let runner = event_loop::spawn_session(resume_config, ctx.io, ctx.vcr).await?;
+            let new_state = SessionState {
+                session_id: Some(session_id),
+                ..Default::default()
+            };
+            Ok(WaitResumeAction::Resume(Box::new(runner), new_state))
+        }
+        Some(event_loop::WaitInterruptResult::Dismissed) => {
+            state.session_id = Some(session_id);
+            Ok(WaitResumeAction::Dismissed)
+        }
+        None => Ok(WaitResumeAction::Exit),
+    }
 }
 
 #[cfg(test)]

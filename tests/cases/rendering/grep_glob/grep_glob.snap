@@ -25,5 +25,5 @@ The other Rust file (`src/lib.rs`) only contains a helper function `add()` and d
 
 
 Done  $0.04 · 8.6s · 5 turns  (:N to view)
-Enter follow up · :N view message · Ctrl+O interactive
+Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >
