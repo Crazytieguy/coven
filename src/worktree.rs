@@ -365,6 +365,7 @@ fn rsync_ignored(main_path: &Path, worktree_path: &Path) -> Result<(), WorktreeE
 
     let mut child = Command::new("rsync")
         .arg("-a")
+        .arg("-r")
         .arg("--files-from=-")
         .arg(format!("{}/", main_path.display()))
         .arg(format!("{}/", worktree_path.display()))
