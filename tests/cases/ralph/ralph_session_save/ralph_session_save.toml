@@ -1,0 +1,7 @@
+[ralph]
+prompt = "What is 2+2? Answer briefly then stop."
+break_tag = "break"
+
+# No files needed — this is a simple Q&A to verify session shutdown behavior.
+# After the model answers and outputs <break>, the session should be saved
+# before the process is killed.

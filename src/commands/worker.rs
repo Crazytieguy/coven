@@ -848,9 +848,10 @@ async fn run_phase_session<W: Write>(
         )
         .await?;
 
-        // Kill the CLI process immediately to prevent async task
-        // notifications from triggering an invisible continuation.
-        runner.kill().await?;
+        // The event loop has received the Result event (turn complete).
+        // Kill the process to prevent async task notifications from
+        // triggering an invisible continuation.
+        runner.shutdown().await?;
 
         match outcome {
             SessionOutcome::Completed { result_text } => {

@@ -197,9 +197,10 @@ pub async fn ralph<W: Write>(
                 &features,
             )
             .await?;
-            // Kill the CLI process immediately to prevent async task
-            // notifications from triggering an invisible continuation.
-            runner.kill().await?;
+            // The event loop has received the Result event (turn complete).
+            // Shut down gracefully: close stdin and wait for the process to
+            // exit (saving session state). Falls back to SIGKILL on timeout.
+            runner.shutdown().await?;
 
             match handle_session_outcome(
                 outcome,
