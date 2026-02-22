@@ -59,7 +59,7 @@ Orchestration worker: generic agent loop. Creates a git worktree, runs agents th
 
 ### `coven init`
 
-Set up orchestration for a project — creates `.coven/` directory (config, agent prompts, system doc, land script), `brief.md`, and `board.md`.
+Set up orchestration for a project — creates `.coven/` directory (config, agent prompts, system doc, land script) and `brief.md`.
 
 ### `coven status` / `coven gc`
 
@@ -80,7 +80,7 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 ## Orchestration
 
-`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: dispatch reads `brief.md` (human tasks) and `board.md` (agent-managed issues), then chains through plan, implement, and review agents via `<next>` transitions. See `.coven/system.md` after init for details.
+`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: dispatch reads `brief.md` and picks tasks, then chains through main and review agents via `<next>` transitions. See `.coven/system.md` after init for details.
 
 ## License
 

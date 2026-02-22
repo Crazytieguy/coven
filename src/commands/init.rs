@@ -9,8 +9,7 @@ use crate::agents::AGENTS_DIR;
 use crate::vcr::VcrContext;
 
 const DISPATCH_PROMPT: &str = include_str!("../../.coven/agents/dispatch.md");
-const PLAN_PROMPT: &str = include_str!("../../.coven/agents/plan.md");
-const IMPLEMENT_PROMPT: &str = include_str!("../../.coven/agents/implement.md");
+const MAIN_PROMPT: &str = include_str!("../../.coven/agents/main.md");
 const REVIEW_PROMPT: &str = include_str!("../../.coven/agents/review.md");
 const LAND_SCRIPT: &str = include_str!("../../.coven/land.sh");
 const SYSTEM_DOC: &str = include_str!("../../.coven/system.md");
@@ -27,12 +26,8 @@ const AGENT_TEMPLATES: &[TemplateFile] = &[
         content: DISPATCH_PROMPT,
     },
     TemplateFile {
-        path: "plan.md",
-        content: PLAN_PROMPT,
-    },
-    TemplateFile {
-        path: "implement.md",
-        content: IMPLEMENT_PROMPT,
+        path: "main.md",
+        content: MAIN_PROMPT,
     },
     TemplateFile {
         path: "review.md",
@@ -54,21 +49,8 @@ const BRIEF_TEMPLATE: &str = "\
 
 Add tasks here — one per line or section. Workers pick them up automatically.
 
-When workers have questions, they'll appear on `board.md` under `# Blocked`.
-Write your answers here (just reference the issue by name) and commit.
-
 You can also add general directives (\"prefer X over Y\", \"don't touch module Z\").
 Workers read this file but never edit it.
-";
-
-const BOARD_TEMPLATE: &str = "\
-# Blocked
-
-# Plan
-
-# Ready
-
-# Done
 ";
 
 /// Create agent templates, system doc, and project files.
@@ -118,14 +100,13 @@ fn create_files(project_root: &Path) -> Result<CreateFilesResult> {
         created.push(format!("{COVEN_DIR}/land.sh"));
     }
 
-    for (name, initial_content) in [("brief.md", BRIEF_TEMPLATE), ("board.md", BOARD_TEMPLATE)] {
-        let path = project_root.join(name);
-        if path.exists() {
-            skipped.push(name.to_string());
-        } else {
-            fs::write(&path, initial_content).with_context(|| format!("failed to write {name}"))?;
-            created.push(name.to_string());
-        }
+    // Create brief.md at project root
+    let brief_path = project_root.join("brief.md");
+    if brief_path.exists() {
+        skipped.push("brief.md".to_string());
+    } else {
+        fs::write(&brief_path, BRIEF_TEMPLATE).context("failed to write brief.md")?;
+        created.push("brief.md".to_string());
     }
 
     let gitignore_path = project_root.join(".gitignore");
@@ -183,10 +164,6 @@ pub async fn init(
     writeln!(
         writer,
         "Add tasks to brief.md and commit. Run `coven worker` to start."
-    )?;
-    writeln!(
-        writer,
-        "Workers will post questions to board.md — answer in brief.md."
     )?;
 
     let _ = stdin; // reserved for future interactive prompts

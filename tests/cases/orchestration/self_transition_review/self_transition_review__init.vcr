@@ -1,2 +1,0 @@
-{"label":"current_dir","args":null,"result":{"Ok":"/tmp/coven-vcr-self_transition_review"}}
-{"label":"init_create_files","args":"/tmp/coven-vcr-self_transition_review","result":{"Ok":{"created":[".coven/agents/dispatch.md",".coven/agents/plan.md",".coven/agents/implement.md",".coven/agents/review.md",".coven/system.md",".coven/config.toml",".coven/land.sh","board.md",".gitignore (added scratch.md)"],"skipped":["brief.md"]}}}
