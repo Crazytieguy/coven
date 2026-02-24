@@ -25,9 +25,9 @@ The native Claude Code TUI is resource-heavy, blocks on permission prompts, and 
 
 ```bash
 coven "explain this codebase"             # one-shot prompt
-coven                                      # interactive (type prompt at stdin)
-coven ralph "fix lint warnings"            # loop until done
-coven init && coven worker                 # orchestration
+coven                                      # interactive — Alt+Enter to follow up
+coven ralph "pick one task from TODO.md, do it, check it off"
+coven init && coven worker                 # multi-agent orchestration from brief.md
 ```
 
 ## Commands
@@ -80,7 +80,15 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 
 ## Orchestration
 
-`coven init` + `coven worker` enable multi-agent orchestration. Workers run a generic agent loop: dispatch reads `brief.md` and picks tasks, then chains through main and review agents via `<next>` transitions. See `.coven/system.md` after init for details.
+`coven init` + `coven worker` enable multi-agent orchestration. Write tasks in `brief.md`, then start workers:
+
+```markdown
+# Brief
+- Fix the typo in README.md: change "Helo" to "Hello"
+- Create a CONTRIBUTING.md with a "how to contribute" section
+```
+
+Workers run a generic agent loop: dispatch reads `brief.md` and picks tasks, then chains through main and review agents via `<next>` transitions. Run multiple workers for parallel execution. See `.coven/system.md` after init for details.
 
 ## License
 
