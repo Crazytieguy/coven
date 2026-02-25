@@ -67,7 +67,3 @@ Run builds/tests via `cargo build`, `cargo test`, `cargo clippy`, `cargo fmt`.
 When you create a new reusable script, offer to add a permission for it. Example: "I created scripts/analyze.sh. Want me to add `Bash(bash scripts/analyze.sh *)` to your permissions?"
 
 For string interpolation, heredocs, loops, or advanced xargs flags, write a script in `/tmp/claude-execution-allowed/coven/` instead.
-
-## Codebase exploration
-
-Always use `precis` for codebase exploration. Run `precis .` for a full overview, or `precis src/some/directory` to zoom into a specific area.
