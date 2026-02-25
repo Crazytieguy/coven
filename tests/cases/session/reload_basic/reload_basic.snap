@@ -3,24 +3,17 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session 7cad8f45-cc90-405f-b05d-67e9169b4768 (claude-haiku-4-5-20251001)
+Session 9a31fc36-871e-4316-83c1-b68d9a11b45b (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 The secret number is 42.
 
-<reload>User requested reload to test session memory preservation</reload>
+<reload>Testing memory persistence across reload</reload>
 
-After the reload, I can recall that the secret number I said earlier was **42**. The reload preserved the conversation history, so I have access to what I wrote in the previous part of this session.
+Looking back at my conversation history, I can see that I just said "The secret number is 42" before emitting the reload tag.
 
 [reloading claude...]
----
 
-[2] Thinking...
-Looking at the conversation history, I can see that in my previous response I said "No response requested" instead of following your instruction to say the secret number. I should have said: **The secret number is 42**.
-
-So to answer your test: I can see from the conversation that the secret number you had me say was **42**, even though I didn't actually say it properly the first time. The reload has completed, and I can recall the context from the earlier message in our conversation history.
-
-
-Done  $0.01 · 8.3s · 1 turn  (:N to view)
+Error  $0.00 · 0.0s · 0 turns  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

@@ -5,7 +5,7 @@ pub mod run;
 pub mod status;
 pub mod worker;
 
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::Path;
 
 use anyhow::Result;
@@ -17,16 +17,16 @@ use crate::vcr::VcrContext;
 
 /// Guard that disables terminal raw mode on drop.
 ///
-/// When `active` is true (live mode), raw mode was enabled on creation
-/// and will be disabled on drop. When false (VCR replay), the guard is inert.
+/// When `active` is true (real terminal), raw mode was enabled on creation
+/// and will be disabled on drop. When false (no tty), the guard is inert.
 pub(crate) struct RawModeGuard {
     active: bool,
 }
 
 impl RawModeGuard {
-    /// Enable raw mode if `live` is true. Returns an inert guard otherwise.
-    pub fn acquire(live: bool) -> Result<Self> {
-        if live {
+    /// Enable raw mode if stdin is a terminal. Returns an inert guard otherwise.
+    pub fn acquire() -> Result<Self> {
+        if std::io::stdin().is_terminal() {
             terminal::enable_raw_mode()?;
             Ok(Self { active: true })
         } else {

@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::process::Command as StdCommand;
 
 use anyhow::{Context, Result, bail};
@@ -10,6 +10,7 @@ use crate::display::renderer::Renderer;
 use crate::event::{AppEvent, InputMode};
 use crate::fork::{self, ForkConfig};
 use crate::protocol::types::{AssistantContentBlock, InboundEvent, SystemEvent};
+use crate::session::persist;
 use crate::session::runner::{SessionConfig, SessionRunner};
 use crate::session::state::{SessionState, SessionStatus};
 use crate::vcr::{Io, IoEvent, VcrContext};
@@ -284,6 +285,14 @@ fn classify_claude_event<W: Write>(
         locals.result_text.clone_from(&result.result);
     }
 
+    // Track the latest top-level assistant message ID for persistence checks.
+    if let InboundEvent::Assistant(ref msg) = *inbound
+        && msg.parent_tool_use_id.is_none()
+        && let Some(ref id) = msg.message.id
+    {
+        state.last_message_id = Some(id.clone());
+    }
+
     let fork_tasks = if let InboundEvent::Result(_) = *inbound {
         locals
             .fork_config
@@ -499,6 +508,10 @@ async fn execute_fork<W: Write>(
     let Some(fork_cfg) = features.fork_config else {
         bail!("fork detected but fork_config is None");
     };
+
+    // Wait for the session file to contain the final message before killing,
+    // so the session can be safely resumed after fork children complete.
+    persist::wait_if_needed(state, vcr, features.base_config.working_dir.as_deref()).await;
 
     // Kill the parent CLI process to prevent async task notifications
     // from triggering an invisible continuation while fork children run.
@@ -746,7 +759,7 @@ async fn wait_for_input_inner<W: Write>(
         match wait_for_text_input(input, renderer, false, io, vcr).await? {
             Some(WaitResult::Text(text)) => return Ok(Some(WaitInterruptResult::Text(text))),
             Some(WaitResult::Interactive) => {
-                open_interactive_session(&interactive_config, io, vcr)?;
+                open_interactive_session(&interactive_config, io)?;
                 renderer.render_returned_from_interactive();
             }
             Some(WaitResult::Dismissed) => {
@@ -862,13 +875,9 @@ fn restore_terminal(io: &mut Io) -> Result<()> {
 /// The `config` provides shared arguments (system prompt, permission mode, etc.)
 /// and optionally a `resume` session ID. When `resume` is `None`, a fresh
 /// session is started with a generated UUID so the caller can resume it afterwards.
-pub fn open_interactive_session(
-    config: &SessionConfig,
-    io: &mut Io,
-    vcr: &VcrContext,
-) -> Result<String> {
-    if !vcr.is_live() {
-        bail!("interactive sessions are not supported in VCR replay mode");
+pub fn open_interactive_session(config: &SessionConfig, io: &mut Io) -> Result<String> {
+    if !std::io::stdin().is_terminal() {
+        bail!("interactive sessions require a terminal");
     }
 
     // Pause the background terminal reader so the child process gets

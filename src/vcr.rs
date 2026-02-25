@@ -324,18 +324,6 @@ impl VcrContext {
         }
         Ok(())
     }
-
-    pub fn is_live(&self) -> bool {
-        matches!(&self.mode, VcrMode::Live)
-    }
-
-    pub fn is_replay(&self) -> bool {
-        matches!(&self.mode, VcrMode::Replay(_))
-    }
-
-    pub fn is_record(&self) -> bool {
-        matches!(&self.mode, VcrMode::Record(_))
-    }
 }
 
 // ── IoEvent ─────────────────────────────────────────────────────────────

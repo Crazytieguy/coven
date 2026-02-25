@@ -67,6 +67,23 @@ impl RalphConfig {
         }
     }
 
+    fn watched_tags(&self) -> Vec<String> {
+        let mut tags = Vec::new();
+        if !self.no_wait {
+            tags.push("wait-for-user".to_string());
+        }
+        if !self.no_break {
+            tags.push(self.break_tag.clone());
+        }
+        if self.tag_flags.fork {
+            tags.push("fork".to_string());
+        }
+        if self.tag_flags.reload {
+            tags.push("reload".to_string());
+        }
+        tags
+    }
+
     /// Check for `<break>` tag (respects `--no-break`).
     fn scan_break(&self, text: &str) -> Option<String> {
         if self.no_break {
@@ -122,7 +139,7 @@ pub async fn ralph<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
-    let _raw = RawModeGuard::acquire(vcr.is_live())?;
+    let _raw = RawModeGuard::acquire()?;
 
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     renderer.render_hints(crate::display::renderer::HintContext::Initial {
@@ -138,19 +155,7 @@ pub async fn ralph<W: Write>(
         &config.working_dir,
     );
     let session_config = config.session_config(&system_prompt);
-    let mut watched_tags = Vec::new();
-    if !config.no_wait {
-        watched_tags.push("wait-for-user".to_string());
-    }
-    if !config.no_break {
-        watched_tags.push(config.break_tag.clone());
-    }
-    if config.tag_flags.fork {
-        watched_tags.push("fork".to_string());
-    }
-    if config.tag_flags.reload {
-        watched_tags.push("reload".to_string());
-    }
+    let watched_tags = config.watched_tags();
     let features = SessionFeatures {
         fork_config: fork_config.as_ref(),
         reload_enabled: config.tag_flags.reload,
@@ -197,8 +202,19 @@ pub async fn ralph<W: Write>(
                 &features,
             )
             .await?;
-            // Kill the CLI process immediately to prevent async task
-            // notifications from triggering an invisible continuation.
+            // Wait for session file persistence before killing, so the
+            // session can be safely resumed. Skip for interrupts/exits.
+            if matches!(
+                outcome,
+                SessionOutcome::Completed { .. } | SessionOutcome::Reload { .. }
+            ) {
+                crate::session::persist::wait_if_needed(
+                    &state,
+                    ctx.vcr,
+                    config.working_dir.as_deref(),
+                )
+                .await;
+            }
             runner.kill().await?;
 
             match handle_session_outcome(
@@ -245,7 +261,7 @@ async fn handle_session_outcome<W: Write>(
     ctx: &mut Ctx<'_, W>,
 ) -> Result<LoopAction> {
     match outcome {
-        SessionOutcome::Completed { result_text } => {
+        SessionOutcome::Completed { result_text, .. } => {
             iter.iteration_cost += state.total_cost_usd;
             iter.total_cost += iter.iteration_cost;
             ctx.renderer

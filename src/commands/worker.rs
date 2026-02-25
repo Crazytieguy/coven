@@ -119,7 +119,7 @@ pub async fn worker<W: Write>(
         })
         .await??;
 
-    let raw = RawModeGuard::acquire(vcr.is_live())?;
+    let raw = RawModeGuard::acquire()?;
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     renderer.render_hints(crate::display::renderer::HintContext::Initial {
         has_wait: !config.no_wait,
@@ -848,12 +848,23 @@ async fn run_phase_session<W: Write>(
         )
         .await?;
 
-        // Kill the CLI process immediately to prevent async task
-        // notifications from triggering an invisible continuation.
+        // Wait for session file persistence before killing, so the
+        // session can be safely resumed. Skip for interrupts/exits.
+        if matches!(
+            outcome,
+            SessionOutcome::Completed { .. } | SessionOutcome::Reload { .. }
+        ) {
+            crate::session::persist::wait_if_needed(
+                &state,
+                ctx.vcr,
+                base_config.working_dir.as_deref(),
+            )
+            .await;
+        }
         runner.kill().await?;
 
         match outcome {
-            SessionOutcome::Completed { result_text } => {
+            SessionOutcome::Completed { result_text, .. } => {
                 return Ok(PhaseOutcome::Completed {
                     result_text,
                     cost: state.total_cost_usd,

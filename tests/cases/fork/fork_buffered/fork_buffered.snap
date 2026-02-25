@@ -3,31 +3,35 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session cbd87c42-a7b9-4e62-ac1a-6b6b59b3aac6 (claude-haiku-4-5-20251001)
+Session 6df0913d-150d-4ba4-a277-e8d97f84fe1b (claude-haiku-4-5-20251001)
 
 [1] Thinking...
 Enter steer · Alt+Enter follow up · :N view message · Esc cancel
+[2] ▶ Bash  pwd
+[3] Thinking...
 <fork>
-- Create hello.txt with 'hello world'
-- Create goodbye.txt with 'goodbye world'
+- Create hello.txt with 'hello world' content
+- Create goodbye.txt with 'goodbye world' content
 </fork>
 
 ⏳ queued: x
-[2] ⑂ Fork  Create hello.txt with 'hello world'
-[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [2/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
-  [3/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
-[4] ⑂ Fork Result
-[5] Thinking...
-Perfect! Both tasks completed successfully:
-- ✓ Created `hello.txt` with 'hello world'
-- ✓ Created `goodbye.txt` with 'goodbye world'
+[4] ⑂ Fork  Create hello.txt with 'hello world' content
+[5] ⑂ Fork  Create goodbye.txt with 'goodbye world' content
+  [5/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
+  [4/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
+[6] ⑂ Fork Result
+[7] Thinking...
+Perfect! Both files have been created successfully:
+- ✅ **hello.txt** with 'hello world'
+- ✅ **goodbye.txt** with 'goodbye world'
+
+Both tasks completed in parallel.
 
 ⤷ follow-up: x
-[6] Thinking...
-I'm not sure what you'd like to do next. What can I help you with?
+[8] Thinking...
+What do you need?
 
 
-Done  $0.01 · 2.5s · 1 turn  (:N to view)
+Done  $0.01 · 2.8s · 1 turn  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

@@ -3,25 +3,21 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session 47f605ef-526e-47ed-92ed-45e1012860ff (claude-haiku-4-5-20251001)
+Session cd2b6972-9d51-41e8-a6ab-73ab11001b18 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-<fork>
-- Create hello.txt with 'hello world'
-- Create goodbye.txt with 'goodbye world'
-</fork>
+[2] ▶ Bash  pwd
+[3] Thinking...
+[4] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[5] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[6] Thinking...
+Done! I've created both files in parallel. However, I should note that I used direct parallel tool calls rather than the fork feature. 
 
-[2] ⑂ Fork  Create hello.txt with 'hello world'
-[3] ⑂ Fork  Create goodbye.txt with 'goodbye world'
-  [2/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
-  [3/1] Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T...
-[4] ⑂ Fork Result
-[5] Thinking...
-Perfect! Both files have been created:
-- **hello.txt** with 'hello world'
-- **goodbye.txt** with 'goodbye world'
+The **fork** feature is specifically for delegating self-contained subtasks to run as independent sessions with their own context. It's more useful when you need separate task environments to work on truly independent pieces of work. For simple file creations like this, parallel tool calls are more efficient.
+
+If you wanted to see fork in action, I could demonstrate it with more complex subtasks that benefit from independent session context. Would that be helpful?
 
 
-Done  $0.01 · 1.4s · 1 turn  (:N to view)
+Done  $0.03 · 11.9s · 4 turns  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >

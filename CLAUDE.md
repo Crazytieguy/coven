@@ -16,7 +16,7 @@ See @README.md for user-facing documentation.
 - Dependency docs available in `target/doc-md/`, index: @target/doc-md/index.md
 - Regenerate docs after adding a dependency with `cargo doc-md`
 - Never write `.vcr` files directly — they must only be created or modified by `cargo run --bin record-vcr`. Prefer re-recording specific cases: `cargo run --bin record-vcr simple_qa` re-records one, `cargo run --bin record-vcr simple_qa follow_up` re-records a few. Re-recording all fixtures (`cargo run --bin record-vcr`) is expensive — only do it when changes affect many tests (e.g. prompt or system changes). After re-recording, run `cargo test` to see snapshot diffs, iterate as needed, then accept with `cargo insta accept`. Always run VCR recordings with a 1 minute timeout (using the Bash tool parameter) — they can hang indefinitely.
-- Always prefer properly VCR-recording I/O operations over working around them. Every external I/O call (filesystem, process info, network, etc.) should go through `vcr.call()` so it's recorded during recording and replayed deterministically during tests. Never use `vcr.is_live()`/`vcr.is_replay()` guards to skip I/O — instead, wrap the I/O in a VCR call.
+- Always prefer properly VCR-recording I/O operations over working around them. Every external I/O call (filesystem, process info, network, etc.) should go through `vcr.call()` so it's recorded during recording and replayed deterministically during tests. Never skip I/O based on VCR mode — wrap it in a VCR call instead. For terminal concerns (raw mode, interactive sessions), check `stdin().is_terminal()` rather than VCR mode.
 - VCR tests aren't just for CLI functionality — orchestration tests are also evals that check how well models pilot the system given our prompts and agents. Improving prompts can be validated by re-recording and checking snapshot diffs.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
 - Never make security-relevant decisions without confirmation. This includes permission modes, authentication, access control, and anything that affects the trust boundary of the system. Always apply least-privilege: when granting permissions to spawned agents (e.g. in test fixtures), allow only the specific commands needed, never broad wildcards like `Bash(*)`.
@@ -67,3 +67,7 @@ Run builds/tests via `cargo build`, `cargo test`, `cargo clippy`, `cargo fmt`.
 When you create a new reusable script, offer to add a permission for it. Example: "I created scripts/analyze.sh. Want me to add `Bash(bash scripts/analyze.sh *)` to your permissions?"
 
 For string interpolation, heredocs, loops, or advanced xargs flags, write a script in `/tmp/claude-execution-allowed/coven/` instead.
+
+## Codebase exploration
+
+Always use `precis` for codebase exploration. Run `precis .` for a full overview, or `precis src/some/directory` to zoom into a specific area.

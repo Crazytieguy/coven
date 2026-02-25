@@ -42,7 +42,7 @@ pub async fn run<W: Write>(
 ) -> Result<Vec<StoredMessage>> {
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     let mut state = SessionState::default();
-    let _raw = RawModeGuard::acquire(vcr.is_live())?;
+    let _raw = RawModeGuard::acquire()?;
     renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: false });
 
     let mut append_system_prompt: Option<String> = None;
@@ -148,7 +148,7 @@ async fn handle_outcome<W: Write>(
                         resume: Some(session_id.clone()),
                         ..base_session_cfg.clone()
                     };
-                    event_loop::open_interactive_session(&interactive_cfg, ctx.io, ctx.vcr)?;
+                    event_loop::open_interactive_session(&interactive_cfg, ctx.io)?;
                     ctx.renderer.render_returned_from_interactive();
                     resume_after_pause(session_id, base_session_cfg, runner, state, ctx).await
                 }
@@ -165,6 +165,12 @@ async fn handle_outcome<W: Write>(
             resume_after_pause(session_id, base_session_cfg, runner, state, ctx).await
         }
         SessionOutcome::Reload { .. } => {
+            crate::session::persist::wait_if_needed(
+                state,
+                ctx.vcr,
+                base_session_cfg.working_dir.as_deref(),
+            )
+            .await;
             runner.kill().await?;
             let Some(session_id) = state.session_id.take() else {
                 return Ok(false);
@@ -215,8 +221,7 @@ async fn get_initial_runner<W: Write>(
             Ok(Some(runner))
         }
         Some(event_loop::WaitResult::Interactive) => {
-            let session_id =
-                event_loop::open_interactive_session(base_session_cfg, ctx.io, ctx.vcr)?;
+            let session_id = event_loop::open_interactive_session(base_session_cfg, ctx.io)?;
             ctx.renderer.render_returned_from_interactive();
             // The TUI created a session — wait for follow-up text to resume it.
             // (wait_for_interrupt_input handles further Ctrl+O presses internally.)

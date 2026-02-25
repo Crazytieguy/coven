@@ -13,6 +13,9 @@ pub struct SessionState {
     /// completes, instead of auto-continuing (ralph next iteration, worker
     /// next agent transition).
     pub wait_requested: bool,
+    /// Message ID (`msg_...`) of the most recent top-level assistant message.
+    /// Used to verify session file persistence before killing the process.
+    pub last_message_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

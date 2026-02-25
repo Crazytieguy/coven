@@ -106,6 +106,8 @@ pub struct AssistantMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssistantMessageBody {
     #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
     pub content: Vec<AssistantContentBlock>,
     #[serde(flatten)]
     _extra: Value,
