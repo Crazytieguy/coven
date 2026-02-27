@@ -33,6 +33,8 @@ pub enum SystemEvent {
     Other,
 }
 
+/// The init event also carries `cwd`, `permissionMode`, `claude_code_version`,
+/// `mcp_servers`, `plugins`, `agents`, `skills`, and more (silently ignored).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitEvent {
     #[serde(default)]
