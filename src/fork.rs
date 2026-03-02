@@ -30,10 +30,10 @@ impl ForkConfig {
         })
     }
 
-    /// CLI args to disallow the native Task tool when fork is enabled.
-    /// Fork is an alternative subagent model — Task is not needed.
+    /// CLI args to disallow the native subagent tools when fork is enabled.
+    /// Fork is an alternative subagent model — Task/Agent is not needed.
     pub fn disallowed_tool_args() -> [String; 2] {
-        ["--disallowed-tools".to_string(), "Task".to_string()]
+        ["--disallowed-tools".to_string(), "Task,Agent".to_string()]
     }
 }
 

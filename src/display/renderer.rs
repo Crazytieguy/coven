@@ -94,7 +94,7 @@ fn tool_name_from_label(label: &str) -> &str {
     label.find("] ").map_or(label, |pos| &label[pos + 2..])
 }
 
-/// Tracks an active subagent (Task tool call) for concurrent rendering.
+/// Tracks an active subagent (Task/Agent tool call) for concurrent rendering.
 struct ActiveSubagent {
     tool_number: usize,
     child_counter: usize,
@@ -840,8 +840,8 @@ impl<W: Write> Renderer<W> {
                         other => other,
                     };
                     self.render_tool_call_line(&name, &input, None);
-                    // Register Task tool calls as active subagents
-                    if name == "Task"
+                    // Register Task/Agent tool calls as active subagents
+                    if matches!(name.as_str(), "Task" | "Agent")
                         && let Some(id) = tool_use_id
                     {
                         self.active_subagents.insert(

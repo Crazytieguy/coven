@@ -71,7 +71,7 @@ pub fn format_tool_view(tool_name: &str, input: &Value) -> Option<String> {
             let query = get_str(input, "query")?;
             Some(query.to_string())
         }
-        "Task" => {
+        "Task" | "Agent" => {
             let desc = get_str(input, "description")?;
             let header = match get_str(input, "subagent_type") {
                 Some(agent_type) => format!("[{agent_type}] {desc}"),
@@ -126,7 +126,7 @@ pub fn format_tool_detail(name: &str, input: &Value) -> String {
                 None => first_line(cmd).to_string(),
             }
         }
-        "Task" => get_str(input, "description")
+        "Task" | "Agent" => get_str(input, "description")
             .unwrap_or_default()
             .to_string(),
         "WebFetch" => get_str(input, "url").unwrap_or_default().to_string(),
