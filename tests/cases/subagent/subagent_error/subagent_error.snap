@@ -3,21 +3,22 @@ source: tests/vcr_test.rs
 expression: result.display
 ---
 :N view message · type to steer · Ctrl+O interactive · Ctrl+C interrupt
-Session dccf4c6e-2792-4d85-9f29-bbc4f4997b2b (claude-haiku-4-5-20251001)
+Session 0d266755-516a-4a5f-91c0-700325f41119 (claude-haiku-4-5-20251001)
 
 [1] Thinking...
-[2] ▶ Task  Read README.md and nonexistent.txt in parallel
-  [2/1] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-  [2/2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/cove...
-        ✗ File does not exist.
+[2] ▶ Agent  Read README.md and nonexistent.txt in parallel
+  [2/1] ▶ Read  /tmp/coven-vcr-subagent_error/README.md
+  [2/2] ▶ Read  /tmp/coven-vcr-subagent_error/nonexistent.txt
+        ✗ File does not exist. Note: your current working directory is /tmp/c...
 [3] Thinking...
-Done! The subagent successfully made parallel Read calls to both files:
-- **README.md** was read successfully (contains "# Test Project" and description text)
-- **nonexistent.txt** returned an error as expected (file doesn't exist)
+Done! The subagent successfully read both files in parallel:
 
-Both Read calls were executed simultaneously in a single function_calls block.
+- **README.md**: Contains "Test Project" - a minimal project for testing
+- **nonexistent.txt**: File does not exist (returned an error as expected)
+
+The agent made both Read tool calls simultaneously in a single block, as requested.
 
 
-Done  $0.02 · 7.7s · 2 turns  (:N to view)
+Done  $0.02 · 8.2s · 2 turns  (:N to view)
 Enter follow up · :N view message · Ctrl+O interactive · Esc skip
 >
