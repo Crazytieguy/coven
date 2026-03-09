@@ -24,20 +24,22 @@ The native Claude Code TUI is resource-heavy, blocks on permission prompts, and 
 ## Quick Start
 
 ```bash
-coven "explain this codebase"             # single session — Alt+Enter to follow up
+coven "explain this codebase"             # single session
 coven ralph "pick one task from TODO.md, do it, check it off"
 coven init && coven worker                 # multi-agent orchestration from brief.md
 ```
+
+Pass flags to the underlying `claude` CLI after `--` (e.g. `coven "prompt" -- --resume SESSION_ID`).
 
 ## Commands
 
 ### `coven [PROMPT]`
 
-Interactive session. Streams tool calls and text, supports follow-ups (Alt+Enter), mid-stream steering (type while running), message inspection (`:N` to view message N), wait-for-input marking (Ctrl+W, for ralph/worker), native TUI access (Ctrl+O), and end session (Ctrl+D).
+Interactive session with streaming display. Supports follow-up messages, mid-stream steering, message inspection (`:N`), and dropping into the native Claude TUI (Ctrl+O).
 
 ### `coven ralph <PROMPT>`
 
-Loop Claude with fresh sessions — filesystem state persists between iterations. The model outputs `<break>reason</break>` to stop.
+Loop Claude: sends the same prompt in fresh sessions until the model outputs a `<break>` tag. The model can output `<wait-for-user>` to pause for human input before continuing; Ctrl+W also triggers a wait after the current turn.
 
 | Flag | Description |
 |------|-------------|
@@ -48,17 +50,17 @@ Loop Claude with fresh sessions — filesystem state persists between iterations
 
 ### `coven worker`
 
-Orchestration worker: generic agent loop. Creates a git worktree, runs agents that chain via `<next>` transitions, and sleeps when idle.
+Orchestration worker. Creates a git worktree, runs agents that chain via `<next>` transitions, and sleeps until new commits appear on main.
 
 | Flag | Description |
 |------|-------------|
 | `--branch NAME` | Worktree branch name (random if omitted) |
 | `--worktree-base DIR` | Base directory for worktrees (default: `~/.coven/worktrees`) |
-| `--no-wait` | Disable `<wait-for-user>` tag detection |
+| `--no-wait` | Disable `<wait-for-user>` tag detection (same as ralph) |
 
 ### `coven init`
 
-Set up orchestration for a project — creates `.coven/` directory (config, agent prompts, system doc, land script) and `brief.md`.
+Set up orchestration for a project. Creates `.coven/` directory with agent prompts and config, plus `brief.md` for tasks.
 
 ### `coven status` / `coven gc`
 
@@ -75,7 +77,7 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 - `--show-thinking` — stream thinking text inline instead of collapsing
 - `--fork` — let the model spawn parallel sub-sessions via `<fork>` tags
 - `--reload` — let the model reload claude via `<reload>` tags (preserves session)
-- `-- [ARGS]` — pass extra arguments to the claude CLI (e.g. `-- --permission-mode plan`)
+- `-- [ARGS]` — pass extra arguments to the claude CLI (e.g. `-- --resume SESSION_ID`)
 
 ## Orchestration
 
