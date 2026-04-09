@@ -137,6 +137,9 @@ pub struct Renderer<W: Write = io::Stdout> {
     current_tool_use_id: Option<String>,
     /// Indent width for content under the last-rendered tool call.
     last_tool_indent: usize,
+    /// Whether the last visible output was a tool call/result line.
+    /// Consumed by `stream_text` to insert a blank line before text.
+    had_tool_output: bool,
     /// Whether the session is currently compacting.
     compacting: bool,
     /// Display configuration.
@@ -180,6 +183,7 @@ impl<W: Write> Renderer<W> {
             active_fork: None,
             current_tool_use_id: None,
             last_tool_indent: 0,
+            had_tool_output: false,
             compacting: false,
             config: RendererConfig::default(),
             width: term_width(),
@@ -637,6 +641,7 @@ impl<W: Write> Renderer<W> {
             result: None,
         });
         self.active_fork = None;
+        self.had_tool_output = true;
         self.out.flush().ok();
     }
 
@@ -781,6 +786,7 @@ impl<W: Write> Renderer<W> {
             Print("\r\n"),
         )
         .ok();
+        self.had_tool_output = true;
     }
 
     /// Compute the indent string that aligns content under the last-rendered
@@ -794,6 +800,7 @@ impl<W: Write> Renderer<W> {
         if self.tool_line_open {
             queue!(self.out, Print("\r\n")).ok();
             self.tool_line_open = false;
+            self.had_tool_output = true;
         }
     }
 
@@ -807,6 +814,11 @@ impl<W: Write> Renderer<W> {
             let trimmed = text.trim_start_matches('\n');
             if trimmed.is_empty() {
                 return;
+            }
+            // Insert a blank line between tool output and assistant text.
+            if self.had_tool_output {
+                queue!(self.out, Print("\r\n")).ok();
+                self.had_tool_output = false;
             }
             self.text_streaming = true;
             trimmed
@@ -859,6 +871,7 @@ impl<W: Write> Renderer<W> {
                 let n = self.tool_counter;
                 if self.config.show_thinking && !content.is_empty() {
                     queue!(self.out, Print("\r\n\r\n")).ok();
+                    self.had_tool_output = false; // thinking already provides separation
                 }
                 self.messages.push(StoredMessage {
                     label: format!("[{n}] Thinking"),

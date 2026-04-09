@@ -11,6 +11,7 @@ Session fd6b5a86-78b4-49f1-8669-3b5c760ba1d2 (claude-haiku-4-5-20251001)
   [2/1] ▶ Read  /tmp/coven-vcr-parallel_subagent/README.md
   [3/1] ▶ Read  /tmp/coven-vcr-parallel_subagent/notes.txt
 [4] Thinking...
+
 ## Summary
 
 **README.md:** Contains minimal information describing this as a "Test Project" created for testing parallel subagent display functionality in coven.

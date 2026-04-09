@@ -12,10 +12,12 @@ I'll find all the Python files in this directory and read them one by one.
 Enter steer · Alt+Enter follow up · :N view message · Esc cancel
 ⤷ steering: count lines instead
 [3] Thinking...
+
 Now I'll read each file and provide summaries:
 
 [4] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
 [5] Thinking...
+
 I see you'd like me to count lines instead. Just to clarify - would you like me to:
 
 1. **Just count the lines** in each file (no summaries)?

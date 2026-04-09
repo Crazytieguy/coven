@@ -9,6 +9,7 @@ Session b1af3ffb-cbbd-4afb-8775-fa8013d19c01 (claude-haiku-4-5-20251001)
 [2] ▶ Agent  Read and summarize README.md
   [2/1] ▶ Read  /tmp/coven-vcr-subagent/README.md
 [3] Thinking...
+
 The subagent read README.md and summarized it as: **This is a minimal test project designed for testing subagent display in coven.**
 
 

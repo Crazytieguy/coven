@@ -13,6 +13,7 @@ Session d99b3d23-d808-4bb7-b950-ca31c75f2423 (claude-haiku-4-5-20251001)
 [1] Thinking...
 [2] ▶ Glob  hello.txt
 [3] Thinking...
+
 hello.txt does not exist, so I'll hand off to the greet agent.
 
 <next>
@@ -33,6 +34,7 @@ Session fce0786e-7b63-4e84-a4ef-e825ce44b2df (claude-haiku-4-5-20251001)
 [5] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
 [6] ▶ Bash  cd /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven...
 [7] Thinking...
+
 Done! I've created hello.txt with the content "Hello from coven worker!" and committed it.
 
 <next>
@@ -52,6 +54,7 @@ Session a4e30e7f-11c4-4ef5-8af8-1152f87c466f (claude-haiku-4-5-20251001)
 [8] Thinking...
 [9] ▶ Glob  hello.txt
 [10] Thinking...
+
 hello.txt already exists. All work is complete.
 
 <next>

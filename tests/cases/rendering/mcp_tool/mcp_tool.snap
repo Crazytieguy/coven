@@ -8,6 +8,7 @@ Session 9e47f367-ffab-494b-b2d1-7e0581bc0151 (claude-haiku-4-5-20251001)
 [1] Thinking...
 [2] ▶ llms-fetch-mcp:llms-fetch:fetch  https://docs.rs/tokio
 [3] Thinking...
+
 Done! I've fetched the tokio documentation from https://docs.rs/tokio. The content has been saved locally and covers:
 
 - **A Tour of Tokio** - Introduction and examples
