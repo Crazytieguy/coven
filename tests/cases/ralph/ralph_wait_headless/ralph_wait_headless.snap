@@ -1,0 +1,35 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+--- Iteration 1 ---
+
+Session 5628836a-c19d-4965-9119-9ff9bc9b0f2c (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+[2] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[3] Thinking...
+[4] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[5] Thinking...
+
+<wait-for-user>need human confirmation</wait-for-user>
+
+
+Done  $0.02 · 6.4s · 3 turns  (:N to view)
+  Total cost: $0.02
+
+--- Iteration 2 ---
+
+Session 24a11768-2ff1-4ef7-a1a1-dd567156f623 (claude-haiku-4-5-20251001)
+
+[6] Thinking...
+[7] ▶ Read  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/coven-vc...
+[8] Thinking...
+
+<break>loop complete</break>
+
+
+Done  $0.02 · 5.5s · 2 turns  (:N to view)
+  Total cost: $0.04
+
+Loop complete (2 iterations): loop complete

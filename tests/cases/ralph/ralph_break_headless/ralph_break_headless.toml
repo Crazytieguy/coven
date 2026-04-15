@@ -1,0 +1,6 @@
+[display]
+headless = true
+
+[ralph]
+prompt = "Say hi, then end with <break>done</break>"
+break_tag = "break"

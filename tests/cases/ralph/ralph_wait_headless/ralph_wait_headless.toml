@@ -1,0 +1,16 @@
+[display]
+headless = true
+
+[ralph]
+prompt = """
+Read marker.txt. If its content is exactly "first":
+  - Overwrite marker.txt with the word "second" (no newline, no quotes)
+  - End your response with <wait-for-user>need human confirmation</wait-for-user>
+If its content is exactly "second":
+  - End your response with <break>loop complete</break>
+Do nothing else.
+"""
+break_tag = "break"
+
+[files]
+"marker.txt" = "first"

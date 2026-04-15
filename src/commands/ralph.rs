@@ -15,7 +15,7 @@ use crate::vcr::{Io, VcrContext};
 use crate::session::event_loop::{self, SessionFeatures, SessionOutcome};
 use crate::transition::WAIT_FOR_USER_PROMPT;
 
-use super::{RawModeGuard, setup_display};
+use super::{RawModeGuard, render_initial_hints, setup_display};
 
 /// Tag-based features gated by CLI flags.
 pub struct TagFlags {
@@ -139,12 +139,16 @@ pub async fn ralph<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
-    let _raw = RawModeGuard::acquire()?;
+    // Headless: force-disable wait-for-user. There's no human to respond,
+    // so the model must not be told the feature exists, and any tag it
+    // emits anyway must be ignored rather than "dismissed" silently.
+    if io.is_headless() {
+        config.no_wait = true;
+    }
+    let _raw = RawModeGuard::acquire(io)?;
 
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Initial {
-        has_wait: !config.no_wait,
-    });
+    render_initial_hints(&mut renderer, io, !config.no_wait);
     let system_prompt = config.system_prompt();
     if config.tag_flags.fork {
         config.extra_args.extend(ForkConfig::disallowed_tool_args());

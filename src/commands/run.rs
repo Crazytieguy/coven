@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
@@ -13,7 +13,7 @@ use crate::vcr::{Io, VcrContext};
 
 use crate::session::event_loop::{self, FollowUpAction, SessionFeatures, SessionOutcome};
 
-use super::{RawModeGuard, setup_display};
+use super::{RawModeGuard, render_initial_hints, setup_display};
 
 pub struct RunConfig {
     pub prompt: Option<String>,
@@ -40,10 +40,13 @@ pub async fn run<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<Vec<StoredMessage>> {
+    if config.prompt.is_none() && io.is_headless() {
+        bail!("a prompt is required when stdin is not a terminal");
+    }
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
     let mut state = SessionState::default();
-    let _raw = RawModeGuard::acquire()?;
-    renderer.render_hints(crate::display::renderer::HintContext::Initial { has_wait: false });
+    let _raw = RawModeGuard::acquire(io)?;
+    render_initial_hints(&mut renderer, io, false);
 
     let mut append_system_prompt: Option<String> = None;
     if config.fork {

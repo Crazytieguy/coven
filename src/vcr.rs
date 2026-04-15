@@ -353,6 +353,17 @@ pub struct Io {
     /// Gate for pausing/resuming the background terminal reader.
     /// `Some` in live mode, `None` for dummy/replay.
     term_gate: Option<tokio::sync::watch::Sender<bool>>,
+    /// `Some` in headless mode (no tty). Keeps the `term_rx` channel open
+    /// so `next_event` can park on it instead of seeing it as closed —
+    /// otherwise the `tokio::select!` would resolve `ProcessExit` on every
+    /// poll. Also serves as the source of truth for `is_headless()`.
+    term_tx_keepalive: Option<mpsc::UnboundedSender<Event>>,
+    /// True only when this `Io` was built from a real tty stdin — tracked
+    /// separately from `is_headless()` because test `Io::dummy()` is
+    /// non-headless (so session logic renders hints and follow-up prompts
+    /// for snapshots) but still has no physical tty, so raw mode can't
+    /// actually be enabled. `RawModeGuard` checks this flag.
+    has_tty_stdin: bool,
 }
 
 impl Io {
@@ -365,6 +376,8 @@ impl Io {
             term_rx,
             idle_tx: None,
             term_gate: None,
+            term_tx_keepalive: None,
+            has_tty_stdin: false,
         }
     }
 
@@ -377,7 +390,44 @@ impl Io {
             term_rx: rx2,
             idle_tx: None,
             term_gate: None,
+            term_tx_keepalive: None,
+            has_tty_stdin: false,
         }
+    }
+
+    /// Like `dummy`, but with `is_headless()` returning true — for tests
+    /// that cover headless (no tty stdin) code paths.
+    pub fn dummy_headless() -> Self {
+        let (_tx1, rx1) = mpsc::unbounded_channel();
+        let (tx2, rx2) = mpsc::unbounded_channel();
+        Self {
+            event_rx: rx1,
+            term_rx: rx2,
+            idle_tx: None,
+            term_gate: None,
+            term_tx_keepalive: Some(tx2),
+            has_tty_stdin: false,
+        }
+    }
+
+    /// Mark this `Io` as headless (no tty stdin) by stashing the `term_tx`
+    /// sender. See `term_tx_keepalive` for the rationale.
+    pub fn set_term_tx_keepalive(&mut self, tx: mpsc::UnboundedSender<Event>) {
+        self.term_tx_keepalive = Some(tx);
+    }
+
+    /// Mark that this `Io` was built from a real tty stdin. Only production
+    /// live mode should call this; tests and recordings leave it false.
+    pub fn set_has_tty_stdin(&mut self) {
+        self.has_tty_stdin = true;
+    }
+
+    pub fn is_headless(&self) -> bool {
+        self.term_tx_keepalive.is_some()
+    }
+
+    pub fn has_tty_stdin(&self) -> bool {
+        self.has_tty_stdin
     }
 
     /// Get the next event from either the Claude process or the terminal.
@@ -677,6 +727,11 @@ pub struct DisplayConfig {
     /// Whether to stream thinking text inline.
     #[serde(default)]
     pub show_thinking: bool,
+    /// Run the test as if stdin is not a terminal (no tty). The test runner
+    /// and recorder construct an `Io` where `is_headless()` is true, which
+    /// exercises the same code paths production headless invocations take.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// CLI configuration for a standard run (mirrors coven's CLI args).

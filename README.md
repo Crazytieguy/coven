@@ -79,6 +79,8 @@ All session commands (`coven`, `ralph`, `worker`) accept:
 - `--reload` — let the model reload claude via `<reload>` tags (preserves session)
 - `-- [ARGS]` — pass extra arguments to the claude CLI (e.g. `-- --resume SESSION_ID`)
 
+When stdin isn't a terminal (scripts, CI, piped input), coven runs headlessly: no hints, no follow-up prompt, and `<wait-for-user>` is disabled. `coven` without a prompt errors in this mode.
+
 ## Orchestration
 
 `coven init` + `coven worker` enable multi-agent orchestration. Write tasks in `brief.md`, then start workers:

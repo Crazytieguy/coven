@@ -100,7 +100,11 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
 
     let vcr_content = std::fs::read_to_string(&vcr_path).expect("Failed to read VCR file");
     let vcr = VcrContext::replay(&vcr_content).expect("Failed to parse VCR file");
-    let mut io = Io::dummy();
+    let mut io = if case.display.headless {
+        Io::dummy_headless()
+    } else {
+        Io::dummy()
+    };
     let mut output = Vec::new();
     let views = case.views.clone();
 
@@ -392,6 +396,7 @@ macro_rules! multi_vcr_test {
 
 // Session: core session lifecycle
 vcr_test!(session / simple_qa);
+vcr_test!(session / simple_qa_headless);
 vcr_test!(session / multi_turn);
 vcr_test!(session / steering);
 vcr_test!(session / interrupt_resume);
@@ -418,6 +423,8 @@ vcr_test!(fork / fork_single);
 
 // Ralph: loop mode
 vcr_test!(ralph / ralph_break);
+vcr_test!(ralph / ralph_break_headless);
+vcr_test!(ralph / ralph_wait_headless);
 vcr_test!(ralph / ralph_no_wait);
 vcr_test!(ralph / ralph_continue);
 vcr_test!(ralph / ralph_immediate_break);

@@ -122,71 +122,87 @@ fn install_panic_hook() {
 
 /// Create a live `Io` and `VcrContext` for production use.
 ///
-/// Spawns a background task that reads crossterm events and forwards them
-/// to the terminal event channel. The event channel starts empty — the first
-/// `SessionRunner::spawn` should provide claude events via `io.replace_event_channel()`.
+/// In a terminal, spawns a background task that reads crossterm events and
+/// forwards them to the terminal event channel. In headless mode (no tty),
+/// the spawn is skipped — `crossterm::EventStream::new()` panics with
+/// "reader source not set" when there's no tty — and `term_tx` is stashed
+/// on `Io` to keep the channel open (so `term_rx.recv()` blocks instead of
+/// resolving `None`, which would trip the `ProcessExit` branch in
+/// `Io::next_event`).
+///
+/// The event channel starts empty — the first `SessionRunner::spawn`
+/// should provide claude events via `io.replace_event_channel()`.
 fn create_live_io() -> (Io, VcrContext) {
+    use std::io::IsTerminal;
+
     use crossterm::event::EventStream;
     use futures::StreamExt;
     use tokio::sync::{mpsc, watch};
 
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
-    let (gate_tx, mut gate_rx) = watch::channel(true);
+    let mut io = Io::new(event_rx, term_rx);
 
-    // Background task: forward crossterm events to the channel.
-    // Respects the pause gate — when paused, drops the EventStream to
-    // release stdin (and its internal parser state), then waits for the
-    // gate to become true and recreates the stream fresh.
-    //
-    // Uses `tokio::select!` so the gate change is noticed immediately,
-    // even while blocked in `stream.next()`. Without this, the reader
-    // would hold the EventStream (and compete for stdin) until the next
-    // terminal event arrives — causing stale parser state that can
-    // swallow the first character typed after returning from a child
-    // process (e.g. the native Claude TUI via Ctrl+O).
-    tokio::spawn(async move {
-        let mut stream = EventStream::new();
-        loop {
-            tokio::select! {
-                result = stream.next() => {
-                    match result {
-                        Some(Ok(event)) => {
-                            if term_tx.send(event).is_err() {
-                                return;
+    if std::io::stdin().is_terminal() {
+        let (gate_tx, mut gate_rx) = watch::channel(true);
+
+        // Background task: forward crossterm events to the channel.
+        // Respects the pause gate — when paused, drops the EventStream to
+        // release stdin (and its internal parser state), then waits for the
+        // gate to become true and recreates the stream fresh.
+        //
+        // Uses `tokio::select!` so the gate change is noticed immediately,
+        // even while blocked in `stream.next()`. Without this, the reader
+        // would hold the EventStream (and compete for stdin) until the next
+        // terminal event arrives — causing stale parser state that can
+        // swallow the first character typed after returning from a child
+        // process (e.g. the native Claude TUI via Ctrl+O).
+        tokio::spawn(async move {
+            let mut stream = EventStream::new();
+            loop {
+                tokio::select! {
+                    result = stream.next() => {
+                        match result {
+                            Some(Ok(event)) => {
+                                if term_tx.send(event).is_err() {
+                                    return;
+                                }
                             }
+                            Some(Err(_)) | None => return,
                         }
-                        Some(Err(_)) | None => return,
                     }
-                }
-                result = gate_rx.changed() => {
-                    if result.is_err() {
-                        return; // gate sender dropped, shut down
-                    }
-                    if !*gate_rx.borrow() {
-                        // Paused: drop the stream to release stdin
-                        drop(stream);
-                        // Wait for resume signal
-                        loop {
-                            if gate_rx.changed().await.is_err() {
-                                return;
-                            }
-                            if *gate_rx.borrow() {
-                                break;
-                            }
+                    result = gate_rx.changed() => {
+                        if result.is_err() {
+                            return; // gate sender dropped, shut down
                         }
-                        // Recreate the stream after resuming
-                        stream = EventStream::new();
+                        if !*gate_rx.borrow() {
+                            // Paused: drop the stream to release stdin
+                            drop(stream);
+                            // Wait for resume signal
+                            loop {
+                                if gate_rx.changed().await.is_err() {
+                                    return;
+                                }
+                                if *gate_rx.borrow() {
+                                    break;
+                                }
+                            }
+                            // Recreate the stream after resuming
+                            stream = EventStream::new();
+                        }
                     }
                 }
             }
-        }
-    });
+        });
+        io.set_term_gate(gate_tx);
+        io.set_has_tty_stdin();
+    } else {
+        io.set_term_tx_keepalive(term_tx);
+    }
 
-    let mut io = Io::new(event_rx, term_rx);
-    io.set_term_gate(gate_tx);
-    // Keep the event channel alive so recv() blocks instead of
-    // returning ProcessExit immediately (the sender was dropped above).
+    // Replace the event channel with one whose sender is kept alive,
+    // so `recv()` parks instead of returning `None` (which `next_event`
+    // would surface as `ProcessExit`) before the first session spawns.
     io.clear_event_channel();
     let vcr = VcrContext::live();
     (io, vcr)

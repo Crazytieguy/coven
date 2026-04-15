@@ -1,0 +1,11 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+Session ed2c03e3-608e-42f0-bd55-59fab995f62d (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+2 + 2 = 4
+
+
+Done  $0.04 · 2.3s · 1 turn  (:N to view)

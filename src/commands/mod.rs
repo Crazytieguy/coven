@@ -5,28 +5,36 @@ pub mod run;
 pub mod status;
 pub mod worker;
 
-use std::io::{IsTerminal, Write};
+use std::io::Write;
 use std::path::Path;
 
 use anyhow::Result;
 use crossterm::terminal;
 
 use crate::display::input::InputHandler;
-use crate::display::renderer::Renderer;
-use crate::vcr::VcrContext;
+use crate::display::renderer::{HintContext, Renderer};
+use crate::vcr::{Io, VcrContext};
+
+/// Render the initial keybinding hints unless we're headless (no tty stdin).
+pub(crate) fn render_initial_hints<W: Write>(renderer: &mut Renderer<W>, io: &Io, has_wait: bool) {
+    if !io.is_headless() {
+        renderer.render_hints(HintContext::Initial { has_wait });
+    }
+}
 
 /// Guard that disables terminal raw mode on drop.
 ///
-/// When `active` is true (real terminal), raw mode was enabled on creation
-/// and will be disabled on drop. When false (no tty), the guard is inert.
+/// When `active` is true, raw mode was enabled on creation and will be
+/// disabled on drop. When false (no real tty, e.g. headless production or
+/// any test), the guard is inert.
 pub(crate) struct RawModeGuard {
     active: bool,
 }
 
 impl RawModeGuard {
-    /// Enable raw mode if stdin is a terminal. Returns an inert guard otherwise.
-    pub fn acquire() -> Result<Self> {
-        if std::io::stdin().is_terminal() {
+    /// Enable raw mode only when `io` was built from a real tty stdin.
+    pub fn acquire(io: &Io) -> Result<Self> {
+        if io.has_tty_stdin() {
             terminal::enable_raw_mode()?;
             Ok(Self { active: true })
         } else {

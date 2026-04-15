@@ -1,0 +1,18 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+--- Iteration 1 ---
+
+Session 16434659-4f25-460c-8e43-59a489c095c8 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+Hi! 👋 Ready to help with whatever you need.
+
+<break>done</break>
+
+
+Done  $0.01 · 1.7s · 1 turn  (:N to view)
+  Total cost: $0.01
+
+Loop complete (1 iteration): done

@@ -270,9 +270,12 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
     let tmp_dir = setup_test_dir(name, &case)?;
     let (term_tx, term_rx) = mpsc::unbounded_channel();
     let (_event_tx, event_rx) = mpsc::unbounded_channel();
-    let controller = TriggerController::new(&case.messages, term_tx)?.with_auto_exit();
+    let controller = TriggerController::new(&case.messages, term_tx.clone())?.with_auto_exit();
     let vcr = VcrContext::record_with_triggers(controller);
     let mut io = Io::new(event_rx, term_rx);
+    if case.display.headless {
+        io.set_term_tx_keepalive(term_tx);
+    }
     let mut output = PrefixWriter::new(name);
 
     if case.is_worker() {

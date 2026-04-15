@@ -681,6 +681,9 @@ pub async fn wait_for_followup<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<FollowUpAction> {
+    if io.is_headless() {
+        return Ok(FollowUpAction::Exit);
+    }
     renderer.write_raw("\x07");
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
     match wait_for_text_input(input, renderer, false, io, vcr).await? {
@@ -705,6 +708,9 @@ pub async fn wait_for_user_input<W: Write>(
     io: &mut Io,
     vcr: &VcrContext,
 ) -> Result<Option<WaitResult>> {
+    if io.is_headless() {
+        return Ok(None);
+    }
     wait_for_text_input(input, renderer, true, io, vcr).await
 }
 
@@ -749,6 +755,13 @@ async fn wait_for_input_inner<W: Write>(
     session_id: &str,
     base_config: &SessionConfig,
 ) -> Result<Option<WaitInterruptResult>> {
+    // Headless: no way to receive user input. Return `Dismissed` so callers
+    // that distinguish "dismissed" from "exited" (ralph/worker) fall through
+    // and continue their loop. `wait_for_interrupt_input` already maps
+    // `Dismissed` to `None` for callers that treat it as exit.
+    if io.is_headless() {
+        return Ok(Some(WaitInterruptResult::Dismissed));
+    }
     io.clear_event_channel();
     vcr.call("idle", (), async |(): &()| Ok(())).await?;
     let interactive_config = SessionConfig {

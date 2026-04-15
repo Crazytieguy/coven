@@ -1,0 +1,5 @@
+[display]
+headless = true
+
+[run]
+prompt = "What is 2+2?"

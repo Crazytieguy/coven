@@ -23,7 +23,7 @@ use crate::worktree::{self, SpawnOptions};
 
 use crate::session::event_loop::{self, SessionFeatures, SessionOutcome};
 
-use super::{RawModeGuard, setup_display};
+use super::{RawModeGuard, render_initial_hints, setup_display};
 
 /// Shared mutable context threaded through worker phases.
 struct PhaseContext<'a, W: Write> {
@@ -82,6 +82,12 @@ pub async fn worker<W: Write>(
     vcr: &VcrContext,
     writer: W,
 ) -> Result<()> {
+    // Headless: force-disable wait-for-user. There's no human to respond,
+    // so the model must not be told the feature exists, and any tag it
+    // emits anyway must be ignored rather than "dismissed" silently.
+    if io.is_headless() {
+        config.no_wait = true;
+    }
     // Default to acceptEdits (same as other commands) unless the user
     // specified a permission mode. The user is expected to set up persistent
     // permissions for their project so agents can run unattended.
@@ -119,11 +125,9 @@ pub async fn worker<W: Write>(
         })
         .await??;
 
-    let raw = RawModeGuard::acquire()?;
+    let raw = RawModeGuard::acquire(io)?;
     let (mut renderer, mut input) = setup_display(writer, config.term_width, config.show_thinking);
-    renderer.render_hints(crate::display::renderer::HintContext::Initial {
-        has_wait: !config.no_wait,
-    });
+    render_initial_hints(&mut renderer, io, !config.no_wait);
 
     let wt_str = spawn_result.worktree_path.display().to_string();
 
