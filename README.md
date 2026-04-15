@@ -1,6 +1,6 @@
 # coven
 
-An oven for claude. A minimal streaming display and workflow runner for Claude Code's `-p` mode.
+An oven for claude. A minimal streaming display and workflow runner for Claude Code's `-p` mode. The native TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` for a lightweight display with follow-up messages, mid-stream steering, and looping workflows.
 
 ## Install
 
@@ -16,10 +16,6 @@ cargo install coven
 ```
 
 **Platform support:** macOS and Linux only.
-
-## Why?
-
-The native Claude Code TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` for a clean, lightweight display with follow-up messages, mid-stream steering, and looping workflows.
 
 ## Quick Start
 
@@ -43,10 +39,18 @@ Loop Claude: sends the same prompt in fresh sessions until the model outputs a `
 
 | Flag | Description |
 |------|-------------|
+| `--prompt-command CMD` | Shell command producing each iteration's prompt on stdout (env: `COVEN_ITERATION`, 1-based; non-zero exit ends loop). Replaces positional `PROMPT`. |
 | `--iterations N` | Max iterations (0 = infinite, default) |
 | `--break-tag TAG` | Custom break tag (default: `break`) |
-| `--no-break` | Disable break detection (requires `--iterations`) |
+| `--no-break` | Disable break detection (requires `--iterations` or `--prompt-command`) |
 | `--no-wait` | Disable `<wait-for-user>` tag detection |
+
+Walk a list of files, fresh session per file:
+
+```bash
+coven ralph --prompt-command \
+  'F=$(ls src/*.rs | sed -n "${COVEN_ITERATION}p"); [ -z "$F" ] && exit 1; echo "Improve $F and commit"'
+```
 
 ### `coven worker`
 

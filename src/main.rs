@@ -30,19 +30,23 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Some(Command::Ralph {
             prompt,
+            prompt_command,
             iterations,
             break_tag,
             no_break,
             no_wait,
             claude_opts,
         }) => {
-            if no_break && iterations == 0 {
-                anyhow::bail!("--no-break requires --iterations to prevent infinite looping");
+            if no_break && iterations == 0 && prompt_command.is_none() {
+                anyhow::bail!(
+                    "--no-break requires --iterations or --prompt-command to prevent infinite looping"
+                );
             }
+            let prompt_source = commands::ralph::PromptSource::from_cli(prompt, prompt_command)?;
             let (mut io, vcr) = create_live_io();
             commands::ralph::ralph(
                 commands::ralph::RalphConfig {
-                    prompt,
+                    prompt_source,
                     iterations,
                     break_tag,
                     no_break,

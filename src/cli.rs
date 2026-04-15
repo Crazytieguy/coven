@@ -45,8 +45,19 @@ pub enum Command {
     /// Run claude in a loop with filesystem state accumulation.
     Ralph {
         /// Prompt to send to claude on each iteration.
-        #[arg(value_name = "PROMPT")]
-        prompt: String,
+        #[arg(
+            value_name = "PROMPT",
+            required_unless_present = "prompt_command",
+            conflicts_with = "prompt_command"
+        )]
+        prompt: Option<String>,
+
+        /// Shell command that produces the prompt for each iteration on stdout.
+        ///
+        /// Receives `COVEN_ITERATION` in the environment (1-based). Non-zero
+        /// exit or empty stdout ends the loop cleanly.
+        #[arg(long, value_name = "CMD")]
+        prompt_command: Option<String>,
 
         /// Maximum number of iterations (0 = infinite).
         #[arg(long, default_value = "0")]
@@ -56,7 +67,7 @@ pub enum Command {
         #[arg(long, default_value = "break")]
         break_tag: String,
 
-        /// Disable break tag detection (requires --iterations to prevent infinite loop).
+        /// Disable break tag detection (requires --iterations or --prompt-command).
         #[arg(long)]
         no_break: bool,
 

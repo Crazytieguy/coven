@@ -20,7 +20,7 @@ See @README.md for user-facing documentation.
 - VCR tests aren't just for CLI functionality — orchestration tests are also evals that check how well models pilot the system given our prompts and agents. Improving prompts can be validated by re-recording and checking snapshot diffs.
 - Never add `#[allow(...)]` attributes or allow lint rules in `Cargo.toml` without verifying with the user
 - Never make security-relevant decisions without confirmation. This includes permission modes, authentication, access control, and anything that affects the trust boundary of the system. Always apply least-privilege: when granting permissions to spawned agents (e.g. in test fixtures), allow only the specific commands needed, never broad wildcards like `Bash(*)`.
-- Update README.md when adding/removing commands, changing flags, or altering user-facing behavior. Keep it under 100 lines.
+- Update README.md when adding/removing commands, changing flags, or altering user-facing behavior. Keep it concise.
 - Spawning `claude` from within Claude Code requires removing the `CLAUDECODE` env var first (`.env_remove("CLAUDECODE")`), otherwise the CLI rejects nested invocations. This is already handled in `SessionRunner::spawn` and the interactive resume path.
 
 ## Publishing

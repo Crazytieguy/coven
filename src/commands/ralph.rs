@@ -1,7 +1,8 @@
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 
 use crate::display::input::InputHandler;
 use crate::display::renderer::{Renderer, StoredMessage};
@@ -23,8 +24,31 @@ pub struct TagFlags {
     pub reload: bool,
 }
 
+/// Where each iteration's prompt comes from.
+pub enum PromptSource {
+    /// Same prompt every iteration.
+    Static(String),
+    /// Run this shell command (`sh -c <CMD>`) with `COVEN_ITERATION` set;
+    /// its stdout is the prompt. Non-zero exit or empty stdout ends the loop.
+    Command(String),
+}
+
+impl PromptSource {
+    /// Build a `PromptSource` from the two mutually-exclusive CLI/fixture
+    /// fields. `prompt_command` takes precedence when both are present.
+    pub fn from_cli(prompt: Option<String>, prompt_command: Option<String>) -> Result<Self> {
+        match (prompt, prompt_command) {
+            (_, Some(cmd)) => Ok(PromptSource::Command(cmd)),
+            (Some(p), None) => Ok(PromptSource::Static(p)),
+            (None, None) => {
+                anyhow::bail!("ralph needs a positional prompt or --prompt-command")
+            }
+        }
+    }
+}
+
 pub struct RalphConfig {
-    pub prompt: String,
+    pub prompt_source: PromptSource,
     pub iterations: u32,
     pub break_tag: String,
     pub no_break: bool,
@@ -57,9 +81,9 @@ impl RalphConfig {
         prompt
     }
 
-    fn session_config(&self, system_prompt: &str) -> SessionConfig {
+    fn session_config(&self, system_prompt: &str, prompt: String) -> SessionConfig {
         SessionConfig {
-            prompt: Some(self.prompt.clone()),
+            prompt: Some(prompt),
             extra_args: self.extra_args.clone(),
             append_system_prompt: Some(system_prompt.to_string()),
             working_dir: self.working_dir.clone(),
@@ -97,6 +121,99 @@ impl RalphConfig {
 /// Scan response text for `<tag>reason</tag>` and return the reason if found.
 fn scan_break_tag(text: &str, tag: &str) -> Option<String> {
     extract_tag_inner(text, tag).map(|s| s.trim().to_string())
+}
+
+/// Recorded output of running the prompt command once.
+#[derive(Debug, Serialize, Deserialize)]
+struct PromptCommandOutput {
+    stdout: String,
+    stderr: String,
+    exit_code: i32,
+}
+
+/// Arguments recorded for a prompt command invocation. `working_dir` is
+/// deliberately excluded so the recorded tuple doesn't diverge between
+/// record (which passes `Some(tmp_dir)`) and replay (which may not).
+#[derive(Debug, Serialize, Deserialize)]
+struct PromptCommandArgs {
+    command: String,
+    iteration: u32,
+}
+
+/// Result of asking the prompt source for the next iteration's prompt.
+enum PromptResolution {
+    /// Use this prompt for the next iteration.
+    Prompt(String),
+    /// Stop the loop; `reason` is shown to the user.
+    Exhausted(String),
+}
+
+/// Resolve the prompt for the current iteration.
+async fn resolve_prompt(
+    source: &PromptSource,
+    iteration: u32,
+    working_dir: Option<&Path>,
+    vcr: &VcrContext,
+) -> Result<PromptResolution> {
+    match source {
+        PromptSource::Static(s) => Ok(PromptResolution::Prompt(s.clone())),
+        PromptSource::Command(cmd) => {
+            let args = PromptCommandArgs {
+                command: cmd.clone(),
+                iteration,
+            };
+            let output = vcr
+                .call("prompt_command", args, async |a: &PromptCommandArgs| {
+                    run_prompt_command(&a.command, a.iteration, working_dir).await
+                })
+                .await?;
+            Ok(interpret_prompt_command(&output))
+        }
+    }
+}
+
+async fn run_prompt_command(
+    command: &str,
+    iteration: u32,
+    working_dir: Option<&Path>,
+) -> Result<PromptCommandOutput> {
+    let mut cmd = tokio::process::Command::new("sh");
+    cmd.arg("-c")
+        .arg(command)
+        .env("COVEN_ITERATION", iteration.to_string());
+    if let Some(dir) = working_dir {
+        cmd.current_dir(dir);
+    }
+    let output = cmd
+        .output()
+        .await
+        .with_context(|| format!("failed to spawn prompt command: {command}"))?;
+    Ok(PromptCommandOutput {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        exit_code: output.status.code().unwrap_or(-1),
+    })
+}
+
+fn interpret_prompt_command(output: &PromptCommandOutput) -> PromptResolution {
+    if output.exit_code != 0 {
+        let stderr = output.stderr.trim();
+        let reason = if stderr.is_empty() {
+            format!("prompt command exited with status {}", output.exit_code)
+        } else {
+            format!(
+                "prompt command exited with status {}: {stderr}",
+                output.exit_code
+            )
+        };
+        return PromptResolution::Exhausted(reason);
+    }
+    let trimmed = output.stdout.trim();
+    if trimmed.is_empty() {
+        PromptResolution::Exhausted("prompt command produced no output".to_string())
+    } else {
+        PromptResolution::Prompt(trimmed.to_string())
+    }
 }
 
 /// Build the ralph system prompt for the given break tag.
@@ -158,14 +275,7 @@ pub async fn ralph<W: Write>(
         &config.extra_args,
         &config.working_dir,
     );
-    let session_config = config.session_config(&system_prompt);
     let watched_tags = config.watched_tags();
-    let features = SessionFeatures {
-        fork_config: fork_config.as_ref(),
-        reload_enabled: config.tag_flags.reload,
-        base_config: &session_config,
-        watched_tags,
-    };
 
     let mut ctx = Ctx {
         input: &mut input,
@@ -179,7 +289,7 @@ pub async fn ralph<W: Write>(
         total_cost: 0.0,
     };
 
-    'outer: loop {
+    loop {
         iter.iteration += 1;
         if config.iterations > 0 && iter.iteration > config.iterations {
             ctx.renderer.write_raw(&format!(
@@ -188,56 +298,38 @@ pub async fn ralph<W: Write>(
             ));
             break;
         }
+
+        let prompt = match resolve_prompt(
+            &config.prompt_source,
+            iter.iteration,
+            config.working_dir.as_deref(),
+            ctx.vcr,
+        )
+        .await?
+        {
+            PromptResolution::Prompt(p) => p,
+            PromptResolution::Exhausted(reason) => {
+                ctx.renderer
+                    .write_raw(&format!("\r\nPrompt source exhausted: {reason}\r\n"));
+                break;
+            }
+        };
+
         ctx.renderer
             .write_raw(&format!("\r\n--- Iteration {} ---\r\n\r\n", iter.iteration));
 
-        let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
-        let mut state = SessionState::default();
+        let session_config = config.session_config(&system_prompt, prompt);
+        let features = SessionFeatures {
+            fork_config: fork_config.as_ref(),
+            reload_enabled: config.tag_flags.reload,
+            base_config: &session_config,
+            watched_tags: watched_tags.clone(),
+        };
+
         iter.iteration_cost = 0.0;
-
-        loop {
-            let outcome = event_loop::run_session(
-                &mut runner,
-                &mut state,
-                ctx.renderer,
-                ctx.input,
-                ctx.io,
-                ctx.vcr,
-                &features,
-            )
-            .await?;
-            // Wait for session file persistence before killing, so the
-            // session can be safely resumed. Skip for interrupts/exits.
-            if matches!(
-                outcome,
-                SessionOutcome::Completed { .. } | SessionOutcome::Reload { .. }
-            ) {
-                crate::session::persist::wait_if_needed(
-                    &state,
-                    ctx.vcr,
-                    config.working_dir.as_deref(),
-                )
-                .await;
-            }
-            runner.kill().await?;
-
-            match handle_session_outcome(
-                outcome,
-                &mut state,
-                &mut iter,
-                &session_config,
-                &config,
-                &mut ctx,
-            )
-            .await?
-            {
-                LoopAction::NextIteration => break,
-                LoopAction::Resume(new_runner, new_state) => {
-                    runner = *new_runner;
-                    state = new_state;
-                }
-                LoopAction::Exit => break 'outer,
-            }
+        match run_iteration(&session_config, &features, &config, &mut iter, &mut ctx).await? {
+            IterationResult::Next => continue,
+            IterationResult::Exit => break,
         }
     }
 
@@ -252,6 +344,55 @@ enum LoopAction {
     Resume(Box<SessionRunner>, SessionState),
     /// Exit the ralph loop entirely.
     Exit,
+}
+
+enum IterationResult {
+    Next,
+    Exit,
+}
+
+async fn run_iteration<W: Write>(
+    session_config: &SessionConfig,
+    features: &SessionFeatures<'_>,
+    config: &RalphConfig,
+    iter: &mut IterState,
+    ctx: &mut Ctx<'_, W>,
+) -> Result<IterationResult> {
+    let mut runner = event_loop::spawn_session(session_config.clone(), ctx.io, ctx.vcr).await?;
+    let mut state = SessionState::default();
+
+    loop {
+        let outcome = event_loop::run_session(
+            &mut runner,
+            &mut state,
+            ctx.renderer,
+            ctx.input,
+            ctx.io,
+            ctx.vcr,
+            features,
+        )
+        .await?;
+        // Wait for session file persistence before killing, so the session
+        // can be safely resumed. Skip for interrupts/exits.
+        if matches!(
+            outcome,
+            SessionOutcome::Completed { .. } | SessionOutcome::Reload { .. }
+        ) {
+            crate::session::persist::wait_if_needed(&state, ctx.vcr, config.working_dir.as_deref())
+                .await;
+        }
+        runner.kill().await?;
+
+        match handle_session_outcome(outcome, &mut state, iter, session_config, config, ctx).await?
+        {
+            LoopAction::NextIteration => return Ok(IterationResult::Next),
+            LoopAction::Resume(new_runner, new_state) => {
+                runner = *new_runner;
+                state = new_state;
+            }
+            LoopAction::Exit => return Ok(IterationResult::Exit),
+        }
+    }
 }
 
 /// Process a session outcome: handle completion (wait-for-user, break tag),
@@ -432,5 +573,52 @@ mod tests {
     fn scan_break_tag_partial() {
         let text = "Found <break> but no closing tag";
         assert_eq!(scan_break_tag(text, "break"), None);
+    }
+
+    fn out(stdout: &str, stderr: &str, exit_code: i32) -> PromptCommandOutput {
+        PromptCommandOutput {
+            stdout: stdout.to_string(),
+            stderr: stderr.to_string(),
+            exit_code,
+        }
+    }
+
+    #[test]
+    fn interpret_success_trims_stdout() {
+        match interpret_prompt_command(&out("  hello world  \n", "", 0)) {
+            PromptResolution::Prompt(p) => assert_eq!(p, "hello world"),
+            PromptResolution::Exhausted(_) => panic!("expected Prompt"),
+        }
+    }
+
+    #[test]
+    fn interpret_empty_stdout_is_exhausted() {
+        match interpret_prompt_command(&out("   \n\n", "", 0)) {
+            PromptResolution::Exhausted(reason) => {
+                assert!(reason.contains("no output"), "got: {reason}");
+            }
+            PromptResolution::Prompt(_) => panic!("expected Exhausted"),
+        }
+    }
+
+    #[test]
+    fn interpret_nonzero_exit_is_exhausted_with_stderr() {
+        match interpret_prompt_command(&out("", "boom\n", 1)) {
+            PromptResolution::Exhausted(reason) => {
+                assert!(reason.contains("status 1"), "got: {reason}");
+                assert!(reason.contains("boom"), "got: {reason}");
+            }
+            PromptResolution::Prompt(_) => panic!("expected Exhausted"),
+        }
+    }
+
+    #[test]
+    fn interpret_nonzero_exit_without_stderr() {
+        match interpret_prompt_command(&out("", "", 2)) {
+            PromptResolution::Exhausted(reason) => {
+                assert_eq!(reason, "prompt command exited with status 2");
+            }
+            PromptResolution::Prompt(_) => panic!("expected Exhausted"),
+        }
     }
 }

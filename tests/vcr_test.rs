@@ -145,9 +145,14 @@ async fn run_vcr_test(theme: &str, name: &str) -> TestResult {
         if !extra_args.iter().any(|a| a == "--model") {
             extra_args.extend(["--model".to_string(), default_model.to_string()]);
         }
+        let prompt_source = coven::commands::ralph::PromptSource::from_cli(
+            ralph_config.prompt.clone(),
+            ralph_config.prompt_command.clone(),
+        )
+        .expect("ralph fixture needs `prompt` or `prompt_command`");
         coven::commands::ralph::ralph(
             coven::commands::ralph::RalphConfig {
-                prompt: ralph_config.prompt.clone(),
+                prompt_source,
                 iterations: 10,
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
@@ -428,6 +433,7 @@ vcr_test!(ralph / ralph_wait_headless);
 vcr_test!(ralph / ralph_no_wait);
 vcr_test!(ralph / ralph_continue);
 vcr_test!(ralph / ralph_immediate_break);
+vcr_test!(ralph / ralph_prompt_command);
 
 // Orchestration: worker, init, status, gc
 vcr_test!(orchestration / worker_basic);

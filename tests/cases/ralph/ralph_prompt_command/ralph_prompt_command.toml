@@ -1,0 +1,14 @@
+[ralph]
+prompt_command = "sh prompt_gen.sh"
+break_tag = "break"
+
+[files]
+"prompt_gen.sh" = """#!/bin/sh
+# Emit a fresh prompt each iteration; exit 1 when out of tasks so the loop
+# ends cleanly without needing a <break> tag from the model.
+case "$COVEN_ITERATION" in
+  1) echo "Create hello.txt containing the single word 'hi'." ;;
+  2) echo "Create goodbye.txt containing the single word 'bye'." ;;
+  *) exit 1 ;;
+esac
+"""

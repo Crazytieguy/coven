@@ -1,0 +1,35 @@
+---
+source: tests/vcr_test.rs
+expression: result.display
+---
+:N view message · type to steer · Ctrl+W wait · Ctrl+O interactive · Ctrl+C interrupt
+
+--- Iteration 1 ---
+
+Session 165bdb70-639b-446b-9ee0-afcfe0649188 (claude-haiku-4-5-20251001)
+
+[1] Thinking...
+[2] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[3] Thinking...
+
+Done! Created hello.txt with the content 'hi'.
+
+
+Done  $0.05 · 6.0s · 2 turns  (:N to view)
+  Total cost: $0.05
+
+--- Iteration 2 ---
+
+Session d2339161-015d-4017-9e1f-1321f41356f6 (claude-haiku-4-5-20251001)
+
+[4] Thinking...
+[5] ▶ Write  (+1)  /private/var/folders/21/3gpj27c974j5vc436plct78w0000gn/T/c...
+[6] Thinking...
+
+Done. Created `goodbye.txt` with the contents `bye`.
+
+
+Done  $0.02 · 5.6s · 2 turns  (:N to view)
+  Total cost: $0.07
+
+Prompt source exhausted: prompt command exited with status 1

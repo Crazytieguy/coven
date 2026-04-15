@@ -753,8 +753,12 @@ pub struct RunConfig {
 /// CLI configuration for ralph loop mode (mirrors coven's ralph subcommand args).
 #[derive(Deserialize)]
 pub struct RalphConfig {
-    /// Prompt to send on each iteration.
-    pub prompt: String,
+    /// Prompt to send on each iteration (mutually exclusive with `prompt_command`).
+    #[serde(default)]
+    pub prompt: Option<String>,
+    /// Shell command that produces the prompt for each iteration.
+    #[serde(default)]
+    pub prompt_command: Option<String>,
     /// Tag that signals loop completion.
     #[serde(default = "default_break_tag")]
     pub break_tag: String,

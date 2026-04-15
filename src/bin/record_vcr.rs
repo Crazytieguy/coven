@@ -307,9 +307,13 @@ async fn record_case(case_dir: &Path, name: &str) -> Result<()> {
         let ralph_config = case.ralph.as_ref().context("ralph config missing")?;
         let mut extra_args = ralph_config.claude_args.clone();
         ensure_model_arg(&mut extra_args);
+        let prompt_source = commands::ralph::PromptSource::from_cli(
+            ralph_config.prompt.clone(),
+            ralph_config.prompt_command.clone(),
+        )?;
         commands::ralph::ralph(
             commands::ralph::RalphConfig {
-                prompt: ralph_config.prompt.clone(),
+                prompt_source,
                 iterations: 10, // safety limit for recording
                 break_tag: ralph_config.break_tag.clone(),
                 no_break: false,
