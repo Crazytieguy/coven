@@ -1,5 +1,7 @@
 # coven
 
+> **⚠️ Unmaintained.** This project is no longer maintained and has not kept up with changes to the Claude Code CLI. The last version it was developed and tested against is **Claude Code 2.1.109** (April 2026). Later versions may partly work, but nothing is guaranteed.
+
 An oven for claude. A minimal streaming display and workflow runner for Claude Code's `-p` mode. The native TUI is resource-heavy, blocks on permission prompts, and doesn't support custom workflows. Coven wraps `claude -p --output-format stream-json` for a lightweight display with follow-up messages, mid-stream steering, and looping workflows.
 
 ## Install
